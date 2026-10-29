@@ -1,0 +1,190 @@
+{
+  "source": "aqdar-ui-v2 mockups \u2014 visual contract for E2E",
+  "mobile": {
+    "file": "flutter.html",
+    "ids": [
+      "APP-01",
+      "APP-02",
+      "APP-03",
+      "APP-04",
+      "APP-05",
+      "APP-06",
+      "APP-07",
+      "APP-08",
+      "APP-09",
+      "APP-10",
+      "APP-11",
+      "APP-12",
+      "APP-13",
+      "APP-14",
+      "APP-15",
+      "APP-16",
+      "APP-17",
+      "APP-18",
+      "APP-19",
+      "APP-20",
+      "APP-21",
+      "APP-22",
+      "APP-23",
+      "APP-24",
+      "APP-25",
+      "APP-26",
+      "APP-27",
+      "APP-28",
+      "APP-29",
+      "APP-30",
+      "APP-31",
+      "APP-32",
+      "APP-33",
+      "APP-34",
+      "APP-35",
+      "APP-36",
+      "APP-37",
+      "APP-38",
+      "APP-39",
+      "APP-40",
+      "APP-41"
+    ]
+  },
+  "dashboard": {
+    "file": "dashboard.html",
+    "ids": [
+      "ADM-01",
+      "ADM-02",
+      "ADM-03",
+      "ADM-04",
+      "ADM-05",
+      "ADM-06",
+      "ADM-07",
+      "ADM-08",
+      "ADM-09",
+      "ADM-10",
+      "ADM-11",
+      "ADM-12",
+      "ADM-13",
+      "ADM-14",
+      "ADM-15"
+    ]
+  },
+  "theme": {
+    "dashboard_css": "ui.css",
+    "hub_css": "styles.css",
+    "hub_html": "index.html"
+  },
+  "phases": {
+    "1": {
+      "mobile": [
+        "APP-01",
+        "APP-02",
+        "APP-03",
+        "APP-21",
+        "APP-38"
+      ],
+      "dashboard": [
+        "ADM-01",
+        "ADM-04",
+        "ADM-06"
+      ]
+    },
+    "2": {
+      "mobile": [
+        "APP-04",
+        "APP-05",
+        "APP-13",
+        "APP-22",
+        "APP-34"
+      ],
+      "dashboard": [
+        "ADM-05",
+        "ADM-11",
+        "ADM-15"
+      ]
+    },
+    "3": {
+      "mobile": [
+        "APP-04",
+        "APP-05",
+        "APP-06",
+        "APP-07",
+        "APP-08",
+        "APP-09",
+        "APP-10",
+        "APP-11",
+        "APP-23",
+        "APP-24",
+        "APP-25",
+        "APP-26",
+        "APP-27",
+        "APP-28",
+        "APP-29",
+        "APP-30",
+        "APP-31"
+      ],
+      "dashboard": [
+        "ADM-02"
+      ]
+    },
+    "4": {
+      "mobile": [
+        "APP-24",
+        "APP-25",
+        "APP-30",
+        "APP-36"
+      ],
+      "dashboard": [
+        "ADM-02",
+        "ADM-03"
+      ]
+    },
+    "5": {
+      "mobile": [
+        "APP-15",
+        "APP-16",
+        "APP-18",
+        "APP-33",
+        "APP-41"
+      ],
+      "dashboard": [
+        "ADM-07"
+      ]
+    },
+    "6": {
+      "mobile": [
+        "APP-17",
+        "APP-19",
+        "APP-20"
+      ],
+      "dashboard": [
+        "ADM-08",
+        "ADM-09"
+      ]
+    },
+    "7": {
+      "mobile": [
+        "APP-32"
+      ],
+      "dashboard": [
+        "ADM-10"
+      ]
+    },
+    "8": {
+      "mobile": [
+        "APP-14",
+        "APP-35",
+        "APP-37"
+      ],
+      "dashboard": [
+        "ADM-11"
+      ]
+    },
+    "9": {
+      "mobile": [],
+      "dashboard": [
+        "ADM-01",
+        "ADM-12",
+        "ADM-13",
+        "ADM-14"
+      ]
+    }
+  }
+}

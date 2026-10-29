@@ -1,0 +1,92 @@
+# Production Docker Compose — nginx LB, Redis, Horizon, horizontal app scale
+#
+# Usage:
+#   export DOCKER_IMAGE=ghcr.io/your-org/aqdar-backend:latest
+#   docker compose -f docker-compose.prod.yml up -d --scale app=3
+
+name: aqdar-backend-prod
+
+services:
+  app:
+    image: ${DOCKER_IMAGE:-ghcr.io/your-org/aqdar-backend:latest}
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+    restart: always
+    env_file:
+      - .env.production
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - aqdar
+
+  nginx:
+    build:
+      context: .
+      dockerfile: docker/nginx/Dockerfile.prod
+      args:
+        APP_IMAGE: ${DOCKER_IMAGE:-ghcr.io/your-org/aqdar-backend:latest}
+    restart: always
+    ports:
+      - "${DOCKER_HTTP_PORT:-8080}:80"
+    depends_on:
+      - app
+    networks:
+      - aqdar
+
+  horizon:
+    image: ${DOCKER_IMAGE:-ghcr.io/your-org/aqdar-backend:latest}
+    restart: always
+    env_file:
+      - .env.production
+    command: php artisan horizon
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    networks:
+      - aqdar
+
+  redis:
+    image: redis:7-alpine
+    restart: always
+    command: redis-server --appendonly yes --maxmemory 512mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+    networks:
+      - aqdar
+
+  postgres:
+    image: postgres:16-alpine
+    restart: always
+    environment:
+      POSTGRES_DB: ${DB_DATABASE:-aqdar}
+      POSTGRES_USER: ${DB_USERNAME:-aqdar}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-secret}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-aqdar} -d ${DB_DATABASE:-aqdar}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - aqdar
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  aqdar:
+    driver: bridge

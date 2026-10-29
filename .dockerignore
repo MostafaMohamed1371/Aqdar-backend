@@ -1,0 +1,38 @@
+# Dependencies
+/node_modules
+/vendor
+
+# Git & IDE
+.git
+.gitignore
+.github
+.idea
+.vscode
+.cursor
+*.md
+!README.md
+
+# Environment & secrets
+.env
+.env.*
+!.env.example
+
+# Tests & QA artifacts
+/tests
+/qa
+.phpunit.cache
+.phpunit.result.cache
+storage/app/qa
+storage/logs/*
+storage/framework/cache/*
+storage/framework/sessions/*
+storage/framework/views/*
+
+# Build caches (rebuilt in image)
+/public/hot
+/public/build
+/bootstrap/cache/*.php
+
+# OS
+.DS_Store
+Thumbs.db

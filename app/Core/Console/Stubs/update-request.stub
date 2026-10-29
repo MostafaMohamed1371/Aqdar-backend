@@ -1,0 +1,22 @@
+<?php
+
+namespace App\Modules\{{ module }}\Http\Requests;
+
+use App\Core\Http\Requests\BaseFormRequest;
+use App\Core\Validation\ValidationRules;
+
+class Update{{ module }}Request extends BaseFormRequest
+{
+    public function authorize(): bool
+    {
+        return true;
+    }
+
+    public function rules(): array
+    {
+        return [
+            'name' => ValidationRules::name(required: false),
+            // 'amount' => ValidationRules::number(required: false, min: 0),
+        ];
+    }
+}

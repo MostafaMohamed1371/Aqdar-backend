@@ -1,0 +1,21 @@
+<?php
+
+namespace App\Modules\{{ module }}\Providers;
+
+use App\Core\Module\ModuleServiceProvider;
+use App\Modules\{{ module }}\Repositories\{{ module }}Repository;
+use App\Modules\{{ module }}\Services\{{ module }}Service;
+
+class {{ module }}ModuleServiceProvider extends ModuleServiceProvider
+{
+    protected function moduleName(): string
+    {
+        return '{{ module }}';
+    }
+
+    public function register(): void
+    {
+        $this->app->singleton({{ module }}Repository::class);
+        $this->app->singleton({{ module }}Service::class);
+    }
+}

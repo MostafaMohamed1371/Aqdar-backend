@@ -1,0 +1,53 @@
+<?php
+
+namespace App\Modules\{{ module }}\Http\Controllers;
+
+use App\Core\Http\Controllers\BaseController;
+use App\Modules\{{ module }}\Http\Requests\Store{{ module }}Request;
+use App\Modules\{{ module }}\Http\Requests\Update{{ module }}Request;
+use App\Modules\{{ module }}\Http\Resources\{{ module }}Resource;
+use App\Modules\{{ module }}\Services\{{ module }}Service;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+
+class {{ module }}Controller extends BaseController
+{
+    public function __construct(private {{ module }}Service ${{ moduleLower }}Service) {}
+
+    public function index(): AnonymousResourceCollection
+    {
+        return {{ module }}Resource::collection($this->{{ moduleLower }}Service->list());
+    }
+
+    public function store(Store{{ module }}Request $request): JsonResponse
+    {
+        ${{ moduleLower }} = $this->{{ moduleLower }}Service->create($request->validated());
+
+        return (new {{ module }}Resource(${{ moduleLower }}))
+            ->response()
+            ->setStatusCode(201);
+    }
+
+    public function show(int $id): {{ module }}Resource
+    {
+        ${{ moduleLower }} = $this->{{ moduleLower }}Service->find($id);
+
+        abort_if(${{ moduleLower }} === null, 404);
+
+        return new {{ module }}Resource(${{ moduleLower }});
+    }
+
+    public function update(Update{{ module }}Request $request, int $id): {{ module }}Resource
+    {
+        return new {{ module }}Resource($this->{{ moduleLower }}Service->update($id, $request->validated()));
+    }
+
+    public function destroy(int $id): JsonResponse
+    {
+        $deleted = $this->{{ moduleLower }}Service->delete($id);
+
+        abort_if(! $deleted, 404);
+
+        return response()->json(null, 204);
+    }
+}

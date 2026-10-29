@@ -1,0 +1,22 @@
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteRule ^(.*)$ public/$1 [L]
+</IfModule>
+
+<IfModule mod_authz_core.c>
+    <Files ".env">
+        Require all denied
+    </Files>
+    <FilesMatch "\.(env|sql|log|ini|conf|yml|yaml)$">
+        Require all denied
+    </FilesMatch>
+</IfModule>
+
+<IfModule !mod_authz_core.c>
+    <Files ".env">
+        Deny from all
+    </Files>
+    <FilesMatch "\.(env|sql|log|ini|conf|yml|yaml)$">
+        Deny from all
+    </FilesMatch>
+</IfModule>

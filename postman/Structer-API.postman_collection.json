@@ -1,0 +1,517 @@
+{
+  "info": {
+    "_postman_id": "structer-api-collection",
+    "name": "Structer API",
+    "description": "Complete REST API for Structer Laravel starter.\n\n## Setup\n1. Import `Structer-Local.postman_environment.json`\n2. Set `base_url` (default: http://127.0.0.1:8000)\n3. Run **Auth → Login** — token is saved to `auth_token`\n4. Authenticated requests use Bearer token automatically\n\n## Docs\n- docs/API.md\n- README.md",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://127.0.0.1:8000"
+    },
+    {
+      "key": "api_prefix",
+      "value": "v1"
+    },
+    {
+      "key": "auth_token",
+      "value": ""
+    },
+    {
+      "key": "user_id",
+      "value": "1"
+    },
+    {
+      "key": "setting_id",
+      "value": "1"
+    },
+    {
+      "key": "category_id",
+      "value": "1"
+    },
+    {
+      "key": "category_slug",
+      "value": "electronics"
+    },
+    {
+      "key": "setting_key",
+      "value": "site_name"
+    }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{auth_token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "item": [
+    {
+      "name": "Health",
+      "item": [
+        {
+          "name": "Health Check",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/up",
+              "host": ["{{base_url}}"],
+              "path": ["up"]
+            },
+            "description": "Laravel health endpoint."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Register",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Demo User\",\n  \"email\": \"demo@example.com\",\n  \"password\": \"Password1\",\n  \"password_confirmation\": \"Password1\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/{{api_prefix}}/auth/register",
+              "host": ["{{base_url}}"],
+              "path": ["api", "{{api_prefix}}", "auth", "register"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    const json = pm.response.json();",
+                  "    if (json.data && json.data.token) {",
+                  "        pm.collectionVariables.set('auth_token', json.data.token);",
+                  "        if (json.data.user && json.data.user.id) {",
+                  "            pm.collectionVariables.set('user_id', json.data.user.id);",
+                  "        }",
+                  "    }",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"demo@example.com\",\n  \"password\": \"Password1\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/{{api_prefix}}/auth/login",
+              "host": ["{{base_url}}"],
+              "path": ["api", "{{api_prefix}}", "auth", "login"]
+            },
+            "description": "Login and save Bearer token to collection variable `auth_token`."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const json = pm.response.json();",
+                  "    if (json.data && json.data.token) {",
+                  "        pm.collectionVariables.set('auth_token', json.data.token);",
+                  "        if (json.data.user && json.data.user.id) {",
+                  "            pm.collectionVariables.set('user_id', json.data.user.id);",
+                  "        }",
+                  "        console.log('Token saved');",
+                  "    }",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Me",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/{{api_prefix}}/auth/me",
+              "host": ["{{base_url}}"],
+              "path": ["api", "{{api_prefix}}", "auth", "me"]
+            },
+            "description": "Current authenticated user. Requires Bearer token."
+          }
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/{{api_prefix}}/auth/logout",
+              "host": ["{{base_url}}"],
+              "path": ["api", "{{api_prefix}}", "auth", "logout"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    pm.collectionVariables.set('auth_token', '');",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Forgot Password",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"demo@example.com\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/{{api_prefix}}/auth/forgot-password",
+              "host": ["{{base_url}}"],
+              "path": ["api", "{{api_prefix}}", "auth", "forgot-password"]
+            }
+          }
+        },
+        {
+          "name": "Reset Password",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"paste-token-from-email\",\n  \"email\": \"demo@example.com\",\n  \"password\": \"NewPassword1\",\n  \"password_confirmation\": \"NewPassword1\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/{{api_prefix}}/auth/reset-password",
+              "host": ["{{base_url}}"],
+              "path": ["api", "{{api_prefix}}", "auth", "reset-password"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Users",
+      "item": [
+        {
+          "name": "List Users",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": {
+              "raw": "{{base_url}}/api/{{api_prefix}}/users",
+              "host": ["{{base_url}}"],
+              "path": ["api", "{{api_prefix}}", "users"]
+            }
+          }
+        },
+        {
+          "name": "Create User",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"New User\",\n  \"email\": \"newuser@example.com\",\n  \"password\": \"Password1\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/{{api_prefix}}/users",
+              "host": ["{{base_url}}"],
+              "path": ["api", "{{api_prefix}}", "users"]
+            }
+          }
+        },
+        {
+          "name": "Show User",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": {
+              "raw": "{{base_url}}/api/{{api_prefix}}/users/{{user_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "{{api_prefix}}", "users", "{{user_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Update User",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Updated Name\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/{{api_prefix}}/users/{{user_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "{{api_prefix}}", "users", "{{user_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Delete User",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": {
+              "raw": "{{base_url}}/api/{{api_prefix}}/users/{{user_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "{{api_prefix}}", "users", "{{user_id}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Settings",
+      "item": [
+        {
+          "name": "List Settings",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": {
+              "raw": "{{base_url}}/api/{{api_prefix}}/settings",
+              "host": ["{{base_url}}"],
+              "path": ["api", "{{api_prefix}}", "settings"]
+            },
+            "description": "Public — no auth required."
+          }
+        },
+        {
+          "name": "Get Setting by Key",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": {
+              "raw": "{{base_url}}/api/{{api_prefix}}/settings/key/{{setting_key}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "{{api_prefix}}", "settings", "key", "{{setting_key}}"]
+            }
+          }
+        },
+        {
+          "name": "Create Setting",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"key\": \"site_name\",\n  \"value\": \"My Application\",\n  \"group\": \"general\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/{{api_prefix}}/settings",
+              "host": ["{{base_url}}"],
+              "path": ["api", "{{api_prefix}}", "settings"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    const json = pm.response.json();",
+                  "    if (json.data && json.data.id) {",
+                  "        pm.collectionVariables.set('setting_id', json.data.id);",
+                  "        pm.collectionVariables.set('setting_key', json.data.key);",
+                  "    }",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update Setting",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"value\": \"Updated Value\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/{{api_prefix}}/settings/{{setting_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "{{api_prefix}}", "settings", "{{setting_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Delete Setting",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": {
+              "raw": "{{base_url}}/api/{{api_prefix}}/settings/{{setting_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "{{api_prefix}}", "settings", "{{setting_id}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Categories",
+      "item": [
+        {
+          "name": "List Categories",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": {
+              "raw": "{{base_url}}/api/{{api_prefix}}/categories",
+              "host": ["{{base_url}}"],
+              "path": ["api", "{{api_prefix}}", "categories"]
+            },
+            "description": "Public — active categories only."
+          }
+        },
+        {
+          "name": "Get Category by Slug",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": {
+              "raw": "{{base_url}}/api/{{api_prefix}}/categories/slug/{{category_slug}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "{{api_prefix}}", "categories", "slug", "{{category_slug}}"]
+            }
+          }
+        },
+        {
+          "name": "Create Category",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Electronics\",\n  \"slug\": \"electronics\",\n  \"parent_id\": null,\n  \"is_active\": true,\n  \"sort_order\": 0\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/{{api_prefix}}/categories",
+              "host": ["{{base_url}}"],
+              "path": ["api", "{{api_prefix}}", "categories"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    const json = pm.response.json();",
+                  "    if (json.data && json.data.id) {",
+                  "        pm.collectionVariables.set('category_id', json.data.id);",
+                  "        pm.collectionVariables.set('category_slug', json.data.slug);",
+                  "    }",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update Category",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Electronics Updated\",\n  \"is_active\": true\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/{{api_prefix}}/categories/{{category_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "{{api_prefix}}", "categories", "{{category_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Delete Category",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": {
+              "raw": "{{base_url}}/api/{{api_prefix}}/categories/{{category_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "{{api_prefix}}", "categories", "{{category_id}}"]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

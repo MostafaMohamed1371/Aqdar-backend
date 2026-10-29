@@ -1,0 +1,111 @@
+<?php
+
+namespace App\Modules\Crm\Services;
+
+use App\Core\Audit\AuditLogger;
+use App\Core\Enums\AppointmentStatus;
+use App\Core\Enums\LeadStatus;
+use App\Core\Enums\PublicCodePrefix;
+use App\Core\Identity\PublicCodeGenerator;
+use App\Modules\Crm\Models\Appointment;
+use App\Modules\Listing\Models\Listing;
+use App\Modules\Listing\Services\ContactLeakScanner;
+use App\Modules\Staff\Models\StaffUser;
+use App\Modules\User\Models\User;
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
+
+class AppointmentService
+{
+    public function __construct(
+        private LeadService $leads,
+        private PublicCodeGenerator $codes,
+        private ContactLeakScanner $scanner,
+        private AuditLogger $audit,
+    ) {}
+
+    public function create(User $buyer, array $data): Appointment
+    {
+        $listing = Listing::query()->find($data['listing_id']);
+        abort_if($listing === null || ! $listing->isPubliclyVisible(), 404);
+
+        if ((int) $listing->user_id === (int) $buyer->id) {
+            throw ValidationException::withMessages([
+                'listing_id' => [__('aqdar.crm.cannot_inquire_own')],
+            ]);
+        }
+
+        $notes = $data['notes'] ?? null;
+        if (is_string($notes) && $notes !== '' && $this->scanner->scan($notes) !== null) {
+            throw ValidationException::withMessages([
+                'notes' => [__('aqdar.crm.message_no_contact')],
+            ]);
+        }
+
+        $appointment = DB::transaction(function () use ($buyer, $listing, $data, $notes): Appointment {
+            $lead = $this->leads->openOrCreateForInquiry($buyer, $listing);
+            $lead->forceFill([
+                'next_action' => 'viewing',
+                'next_action_at' => $data['requested_date'],
+            ])->save();
+
+            return Appointment::query()->create([
+                'public_code' => $this->codes->next(PublicCodePrefix::Appointment),
+                'user_id' => $buyer->id,
+                'listing_id' => $listing->id,
+                'lead_id' => $lead->id,
+                'requested_date' => $data['requested_date'],
+                'requested_slot' => $data['requested_slot'],
+                'notes' => $notes,
+                'status' => AppointmentStatus::Requested,
+                'consent_at' => now(),
+            ]);
+        });
+
+        $this->audit->write('appointment.requested', $buyer, $appointment, [
+            'listing_id' => $listing->id,
+        ]);
+
+        return $appointment->load(['listing.media', 'lead']);
+    }
+
+    public function forBuyer(User $buyer): LengthAwarePaginator
+    {
+        return Appointment::query()
+            ->where('user_id', $buyer->id)
+            ->with(['listing.media', 'lead:id,public_code,status'])
+            ->latest('id')
+            ->paginate(20);
+    }
+
+    public function showForBuyer(User $buyer, Appointment $appointment): Appointment
+    {
+        abort_unless((int) $appointment->user_id === (int) $buyer->id, 404);
+
+        return $appointment->load(['listing.media', 'lead']);
+    }
+
+    public function setStatus(StaffUser $staff, Appointment $appointment, AppointmentStatus $status): Appointment
+    {
+        $lead = $appointment->lead;
+        abort_if($lead === null, 404);
+        $this->leads->assertCanAct($staff, $lead);
+
+        $appointment->forceFill(['status' => $status])->save();
+
+        if ($status === AppointmentStatus::Confirmed) {
+            $this->leads->setStatus($lead, $staff, LeadStatus::VisitScheduled);
+            $lead->forceFill([
+                'next_action' => 'viewing',
+                'next_action_at' => $appointment->requested_date,
+            ])->save();
+        }
+
+        $this->audit->write('appointment.status', $staff, $appointment, [
+            'status' => $status->value,
+        ]);
+
+        return $appointment->fresh(['lead']) ?? $appointment;
+    }
+}

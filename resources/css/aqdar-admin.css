@@ -1,0 +1,553 @@
+/* Product admin: inner desk from dashboard.html, not the prototype viewer chrome. */
+
+body {
+    display: block;
+    background: var(--cream-2);
+    color: var(--ink);
+    font-family: Cairo, Tahoma, sans-serif;
+    min-height: 100vh;
+}
+
+body.aqdar-desk {
+    display: flex;
+    background:
+        radial-gradient(circle at 20% 20%, #1b3a4e 0%, transparent 45%),
+        #0e1a28;
+    padding: 16px;
+}
+
+html:has(body.aqdar-desk),
+body.aqdar-desk {
+    height: 100%;
+    overflow: hidden;
+}
+
+body.aqdar-desk .desk {
+    width: 100%;
+    max-width: none;
+    height: calc(100vh - 32px);
+    min-height: 0;
+    overflow: hidden;
+}
+
+.dmain {
+    min-height: 0;
+    height: 100%;
+    overflow: hidden;
+}
+
+.dbody {
+    min-height: 0;
+    overflow: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+.desk > .dside {
+    min-height: 0;
+}
+
+.desk.is-rtl {
+    direction: rtl;
+}
+
+.desk.is-ltr {
+    direction: ltr;
+}
+
+.desk.is-ltr .dside a,
+.desk.is-ltr .dside .nav-item,
+.desk.is-ltr .dside button {
+    text-align: left;
+}
+
+.desk.is-rtl .dside a,
+.desk.is-rtl .dside .nav-item,
+.desk.is-rtl .dside button {
+    text-align: right;
+}
+
+.desk.is-ltr table.t th,
+.desk.is-ltr table.t td {
+    text-align: left;
+}
+
+.desk.is-ltr .dside a small,
+.desk.is-ltr .dside .nav-item small,
+.desk.is-ltr .ptitle h2 small {
+    font-family: Cairo, Tahoma, sans-serif;
+}
+
+.desk.is-rtl .dside a small,
+.desk.is-rtl .dside .nav-item small,
+.desk.is-rtl .ptitle h2 small {
+    font-family: Inter, Cairo, sans-serif;
+}
+
+body.aqdar-login {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    background:
+        radial-gradient(circle at 20% 20%, #1b3a4e 0%, transparent 45%),
+        #0e1a28;
+    padding: 24px;
+}
+
+.login-top {
+    position: absolute;
+    top: 16px;
+    inset-inline-end: 16px;
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.login-card {
+    width: min(420px, 100%);
+    padding: 32px 28px;
+    border-radius: 18px;
+}
+
+.login-card .brandmark {
+    justify-content: center;
+    margin-bottom: 8px;
+}
+
+.login-card h1 {
+    margin: 0;
+    text-align: center;
+    font-size: 22px;
+}
+
+.login-card .sub {
+    text-align: center;
+    color: var(--muted);
+    font-size: 13px;
+    margin: 8px 0 22px;
+}
+
+.login-card .btn {
+    width: 100%;
+    justify-content: center;
+    padding: 12px 14px;
+    margin-top: 8px;
+}
+
+.login-card .links {
+    margin-top: 16px;
+    text-align: center;
+    font-size: 13px;
+    color: var(--muted);
+}
+
+.login-card .links a {
+    color: var(--teal);
+    font-weight: 700;
+}
+
+.dside a,
+.dside .nav-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    text-align: right;
+    background: none;
+    border: 0;
+    color: #c9d6e4;
+    padding: 9px 12px;
+    border-radius: 10px;
+    font-size: 13px;
+    margin-bottom: 2px;
+    cursor: pointer;
+}
+
+.dside a small,
+.dside .nav-item small,
+.dside .grp small {
+    display: block;
+    font-family: Inter, Cairo, sans-serif;
+    font-size: 9.5px;
+    color: #7f93a8;
+}
+
+.dside a.on,
+.dside .nav-item.on {
+    background: var(--teal);
+    color: #fff;
+    font-weight: 700;
+}
+
+.dside a.on small,
+.dside .nav-item.on small {
+    color: #cdeaea;
+}
+
+.dside a:hover,
+.dside button:hover {
+    background: #1a3550;
+    color: #fff;
+}
+
+.dside a.on:hover {
+    background: var(--teal);
+}
+
+.dside .nav-item.soon {
+    opacity: 0.38;
+    cursor: default;
+    pointer-events: none;
+}
+
+.dside .cnt {
+    margin-inline-start: auto;
+    background: var(--gold);
+    color: #fff;
+    font-family: Inter, Cairo, sans-serif;
+    font-size: 10px;
+    border-radius: 99px;
+    padding: 1px 7px;
+}
+
+.dhead .icon-btn {
+    display: inline-grid;
+}
+
+.av {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    font-weight: 800;
+    color: #fff;
+    background: var(--teal);
+    flex-shrink: 0;
+}
+
+.av.s {
+    width: 32px;
+    height: 32px;
+    font-size: 13px;
+}
+
+html {
+    color-scheme: light;
+}
+
+.inp:focus-within {
+    border-color: var(--teal);
+    box-shadow: 0 0 0 3px var(--teal-soft);
+}
+
+.inp.is-bad {
+    border-color: var(--bad);
+    box-shadow: 0 0 0 3px var(--bad-soft);
+}
+
+.inp input,
+.inp select,
+.inp textarea {
+    background: transparent;
+    color: var(--ink);
+}
+
+.inp input::placeholder,
+.inp textarea::placeholder {
+    color: var(--muted);
+}
+
+.inp .pw-toggle {
+    color: var(--muted);
+    background: none;
+    border: 0;
+    padding: 0;
+    display: inline-grid;
+    place-items: center;
+    cursor: pointer;
+}
+
+.inp .pw-toggle:hover,
+.inp .pw-toggle:focus {
+    color: var(--ink);
+}
+
+.locale-menu {
+    position: absolute;
+    inset-inline-end: 0;
+    z-index: 50;
+    margin-top: 8px;
+    min-width: 10rem;
+    overflow: hidden;
+    border-radius: 10px;
+    border: 1px solid var(--line);
+    background: #fff;
+    box-shadow: var(--shadow);
+    padding: 4px;
+}
+
+.locale-menu a {
+    display: block;
+    padding: 8px 12px;
+    border-radius: 8px;
+    font-size: 13px;
+    color: var(--ink);
+}
+
+.locale-menu a.on {
+    background: var(--teal);
+    color: #fff;
+    font-weight: 700;
+}
+
+.locale-menu a:not(.on):hover {
+    background: var(--teal-soft);
+}
+
+.login-card .field > label {
+    color: var(--ink);
+}
+
+.card .acts {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-top: 4px;
+}
+
+.empty-note {
+    color: var(--muted);
+    font-size: 13px;
+    margin: 0;
+}
+
+.dhead .locale-mini button {
+    padding: 8px 10px;
+    font-size: 12px;
+}
+
+.dhead form.q {
+    margin: 0;
+}
+
+.dhead .q input,
+.filters .q input,
+.toolbar .q input {
+    border: 0;
+    outline: 0;
+    background: transparent;
+    flex: 1;
+    min-width: 0;
+    padding: 9px 0;
+    font-size: 13px;
+    appearance: none;
+}
+
+.toolbar {
+    flex-wrap: wrap;
+}
+
+.toolbar .q {
+    flex: 1;
+    min-width: 220px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 0 12px;
+    color: var(--muted);
+}
+
+.toolbar select:not(.btn) {
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 9px 12px;
+    background: #fff;
+    font-size: 13px;
+    min-width: 130px;
+}
+
+.dbody :is(input:not(.btn), select:not(.btn), textarea) {
+    width: 100%;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 10px 12px;
+    margin: 4px 0;
+    background: #fff;
+    font-size: 13px;
+    min-height: 42px;
+    color: var(--ink);
+}
+
+.dbody textarea {
+    min-height: 88px;
+    resize: vertical;
+}
+
+.dbody .inp :is(input, select, textarea),
+.dbody .q input {
+    width: auto;
+    border: 0;
+    margin: 0;
+    padding: 12px 0;
+    min-height: 0;
+    background: transparent;
+}
+
+.dbody .q input {
+    padding: 9px 0;
+}
+
+.dbody .toolbar select:not(.btn),
+.dbody .filters select:not(.btn) {
+    width: auto;
+    min-width: 130px;
+    margin: 0;
+}
+
+.dbody :is(input[type="hidden"], input[type="file"], input[type="submit"], input[type="button"]) {
+    width: auto;
+    min-height: 0;
+    margin: 0;
+    border: 0;
+    padding: 0;
+    background: transparent;
+}
+
+.dbody input[type="checkbox"] {
+    appearance: auto;
+    width: 18px;
+    height: 18px;
+    accent-color: var(--teal);
+    flex-shrink: 0;
+    margin: 0;
+    padding: 0;
+    min-height: 0;
+    border: 1px solid var(--line);
+}
+
+.dbody .sw-toggle input[type="checkbox"] {
+    appearance: none;
+    position: absolute;
+    opacity: 0;
+    width: 1px;
+    height: 1px;
+    border: 0;
+}
+
+label.check {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.dside-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+
+.dside-top .brand-link {
+    width: auto;
+    flex: 1;
+    min-width: 0;
+    margin-bottom: 0;
+    padding: 0;
+}
+
+.dside [data-sidebar-close] {
+    color: #fff;
+    border-color: #2a4660;
+    background: #1a3550;
+}
+
+.desk-backdrop {
+    display: none;
+}
+
+@media (min-width: 901px) {
+    .desk.is-rtl,
+    .desk.is-ltr {
+        grid-template-columns: 232px 1fr;
+    }
+
+    .cols3.cols3-dash {
+        grid-template-columns: 1.5fr 1fr 1.2fr;
+    }
+
+    .dhead [data-sidebar-open],
+    .dside [data-sidebar-close] {
+        display: none;
+    }
+}
+
+@media (max-width: 900px) {
+    body.aqdar-desk {
+        padding: 0;
+    }
+
+    body.aqdar-desk .desk,
+    .desk.is-rtl,
+    .desk.is-ltr {
+        grid-template-columns: 1fr;
+        height: 100vh;
+        border-radius: 0;
+        border: 0;
+    }
+
+    .dhead {
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    .dhead .q {
+        max-width: none;
+        flex: 1 1 100%;
+        order: 5;
+    }
+
+    .dhead .who span {
+        display: none;
+    }
+
+    .dside {
+        position: fixed;
+        inset-block: 0;
+        inset-inline-start: 0;
+        width: min(280px, 86vw);
+        height: 100vh;
+        z-index: 60;
+        transform: translateX(-110%);
+        transition: transform 0.2s ease;
+        box-shadow: none;
+    }
+
+    html[dir="rtl"] .dside {
+        transform: translateX(110%);
+    }
+
+    .dside.is-open,
+    html[dir="rtl"] .dside.is-open {
+        transform: none;
+        box-shadow: 0 20px 60px #0008;
+    }
+
+    .desk-backdrop.is-open {
+        display: block;
+        position: fixed;
+        inset: 0;
+        background: rgba(11, 18, 32, 0.55);
+        z-index: 50;
+    }
+
+    body.sidebar-open {
+        overflow: hidden;
+    }
+}

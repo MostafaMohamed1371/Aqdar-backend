@@ -1,0 +1,194 @@
+<?php
+
+namespace App\Modules\Crm\Services;
+
+use App\Core\Audit\AuditLogger;
+use App\Core\Enums\InquiryStatus;
+use App\Core\Enums\LeadStatus;
+use App\Core\Enums\Permission;
+use App\Core\Enums\PublicCodePrefix;
+use App\Core\Identity\PublicCodeGenerator;
+use App\Modules\Crm\Models\Inquiry;
+use App\Modules\Crm\Models\Lead;
+use App\Modules\Listing\Models\Listing;
+use App\Modules\Listing\Services\ContactLeakScanner;
+use App\Modules\Notification\Services\NotificationService;
+use App\Modules\Setting\Services\SettingService;
+use App\Modules\User\Models\User;
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
+
+class InquiryService
+{
+    public function __construct(
+        private LeadService $leads,
+        private PublicCodeGenerator $codes,
+        private ContactLeakScanner $scanner,
+        private SettingService $settings,
+        private AuditLogger $audit,
+        private NotificationService $notifications,
+    ) {}
+
+    public function create(User $buyer, array $data): Inquiry
+    {
+        $listing = Listing::query()->find($data['listing_id']);
+        abort_if($listing === null || ! $listing->isPubliclyVisible(), 404);
+
+        if ((int) $listing->user_id === (int) $buyer->id) {
+            throw ValidationException::withMessages([
+                'listing_id' => [__('aqdar.crm.cannot_inquire_own')],
+            ]);
+        }
+
+        if (! ($data['consent'] ?? false)) {
+            throw ValidationException::withMessages([
+                'consent' => [__('aqdar.crm.consent_required')],
+            ]);
+        }
+
+        $message = $data['message'] ?? null;
+        if (is_string($message) && $message !== '' && $this->scanner->scan($message) !== null) {
+            throw ValidationException::withMessages([
+                'message' => [__('aqdar.crm.message_no_contact')],
+            ]);
+        }
+
+        $inquiry = DB::transaction(function () use ($buyer, $listing, $data, $message): Inquiry {
+            $lead = $this->leads->openOrCreateForInquiry($buyer, $listing);
+
+            return Inquiry::query()->create([
+                'public_code' => $this->codes->next(PublicCodePrefix::Inquiry),
+                'user_id' => $buyer->id,
+                'listing_id' => $listing->id,
+                'lead_id' => $lead->id,
+                'message' => $message,
+                'inquiry_type' => $data['inquiry_type'] ?? 'interested',
+                'contact_method' => $data['contact_method'],
+                'preferred_time' => $data['preferred_time'] ?? null,
+                'consent_at' => now(),
+                'status' => InquiryStatus::New,
+            ]);
+        });
+
+        $inquiry->loadMissing(['lead.assignee', 'listing.owner']);
+        $this->leads->syncLinkedInquiries($inquiry->lead);
+
+        $this->audit->write('inquiry.created', $buyer, $inquiry, [
+            'listing_id' => $listing->id,
+            'lead_id' => $inquiry->lead_id,
+        ]);
+
+        $context = [
+            'listing_code' => $listing->public_code,
+            'listing_id' => $listing->id,
+            'lead_code' => $inquiry->lead?->public_code,
+            'public_code' => $inquiry->public_code,
+        ];
+        $this->notifications->notifySafely($buyer, 'inquiry_created', $context);
+        if ($listing->owner !== null) {
+            $this->notifications->notifySafely($listing->owner, 'seller_interest', $context);
+        }
+        $assignee = $inquiry->lead?->assignee;
+        if ($assignee !== null) {
+            $this->notifications->notifySafely($assignee, 'inquiry_created', $context);
+        } else {
+            $this->notifications->notifyStaffQueue(
+                'staff_unassigned_lead',
+                [
+                    'lead_code' => $inquiry->lead?->public_code,
+                    'listing_code' => $listing->public_code,
+                    'public_code' => $inquiry->public_code,
+                ],
+                Permission::ManageCrm,
+                true,
+            );
+        }
+
+        return $inquiry->fresh(['listing.media', 'lead']) ?? $inquiry;
+    }
+
+    public function forBuyer(User $buyer, array $filters = []): LengthAwarePaginator
+    {
+        $query = Inquiry::query()
+            ->where('user_id', $buyer->id)
+            ->with(['listing.media', 'lead:id,public_code,status,assigned_to']);
+
+        $status = (string) ($filters['status'] ?? '');
+        if ($status !== '' && $status !== 'all') {
+            $query->where('status', $status);
+        }
+
+        return $query->latest('id')->paginate(20);
+    }
+
+    public function showForBuyer(User $buyer, Inquiry $inquiry): Inquiry
+    {
+        abort_unless((int) $inquiry->user_id === (int) $buyer->id, 404);
+
+        return $inquiry->load(['listing.media', 'lead']);
+    }
+
+    public function requestCallback(User $buyer, Inquiry $inquiry): Inquiry
+    {
+        $inquiry = $this->showForBuyer($buyer, $inquiry);
+        $lead = $inquiry->lead;
+        abort_if($lead === null, 404);
+
+        $lead->forceFill([
+            'next_action' => 'callback',
+            'next_action_at' => now(),
+        ])->save();
+
+        $this->audit->write('inquiry.callback_requested', $buyer, $inquiry, [
+            'lead_id' => $lead->id,
+        ]);
+
+        return $inquiry->fresh(['listing.media', 'lead']) ?? $inquiry;
+    }
+
+    public function interestForListing(User $seller, Listing $listing): array
+    {
+        abort_unless((int) $listing->user_id === (int) $seller->id, 404);
+
+        $leads = Lead::query()
+            ->where('listing_id', $listing->id)
+            ->withCount('appointments')
+            ->orderBy('id')
+            ->get();
+
+        $rows = $leads->values()->map(function (Lead $lead, int $index) {
+            $clientStatus = match ($lead->status) {
+                LeadStatus::New => 'new',
+                LeadStatus::Lost, LeadStatus::Converted => 'closed',
+                default => 'in_review',
+            };
+
+            return [
+                'interested_buyer_seq' => $index + 1,
+                'kind' => $lead->appointments_count > 0 ? 'viewing' : 'listing_inquiry',
+                'status' => $lead->status?->value,
+                'client_status' => $clientStatus,
+                'created_at' => $lead->created_at,
+                'offer_amount' => $lead->seller_visible_amount !== null ? (float) $lead->seller_visible_amount : null,
+            ];
+        });
+
+        $counts = [
+            'all' => $rows->count(),
+            'new' => $rows->where('client_status', 'new')->count(),
+            'in_review' => $rows->where('client_status', 'in_review')->count(),
+            'closed' => $rows->where('client_status', 'closed')->count(),
+        ];
+
+        return [
+            'rows' => $rows->all(),
+            'counts' => $counts,
+        ];
+    }
+
+    public function salesContact(): array
+    {
+        return $this->settings->publicConfig()['sales_contact'];
+    }
+}

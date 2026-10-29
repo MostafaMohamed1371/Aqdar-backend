@@ -1,0 +1,3496 @@
+{
+  "info": {
+    "_postman_id": "aqdar-api-collection",
+    "name": "AQDAR API",
+    "description": "AQDAR Egypt marketplace REST API (`/api/v1`).\n\nImport `AQDAR-Local.postman_environment.json`, select **AQDAR Local**, then run **Phase 1 — Identity → Register** or **Verify OTP**. `auth_token` is stored automatically.\n\nAfter each finished phase, add a folder `Phase N — …` with every new route. See docs/DOCUMENTATION_PROCESS.md and docs/API.md.\n\n**Shipped:** Phase 0–9 (identity through admin reports/settings/audit/hardening).\nStaff dashboard is Blade (session), not this collection. ADM-10…14 are not in this collection.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://127.0.0.1:8000"
+    },
+    {
+      "key": "api_prefix",
+      "value": "v1"
+    },
+    {
+      "key": "auth_token",
+      "value": ""
+    },
+    {
+      "key": "user_id",
+      "value": "1"
+    },
+    {
+      "key": "category_slug",
+      "value": "electronics"
+    },
+    {
+      "key": "category_id",
+      "value": "1"
+    },
+    {
+      "key": "setting_id",
+      "value": "1"
+    },
+    {
+      "key": "setting_key",
+      "value": "site_name"
+    },
+    {
+      "key": "listing_id",
+      "value": "1"
+    },
+    {
+      "key": "document_id",
+      "value": "1"
+    },
+    {
+      "key": "media_id",
+      "value": "1"
+    },
+    {
+      "key": "inquiry_id",
+      "value": "1"
+    },
+    {
+      "key": "lead_id",
+      "value": "1"
+    },
+    {
+      "key": "buyer_request_id",
+      "value": "1"
+    },
+    {
+      "key": "case_id",
+      "value": "1"
+    }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{auth_token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "item": [
+    {
+      "name": "Phase 0 — Foundation",
+      "description": "Health plus leftover Structer APIs locked for marketplace clients (401 guest / 403 Bearer).",
+      "item": [
+        {
+          "name": "Health Check",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept-Language",
+                "value": "ar"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/up",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "up"
+              ]
+            },
+            "description": "Laravel `/up`. Not under `/api/v1`.",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Healthy', function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Locked leftovers (401 / 403 expected)",
+          "description": "Expected: guest 401 (no Bearer). With marketplace Bearer: 403. Not a Flutter API.",
+          "item": [
+            {
+              "name": "List users (locked)",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept-Language",
+                    "value": "ar"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/{{api_prefix}}/users",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "{{api_prefix}}",
+                    "users"
+                  ]
+                },
+                "description": "Expected: guest 401 (no Bearer). With marketplace Bearer: 403. Not a Flutter API."
+              }
+            },
+            {
+              "name": "Create user (locked)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept-Language",
+                    "value": "ar"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/{{api_prefix}}/users",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "{{api_prefix}}",
+                    "users"
+                  ]
+                },
+                "description": "Expected: guest 401 (no Bearer). With marketplace Bearer: 403. Not a Flutter API.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"Should Fail\",\n  \"email\": \"fail@example.com\"\n}"
+                }
+              }
+            },
+            {
+              "name": "Show user (locked)",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept-Language",
+                    "value": "ar"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/{{api_prefix}}/users/{{user_id}}",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "{{api_prefix}}",
+                    "users",
+                    "{{user_id}}"
+                  ]
+                },
+                "description": "Expected: guest 401 (no Bearer). With marketplace Bearer: 403. Not a Flutter API."
+              }
+            },
+            {
+              "name": "Update user (locked)",
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept-Language",
+                    "value": "ar"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/{{api_prefix}}/users/{{user_id}}",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "{{api_prefix}}",
+                    "users",
+                    "{{user_id}}"
+                  ]
+                },
+                "description": "Expected: guest 401 (no Bearer). With marketplace Bearer: 403. Not a Flutter API.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"Should Fail\"\n}"
+                }
+              }
+            },
+            {
+              "name": "Delete user (locked)",
+              "request": {
+                "method": "DELETE",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept-Language",
+                    "value": "ar"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/{{api_prefix}}/users/{{user_id}}",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "{{api_prefix}}",
+                    "users",
+                    "{{user_id}}"
+                  ]
+                },
+                "description": "Expected: guest 401 (no Bearer). With marketplace Bearer: 403. Not a Flutter API."
+              }
+            },
+            {
+              "name": "List settings (locked)",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept-Language",
+                    "value": "ar"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/{{api_prefix}}/settings",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "{{api_prefix}}",
+                    "settings"
+                  ]
+                },
+                "description": "Expected: guest 401 (no Bearer). With marketplace Bearer: 403. Not a Flutter API."
+              }
+            },
+            {
+              "name": "Create setting (locked)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept-Language",
+                    "value": "ar"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/{{api_prefix}}/settings",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "{{api_prefix}}",
+                    "settings"
+                  ]
+                },
+                "description": "Expected: guest 401 (no Bearer). With marketplace Bearer: 403. Not a Flutter API.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"key\": \"site_name\",\n  \"value\": \"no\"\n}"
+                }
+              }
+            },
+            {
+              "name": "Show setting (locked)",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept-Language",
+                    "value": "ar"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/{{api_prefix}}/settings/{{setting_id}}",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "{{api_prefix}}",
+                    "settings",
+                    "{{setting_id}}"
+                  ]
+                },
+                "description": "Expected: guest 401 (no Bearer). With marketplace Bearer: 403. Not a Flutter API."
+              }
+            },
+            {
+              "name": "Setting by key (locked)",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept-Language",
+                    "value": "ar"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/{{api_prefix}}/settings/key/{{setting_key}}",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "{{api_prefix}}",
+                    "settings",
+                    "key",
+                    "{{setting_key}}"
+                  ]
+                },
+                "description": "Expected: guest 401 (no Bearer). With marketplace Bearer: 403. Not a Flutter API."
+              }
+            },
+            {
+              "name": "Create category (locked)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept-Language",
+                    "value": "ar"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/{{api_prefix}}/categories",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "{{api_prefix}}",
+                    "categories"
+                  ]
+                },
+                "description": "Expected: guest 401 (no Bearer). With marketplace Bearer: 403. Not a Flutter API.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"Should Fail\",\n  \"slug\": \"should-fail\"\n}"
+                }
+              }
+            },
+            {
+              "name": "Update category (locked)",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept-Language",
+                    "value": "ar"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/{{api_prefix}}/categories/{{category_id}}",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "{{api_prefix}}",
+                    "categories",
+                    "{{category_id}}"
+                  ]
+                },
+                "description": "Expected: guest 401 (no Bearer). With marketplace Bearer: 403. Not a Flutter API.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"Should Fail\"\n}"
+                }
+              }
+            },
+            {
+              "name": "Delete category (locked)",
+              "request": {
+                "method": "DELETE",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept-Language",
+                    "value": "ar"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/{{api_prefix}}/categories/{{category_id}}",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "{{api_prefix}}",
+                    "categories",
+                    "{{category_id}}"
+                  ]
+                },
+                "description": "Expected: guest 401 (no Bearer). With marketplace Bearer: 403. Not a Flutter API."
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Phase 1 — Identity",
+      "description": "Marketplace register/login/OTP, me, devices, public config and categories. OTP local code is 123456 (never in JSON).",
+      "item": [
+        {
+          "name": "Register",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept-Language",
+                "value": "ar"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/{{api_prefix}}/auth/register",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "{{api_prefix}}",
+                "auth",
+                "register"
+              ]
+            },
+            "description": "Marketplace email register. 201 + token. Not staff dashboard.",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Jane Doe\",\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\",\n  \"password_confirmation\": \"{{password}}\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Created', function () { pm.response.to.have.status(201); });",
+                  "if (pm.response.code === 201) {",
+                  "const json = pm.response.json();",
+                  "if (json && json.data && json.data.token) {",
+                  "    pm.environment.set('auth_token', json.data.token);",
+                  "    pm.collectionVariables.set('auth_token', json.data.token);",
+                  "    if (json.data.user && json.data.user.id) {",
+                  "        pm.collectionVariables.set('user_id', String(json.data.user.id));",
+                  "    }",
+                  "}",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept-Language",
+                "value": "ar"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/{{api_prefix}}/auth/login",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "{{api_prefix}}",
+                "auth",
+                "login"
+              ]
+            },
+            "description": "Email login. Suspended users are rejected. 5/min.",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('OK', function () { pm.response.to.have.status(200); });",
+                  "if (pm.response.code === 200) {",
+                  "const json = pm.response.json();",
+                  "if (json && json.data && json.data.token) {",
+                  "    pm.environment.set('auth_token', json.data.token);",
+                  "    pm.collectionVariables.set('auth_token', json.data.token);",
+                  "    if (json.data.user && json.data.user.id) {",
+                  "        pm.collectionVariables.set('user_id', String(json.data.user.id));",
+                  "    }",
+                  "}",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Send OTP",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept-Language",
+                "value": "ar"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/{{api_prefix}}/auth/otp/send",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "{{api_prefix}}",
+                "auth",
+                "otp",
+                "send"
+              ]
+            },
+            "description": "Sends OTP. Local/testing code is 123456 in logs only. Never in this response. 5 / 10 min. APP-02 sends consent:true. Response includes resend_after (45s UI timer) and consent_required.",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phone\": \"{{phone}}\",\n  \"consent\": true,\n  \"locale\": \"ar\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Accepted', function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Verify OTP",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept-Language",
+                "value": "ar"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/{{api_prefix}}/auth/otp/verify",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "{{api_prefix}}",
+                "auth",
+                "otp",
+                "verify"
+              ]
+            },
+            "description": "Creates user on first verify. Consent may be sent here or on otp/send. Code is single-use. Saves Bearer token.",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phone\": \"{{phone}}\",\n  \"code\": \"{{otp_code}}\",\n  \"consent\": true,\n  \"locale\": \"ar\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('OK', function () { pm.response.to.have.status(200); });",
+                  "if (pm.response.code === 200) {",
+                  "const json = pm.response.json();",
+                  "if (json && json.data && json.data.token) {",
+                  "    pm.environment.set('auth_token', json.data.token);",
+                  "    pm.collectionVariables.set('auth_token', json.data.token);",
+                  "    if (json.data.user && json.data.user.id) {",
+                  "        pm.collectionVariables.set('user_id', String(json.data.user.id));",
+                  "    }",
+                  "}",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Forgot password",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept-Language",
+                "value": "ar"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/{{api_prefix}}/auth/forgot-password",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "{{api_prefix}}",
+                "auth",
+                "forgot-password"
+              ]
+            },
+            "description": "Local mailer is log. 3/min.",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{email}}\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Reset password",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept-Language",
+                "value": "ar"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/{{api_prefix}}/auth/reset-password",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "{{api_prefix}}",
+                "auth",
+                "reset-password"
+              ]
+            },
+            "description": "Use the token from the password-reset email/log.",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"paste-token-from-log\",\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\",\n  \"password_confirmation\": \"{{password}}\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Me (auth/me)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept-Language",
+                "value": "ar"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/{{api_prefix}}/auth/me",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "{{api_prefix}}",
+                "auth",
+                "me"
+              ]
+            },
+            "description": "Bearer required. Same payload as GET /me."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('OK', function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Me (GET /me)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept-Language",
+                "value": "ar"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/{{api_prefix}}/me",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "{{api_prefix}}",
+                "me"
+              ]
+            },
+            "description": "Bearer required. User resource."
+          }
+        },
+        {
+          "name": "Update me",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept-Language",
+                "value": "ar"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/{{api_prefix}}/me",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "{{api_prefix}}",
+                "me"
+              ]
+            },
+            "description": "Name, is_seller, is_buyer, account_type only. Suspended → 403.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Jane Doe\",\n  \"is_seller\": true,\n  \"is_buyer\": true,\n  \"account_type\": \"individual\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Register device",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept-Language",
+                "value": "ar"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/{{api_prefix}}/devices",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "{{api_prefix}}",
+                "devices"
+              ]
+            },
+            "description": "201. Suspended → 403.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"device_uuid\": \"ios-device-1\",\n  \"platform\": \"ios\",\n  \"push_token\": \"optional-push-token\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Created or OK', function () { pm.expect(pm.response.code).to.be.oneOf([200, 201]); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept-Language",
+                "value": "ar"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/{{api_prefix}}/auth/logout",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "{{api_prefix}}",
+                "auth",
+                "logout"
+              ]
+            },
+            "description": "Deletes the current token."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    pm.environment.set('auth_token', '');",
+                  "    pm.collectionVariables.set('auth_token', '');",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Config",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept-Language",
+                "value": "ar"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/{{api_prefix}}/config",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "{{api_prefix}}",
+                "config"
+              ]
+            },
+            "description": "Public. Currency EGP, locale, sales_contact.",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('OK', function () { pm.response.to.have.status(200); });",
+                  "pm.test('EGP', function () { pm.expect(pm.response.json().data.currency).to.eql('EGP'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List categories",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept-Language",
+                "value": "ar"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/{{api_prefix}}/categories",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "{{api_prefix}}",
+                "categories"
+              ]
+            },
+            "description": "Public. Active categories only.",
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
+        {
+          "name": "Category by slug",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept-Language",
+                "value": "ar"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/{{api_prefix}}/categories/slug/{{category_slug}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "{{api_prefix}}",
+                "categories",
+                "slug",
+                "{{category_slug}}"
+              ]
+            },
+            "description": "Public. 404 if missing.",
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Phase 2 — Catalog",
+      "description": "Public master data. Inactive rows omitted. Distressed has exactly two children (a, b). Writes are Blade ADM-05/11/15, not these APIs.",
+      "item": [
+        {
+          "name": "Category tree",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept-Language",
+                "value": "ar"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/{{api_prefix}}/categories",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "{{api_prefix}}",
+                "categories"
+              ]
+            },
+            "description": "Active tree with children. UAT-02: distressed has A and B."
+          }
+        },
+        {
+          "name": "Locations",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept-Language",
+                "value": "ar"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/{{api_prefix}}/locations",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "{{api_prefix}}",
+                "locations"
+              ]
+            },
+            "description": "Governorates with nested areas."
+          }
+        },
+        {
+          "name": "Developers",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept-Language",
+                "value": "ar"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/{{api_prefix}}/developers",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "{{api_prefix}}",
+                "developers"
+              ]
+            },
+            "description": "Includes controlled is_other."
+          }
+        },
+        {
+          "name": "Projects",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept-Language",
+                "value": "ar"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/{{api_prefix}}/projects?developer_id=1",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "{{api_prefix}}",
+                "projects"
+              ],
+              "query": [
+                {
+                  "key": "developer_id",
+                  "value": "1",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Optional developer_id filter."
+          }
+        },
+        {
+          "name": "Unit types",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept-Language",
+                "value": "ar"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/{{api_prefix}}/unit-types",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "{{api_prefix}}",
+                "unit-types"
+              ]
+            },
+            "description": ""
+          }
+        },
+        {
+          "name": "Amenities",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept-Language",
+                "value": "ar"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/{{api_prefix}}/amenities",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "{{api_prefix}}",
+                "amenities"
+              ]
+            },
+            "description": ""
+          }
+        },
+        {
+          "name": "Tags",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept-Language",
+                "value": "ar"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/{{api_prefix}}/tags",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "{{api_prefix}}",
+                "tags"
+              ]
+            },
+            "description": "Public listing chips. Inactive tags are omitted."
+          }
+        },
+        {
+          "name": "Banners",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept-Language",
+                "value": "ar"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/{{api_prefix}}/content/banners",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "{{api_prefix}}",
+                "content",
+                "banners"
+              ]
+            },
+            "description": "Includes image_url from the public_media disk when a banner image is stored."
+          }
+        },
+        {
+          "name": "FAQs",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept-Language",
+                "value": "ar"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/{{api_prefix}}/content/faqs",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "{{api_prefix}}",
+                "content",
+                "faqs"
+              ]
+            },
+            "description": ""
+          }
+        },
+        {
+          "name": "Support",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept-Language",
+                "value": "ar"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/{{api_prefix}}/content/support",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "{{api_prefix}}",
+                "content",
+                "support"
+              ]
+            },
+            "description": ""
+          }
+        }
+      ]
+    },
+    {
+      "name": "Phase 3 — Listings",
+      "item": [
+        {
+          "name": "Start draft",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept-Language",
+                "value": "ar"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/{{api_prefix}}/my/listings",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "{{api_prefix}}",
+                "my",
+                "listings"
+              ]
+            },
+            "description": "Creates a draft and public_code. Bearer required."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "  const json = pm.response.json();",
+                  "  pm.collectionVariables.set('listing_id', json.data.id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Save category step",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept-Language",
+                "value": "ar"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/{{api_prefix}}/my/listings/{{listing_id}}/step/category",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "{{api_prefix}}",
+                "my",
+                "listings",
+                "{{listing_id}}",
+                "step",
+                "category"
+              ]
+            },
+            "description": "Use a live category id from GET /categories.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"category_id\": 1\n}"
+            }
+          }
+        },
+        {
+          "name": "Save specs step",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept-Language",
+                "value": "ar"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/{{api_prefix}}/my/listings/{{listing_id}}/step/specs",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "{{api_prefix}}",
+                "my",
+                "listings",
+                "{{listing_id}}",
+                "step",
+                "specs"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"governorate_id\": 1,\n  \"area_id\": 1,\n  \"unit_type_id\": 1,\n  \"title_ar\": \"شقة إعادة بيع\",\n  \"description_ar\": \"وصف الوحدة بدون رقم هاتف أو رابط.\",\n  \"area_sqm\": 120,\n  \"bedrooms\": 3,\n  \"bathrooms\": 2,\n  \"floor\": 4,\n  \"finishing\": \"finished\",\n  \"furnished\": \"furnished\",\n  \"handover_date\": \"2027-06-01\",\n  \"neighborhood\": \"النزهة الجديدة\",\n  \"phase\": \"المرحلة 3\",\n  \"parking\": 1,\n  \"unit_code\": \"B-12\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Save financials step",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept-Language",
+                "value": "ar"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/{{api_prefix}}/my/listings/{{listing_id}}/step/financials",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "{{api_prefix}}",
+                "my",
+                "listings",
+                "{{listing_id}}",
+                "step",
+                "financials"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"declared_contract_price\": 2000000,\n  \"declared_contract_date\": \"2024-03-15\",\n  \"declared_total_paid\": 800000,\n  \"declared_remaining\": 1200000,\n  \"declared_asking_price\": 1850000,\n  \"declared_installment_amount\": 15000,\n  \"declared_payment_system\": \"mix\",\n  \"declared_assignment_restrictions\": \"بعد سداد 50٪\",\n  \"offer_expires_at\": \"2026-12-31\",\n  \"installment_items\": [\n    {\n      \"sequence\": 1,\n      \"due_date\": \"2026-11-01\",\n      \"amount\": 15000,\n      \"paid\": true,\n      \"evidence_document_id\": 1\n    }\n  ]\n}"
+            }
+          }
+        },
+        {
+          "name": "Save media step",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept-Language",
+                "value": "ar"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/{{api_prefix}}/my/listings/{{listing_id}}/step/media",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "{{api_prefix}}",
+                "my",
+                "listings",
+                "{{listing_id}}",
+                "step",
+                "media"
+              ]
+            },
+            "description": "Placeholder until Phase 4 file uploads.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"media_meta\": { \"pending\": true }\n}"
+            }
+          }
+        },
+        {
+          "name": "Save documents step",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept-Language",
+                "value": "ar"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/{{api_prefix}}/my/listings/{{listing_id}}/step/documents",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "{{api_prefix}}",
+                "my",
+                "listings",
+                "{{listing_id}}",
+                "step",
+                "documents"
+              ]
+            },
+            "description": "Placeholder until Phase 4 file uploads.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"documents_meta\": { \"pending\": true }\n}"
+            }
+          }
+        },
+        {
+          "name": "Save review step",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept-Language",
+                "value": "ar"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/{{api_prefix}}/my/listings/{{listing_id}}/step/review",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "{{api_prefix}}",
+                "my",
+                "listings",
+                "{{listing_id}}",
+                "step",
+                "review"
+              ]
+            },
+            "description": "Placeholder until Phase 4 file uploads.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"acknowledged\": true }\n"
+            }
+          }
+        },
+        {
+          "name": "Submit for review",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept-Language",
+                "value": "ar"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/{{api_prefix}}/my/listings/{{listing_id}}/submit",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "{{api_prefix}}",
+                "my",
+                "listings",
+                "{{listing_id}}",
+                "submit"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"consent\": true\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200 || pm.response.code === 201) {",
+                  "  const json = pm.response.json();",
+                  "  if (json.data && json.data.id) { pm.collectionVariables.set('listing_id', json.data.id); }",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Resubmit",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept-Language",
+                "value": "ar"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/{{api_prefix}}/my/listings/{{listing_id}}/resubmit",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "{{api_prefix}}",
+                "my",
+                "listings",
+                "{{listing_id}}",
+                "resubmit"
+              ]
+            },
+            "description": "Only from needs_changes."
+          }
+        },
+        {
+          "name": "My listings",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept-Language",
+                "value": "ar"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/{{api_prefix}}/my/listings?status=review",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "{{api_prefix}}",
+                "my",
+                "listings"
+              ],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "review",
+                  "description": "draft|published|live|needs_changes|review|under_offer|exact status",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Owner listings. Optional status=draft|needs_changes|review (submitted+in_review+resubmitted)|live or published (published+under_offer APP-23)|exact status including under_offer."
+          }
+        },
+        {
+          "name": "My listing",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept-Language",
+                "value": "ar"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/{{api_prefix}}/my/listings/{{listing_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "{{api_prefix}}",
+                "my",
+                "listings",
+                "{{listing_id}}"
+              ]
+            },
+            "description": ""
+          }
+        },
+        {
+          "name": "Listing history",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept-Language",
+                "value": "ar"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/{{api_prefix}}/my/listings/{{listing_id}}/history",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "{{api_prefix}}",
+                "my",
+                "listings",
+                "{{listing_id}}",
+                "history"
+              ]
+            },
+            "description": ""
+          }
+        },
+        {
+          "name": "Listing counts",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept-Language",
+                "value": "ar"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/{{api_prefix}}/listings/counts",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "{{api_prefix}}",
+                "listings",
+                "counts"
+              ]
+            },
+            "description": "Published counts for APP-04/05 home cards.",
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
+        {
+          "name": "Public listings",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept-Language",
+                "value": "ar"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/{{api_prefix}}/listings?",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "{{api_prefix}}",
+                "listings"
+              ],
+              "query": [
+                {
+                  "key": "segment",
+                  "value": "distressed",
+                  "disabled": true
+                },
+                {
+                  "key": "governorate_id",
+                  "value": "1",
+                  "disabled": true
+                },
+                {
+                  "key": "price_max",
+                  "value": "2000000",
+                  "disabled": true
+                },
+                {
+                  "key": "sort",
+                  "value": "newest",
+                  "disabled": true
+                },
+                {
+                  "key": "q",
+                  "value": "مدينتي",
+                  "disabled": true
+                },
+                {
+                  "key": "tag",
+                  "value": "featured",
+                  "disabled": true
+                },
+                {
+                  "key": "distressed_child",
+                  "value": "a",
+                  "disabled": true
+                },
+                {
+                  "key": "down_payment_max",
+                  "value": "800000",
+                  "disabled": true
+                },
+                {
+                  "key": "installment_max",
+                  "value": "40000",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Published only. Optional Bearer marks is_favorited. Unpublished ids 404.",
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
+        {
+          "name": "Public listing",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept-Language",
+                "value": "ar"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/{{api_prefix}}/listings/{{listing_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "{{api_prefix}}",
+                "listings",
+                "{{listing_id}}"
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
+        {
+          "name": "Public listing media",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept-Language",
+                "value": "ar"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/{{api_prefix}}/listings/{{listing_id}}/media",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "{{api_prefix}}",
+                "listings",
+                "{{listing_id}}",
+                "media"
+              ]
+            },
+            "description": "Approved public photos only (Phase 4). Empty array when none are approved.",
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
+        {
+          "name": "Map pins",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept-Language",
+                "value": "ar"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/{{api_prefix}}/map",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "{{api_prefix}}",
+                "map"
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
+        {
+          "name": "Save favorite",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept-Language",
+                "value": "ar"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/{{api_prefix}}/favorites/{{listing_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "{{api_prefix}}",
+                "favorites",
+                "{{listing_id}}"
+              ]
+            },
+            "description": ""
+          }
+        },
+        {
+          "name": "My favorites",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept-Language",
+                "value": "ar"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/{{api_prefix}}/favorites",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "{{api_prefix}}",
+                "favorites"
+              ]
+            },
+            "description": ""
+          }
+        },
+        {
+          "name": "Remove favorite",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept-Language",
+                "value": "ar"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/{{api_prefix}}/favorites/{{listing_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "{{api_prefix}}",
+                "favorites",
+                "{{listing_id}}"
+              ]
+            },
+            "description": ""
+          }
+        }
+      ]
+    },
+    {
+      "name": "Phase 4 — Files",
+      "description": "Private documents (no public URL) and pending media. Images JPG/PNG/WebP and video mp4/webm, max 10MB. Public GET /listings/{id}/media returns approved items only (includes mime). Staff approve/publish is Blade ADM-02/03, not this collection.",
+      "item": [
+        {
+          "name": "Upload document",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "  const json = pm.response.json();",
+                  "  pm.collectionVariables.set('document_id', json.data.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept-Language",
+                "value": "ar"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "type",
+                  "value": "national_id",
+                  "type": "text"
+                },
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": ""
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/{{api_prefix}}/my/listings/{{listing_id}}/documents",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "{{api_prefix}}",
+                "my",
+                "listings",
+                "{{listing_id}}",
+                "documents"
+              ]
+            },
+            "description": "Bearer + owner. Mandatory types: national_id, contract, payment_proof. Distressed also developer_status_letter. Response has no path."
+          }
+        },
+        {
+          "name": "Upload media",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "  const json = pm.response.json();",
+                  "  pm.collectionVariables.set('media_id', json.data.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept-Language",
+                "value": "ar"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": ""
+                },
+                {
+                  "key": "caption",
+                  "value": "واجهة الوحدة",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/{{api_prefix}}/my/listings/{{listing_id}}/media",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "{{api_prefix}}",
+                "my",
+                "listings",
+                "{{listing_id}}",
+                "media"
+              ]
+            },
+            "description": "EXIF stripped. Contact details in caption/filename hold the photo."
+          }
+        },
+        {
+          "name": "Delete media",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept-Language",
+                "value": "ar"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/{{api_prefix}}/my/listings/{{listing_id}}/media/{{media_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "{{api_prefix}}",
+                "my",
+                "listings",
+                "{{listing_id}}",
+                "media",
+                "{{media_id}}"
+              ]
+            },
+            "description": "Only while the listing is draft or needs_changes."
+          }
+        },
+        {
+          "name": "My documents",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept-Language",
+                "value": "ar"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/{{api_prefix}}/my/documents",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "{{api_prefix}}",
+                "my",
+                "documents"
+              ]
+            },
+            "description": "Owner status list. No disk/path."
+          }
+        },
+        {
+          "name": "Public listing media",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept-Language",
+                "value": "ar"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/{{api_prefix}}/listings/{{listing_id}}/media",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "{{api_prefix}}",
+                "listings",
+                "{{listing_id}}",
+                "media"
+              ]
+            },
+            "description": "Approved public photos only. Unpublished listings 404.",
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Phase 5 — CRM",
+      "description": "Inquiries create a Sales lead and return the platform Sales number from settings. Seller interest is anonymized. Appointments are viewing requests handled by Sales. Staff CRM is Blade ADM-07.",
+      "item": [
+        {
+          "name": "Sales contact",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/{{api_prefix}}/config/sales-contact",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "{{api_prefix}}",
+                "config",
+                "sales-contact"
+              ]
+            },
+            "description": "Public alias of GET /config sales_contact.",
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
+        {
+          "name": "Create inquiry",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/{{api_prefix}}/inquiries",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "{{api_prefix}}",
+                "inquiries"
+              ]
+            },
+            "description": "Published listing only. Returns INQ-… and sales_contact. Duplicate same buyer+listing flags the open lead.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"listing_id\": \"{{listing_id}}\",\n  \"message\": \"مهتم بالمعاينة\",\n  \"inquiry_type\": \"interested\",\n  \"contact_method\": \"phone\",\n  \"preferred_time\": \"evening\",\n  \"consent\": true\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "  const json = pm.response.json();",
+                  "  pm.collectionVariables.set('inquiry_id', json.data.id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "My inquiries",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/{{api_prefix}}/my/inquiries?status=",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "{{api_prefix}}",
+                "my",
+                "inquiries"
+              ],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "",
+                  "description": "APP-18 chip"
+                }
+              ]
+            },
+            "description": "Buyer inquiry list. Optional ?status=new|in_review|replied|closed."
+          }
+        },
+        {
+          "name": "Show inquiry",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/{{api_prefix}}/my/inquiries/{{inquiry_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "{{api_prefix}}",
+                "my",
+                "inquiries",
+                "{{inquiry_id}}"
+              ]
+            },
+            "description": "Buyer only; others 404."
+          }
+        },
+        {
+          "name": "Request callback",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/{{api_prefix}}/my/inquiries/{{inquiry_id}}/callback",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "{{api_prefix}}",
+                "my",
+                "inquiries",
+                "{{inquiry_id}}",
+                "callback"
+              ]
+            },
+            "description": "APP-16 callback button. Sets lead next_action=callback."
+          }
+        },
+        {
+          "name": "Seller interest",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/{{api_prefix}}/my/listings/{{listing_id}}/interest",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "{{api_prefix}}",
+                "my",
+                "listings",
+                "{{listing_id}}",
+                "interest"
+              ]
+            },
+            "description": "Owner only. No buyer name/phone. kind + client_status + counts + interested_buyer_seq."
+          }
+        },
+        {
+          "name": "Request viewing",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/{{api_prefix}}/appointments",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "{{api_prefix}}",
+                "appointments"
+              ]
+            },
+            "description": "Viewing request handled by Sales. Consent optional (APP-41 has no checkbox).",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"listing_id\": \"{{listing_id}}\",\n  \"requested_date\": \"2026-11-15\",\n  \"requested_slot\": \"10:30\",\n  \"notes\": \"صباحاً\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "  const json = pm.response.json();",
+                  "  pm.collectionVariables.set('appointment_id', json.data.id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "My appointments",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/{{api_prefix}}/my/appointments",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "{{api_prefix}}",
+                "my",
+                "appointments"
+              ]
+            },
+            "description": "Buyer viewing requests (APP-41 list; not mixed into inquiries)."
+          }
+        },
+        {
+          "name": "Show appointment",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/{{api_prefix}}/my/appointments/{{appointment_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "{{api_prefix}}",
+                "my",
+                "appointments",
+                "{{appointment_id}}"
+              ]
+            },
+            "description": "Buyer only; others 404."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Phase 6 — Buyer requests & cases",
+      "description": "Custom buy requests always 201 with BR- even if matching is empty. Client APIs never return internal pipeline or owner PII. Staff ADM-08/09 are Blade.",
+      "item": [
+        {
+          "name": "Create buyer request",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/{{api_prefix}}/buyer-requests",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "{{api_prefix}}",
+                "buyer-requests"
+              ]
+            },
+            "description": "Always 201 (UAT-12). Consent required. options stay empty until Sales sends a listing.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"intent\": \"living\",\n  \"contact_method\": \"phone\",\n  \"consent\": true,\n  \"budget_max\": 3500000\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 201 || pm.response.code === 200) {",
+                  "  const json = pm.response.json();",
+                  "  if (json.data && json.data.id) { pm.collectionVariables.set('buyer_request_id', json.data.id); }",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "My buyer requests",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/{{api_prefix}}/my/buyer-requests",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "{{api_prefix}}",
+                "my",
+                "buyer-requests"
+              ]
+            },
+            "description": "Buyer-only list. Sent matches only."
+          }
+        },
+        {
+          "name": "Show buyer request",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/{{api_prefix}}/my/buyer-requests/{{buyer_request_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "{{api_prefix}}",
+                "my",
+                "buyer-requests",
+                "{{buyer_request_id}}"
+              ]
+            },
+            "description": "Client status chips only. No internal_status."
+          }
+        },
+        {
+          "name": "Buyer request callback",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/{{api_prefix}}/my/buyer-requests/{{buyer_request_id}}/callback",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "{{api_prefix}}",
+                "my",
+                "buyer-requests",
+                "{{buyer_request_id}}",
+                "callback"
+              ]
+            },
+            "description": "Sets linked lead next_action=callback."
+          }
+        },
+        {
+          "name": "My cases",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/{{api_prefix}}/my/cases",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "{{api_prefix}}",
+                "my",
+                "cases"
+              ]
+            },
+            "description": "Buyer or seller transfer cases. status is the client stage label; lifecycle is open|waiting_for_information|on_hold|cancelled|lost|completed. Never internal_stage or counterparty PII."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200 && pm.response.json().data && pm.response.json().data[0]) {",
+                  "  pm.collectionVariables.set('case_id', pm.response.json().data[0].id);",
+                  "}",
+                  "if (pm.response.code === 200 && pm.response.json().data && pm.response.json().data.id) {",
+                  "  pm.collectionVariables.set('case_id', pm.response.json().data.id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Show case",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/{{api_prefix}}/my/cases/{{case_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "{{api_prefix}}",
+                "my",
+                "cases",
+                "{{case_id}}"
+              ]
+            },
+            "description": "Timeline keys are client labels (UAT-15). No internal_stage."
+          }
+        },
+        {
+          "name": "Upload case document",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/{{api_prefix}}/my/cases/{{case_id}}/documents",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "{{api_prefix}}",
+                "my",
+                "cases",
+                "{{case_id}}",
+                "documents"
+              ]
+            },
+            "description": "Buyer requested document. Use form-data file in Postman UI; JSON body here is a placeholder.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"kind\": \"buyer_requested\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Mixed inbox",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/{{api_prefix}}/my/inquiries",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "{{api_prefix}}",
+                "my",
+                "inquiries"
+              ]
+            },
+            "description": "APP-18 mixes listing_inquiry, buyer_request, and case. Chip status plus label (client_label for cases)."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Phase 7 — Exit estimate",
+      "description": "Owner-only estimate. Guest 401. Missing cancellation % → computable false, never invent a penalty. Staff ADM-10 is Blade, not this API.",
+      "item": [
+        {
+          "name": "Estimate listing (owner)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/{{api_prefix}}/listings/{{listing_id}}/estimate",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "{{api_prefix}}",
+                "listings",
+                "{{listing_id}}",
+                "estimate"
+              ]
+            },
+            "description": "UAT-19: without cancellation % → computable false / cancellation_percent_missing. Other users 404. Guest 401."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Phase 8 — Notifications",
+      "description": "In-app inbox is source of truth. Push is best-effort. Guest 401. In-app cannot be turned off. APP-14 smart category is empty while the flag is off. Staff ADM-11 is Blade, not this API.",
+      "item": [
+        {
+          "name": "List notifications",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/{{api_prefix}}/notifications",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "{{api_prefix}}",
+                "notifications"
+              ]
+            },
+            "description": "Paginated inbox + meta.unread_count and meta.smart_enabled. Optional ?category=listing|inquiry|case|system|marketing|smart and ?unread=1."
+          }
+        },
+        {
+          "name": "Mark one read",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/{{api_prefix}}/notifications/{{notification_id}}/read",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "{{api_prefix}}",
+                "notifications",
+                "{{notification_id}}",
+                "read"
+              ]
+            },
+            "description": "Marks one inbox row read. Other users 404."
+          }
+        },
+        {
+          "name": "Mark all read",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/{{api_prefix}}/notifications/read-all",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "{{api_prefix}}",
+                "notifications",
+                "read-all"
+              ]
+            },
+            "description": "Marks every unread row for the current user."
+          }
+        },
+        {
+          "name": "Get preferences",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/{{api_prefix}}/me/notification-preferences",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "{{api_prefix}}",
+                "me",
+                "notification-preferences"
+              ]
+            },
+            "description": "push_enabled, email_enabled, sms_enabled, marketing_opt_in, in_app_always_on=true."
+          }
+        },
+        {
+          "name": "Update preferences",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/{{api_prefix}}/me/notification-preferences",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "{{api_prefix}}",
+                "me",
+                "notification-preferences"
+              ]
+            },
+            "description": "UAT-18: push_enabled false still keeps in-app readable. marketing_opt_in is separate.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"push_enabled\": false,\n  \"marketing_opt_in\": false\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Phase 9 — Handover",
+      "description": "UAT-20 smoke: /up, /config (platform_name + maintenance). Listings search is throttled 30/min. Maintenance 503s marketplace API except GET /config. Staff ADM-01/12/13/14 are Blade.",
+      "item": [
+        {
+          "name": "Health",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/up",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "up"
+              ]
+            },
+            "description": "Not under /api/v1. Stays 200 during ADM-13 maintenance (UAT-20)."
+          }
+        },
+        {
+          "name": "Public config",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/{{api_prefix}}/config",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "{{api_prefix}}",
+                "config"
+              ]
+            },
+            "description": "currency EGP, platform_name, maintenance, sales_contact {name,phone,hours}. Stays available in maintenance so the app can show the flag."
+          }
+        },
+        {
+          "name": "Public listings (search throttle)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/{{api_prefix}}/listings",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "{{api_prefix}}",
+                "listings"
+              ]
+            },
+            "description": "throttle:search 30/min including show + media. 503 when maintenance_mode is on."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Phase 13 — Listing fields",
+      "description": "No new marketplace routes. Specs: phase, parking, unit_code (never public). Financials: offer_expires_at, installment paid + evidence_document_id (same listing). Category step copies commission_policy_code (not a payout). Public GET /categories omits the policy code. Staff assign-reviewer is Blade ADM-02.",
+      "item": [
+        {
+          "name": "Save specs (phase / parking / unit_code)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {"key": "Accept", "value": "application/json"},
+              {"key": "Authorization", "value": "Bearer {{auth_token}}"},
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phase\": \"المرحلة 3\",\n  \"parking\": 1,\n  \"unit_code\": \"B-12\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/{{api_prefix}}/my/listings/{{listing_id}}/step/specs",
+              "host": ["{{base_url}}"],
+              "path": ["api", "{{api_prefix}}", "my", "listings", "{{listing_id}}", "step", "specs"]
+            },
+            "description": "Owner + staff see unit_code. Public listing JSON never includes it."
+          }
+        },
+        {
+          "name": "Save financials (offer expiry + installment evidence)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {"key": "Accept", "value": "application/json"},
+              {"key": "Authorization", "value": "Bearer {{auth_token}}"},
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"offer_expires_at\": \"2026-12-31\",\n  \"installment_items\": [\n    {\"sequence\": 1, \"due_date\": \"2026-11-01\", \"amount\": 15000, \"paid\": true, \"evidence_document_id\": {{document_id}}}\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/{{api_prefix}}/my/listings/{{listing_id}}/step/financials",
+              "host": ["{{base_url}}"],
+              "path": ["api", "{{api_prefix}}", "my", "listings", "{{listing_id}}", "step", "financials"]
+            },
+            "description": "evidence_document_id must belong to the same listing."
+          }
+        },
+        {
+          "name": "Public categories (no commission policy)",
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Accept", "value": "application/json"}],
+            "url": {
+              "raw": "{{base_url}}/api/{{api_prefix}}/categories",
+              "host": ["{{base_url}}"],
+              "path": ["api", "{{api_prefix}}", "categories"]
+            },
+            "description": "Must not include commission_policy_code."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Phase 14 — Cases",
+      "description": "GET /my/cases is buyer or seller. Client-safe labels only. lifecycle = open|waiting_for_information|on_hold|cancelled|lost|completed. Staff lifecycle history is Blade ADM-09.",
+      "item": [
+        {
+          "name": "My cases (buyer or seller)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {"key": "Accept", "value": "application/json"},
+              {"key": "Authorization", "value": "Bearer {{auth_token}}"}
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/{{api_prefix}}/my/cases",
+              "host": ["{{base_url}}"],
+              "path": ["api", "{{api_prefix}}", "my", "cases"]
+            },
+            "description": "No internal_stage, buyer, or seller objects. status is the client stage label."
+          }
+        },
+        {
+          "name": "Show case (buyer or seller)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {"key": "Accept", "value": "application/json"},
+              {"key": "Authorization", "value": "Bearer {{auth_token}}"}
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/{{api_prefix}}/my/cases/{{case_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "{{api_prefix}}", "my", "cases", "{{case_id}}"]
+            },
+            "description": "timeline[].at is the recorded milestone. viewer is buyer|seller. lifecycle is the alternative status. No counterparty PII."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Phase 15 — Notifications",
+      "description": "GET /notifications may include listing_held and listing_suspended. Staff queue events are Blade /dashboard/inbox only — never marketplace inbox, never push.",
+      "item": [
+        {
+          "name": "My inbox",
+          "request": {
+            "method": "GET",
+            "header": [
+              {"key": "Accept", "value": "application/json"},
+              {"key": "Authorization", "value": "Bearer {{auth_token}}"}
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/{{api_prefix}}/notifications",
+              "host": ["{{base_url}}"],
+              "path": ["api", "{{api_prefix}}", "notifications"]
+            },
+            "description": "Must not include staff_new_submission / staff_unassigned_lead / party phones."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Post-G5 — Support and share",
+      "description": "Sales support chat (not buyer↔seller). Public share landing /property/{code}. Staff PDF is Blade ADM-12 ?format=pdf.",
+      "item": [
+        {
+          "name": "Current support thread",
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Accept", "value": "application/json"}, {"key": "Authorization", "value": "Bearer {{auth_token}}"}],
+            "url": {
+              "raw": "{{base_url}}/api/{{api_prefix}}/my/support",
+              "host": ["{{base_url}}"],
+              "path": ["api", "{{api_prefix}}", "my", "support"]
+            },
+            "description": "Open Sales-support thread or data null. Auth user only."
+          }
+        },
+        {
+          "name": "Send support message",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Accept", "value": "application/json"}, {"key": "Authorization", "value": "Bearer {{auth_token}}"}, {"key": "Content-Type", "value": "application/json"}],
+            "body": {"mode": "raw", "raw": "{\n  \"body\": \"Need help with my listing\",\n  \"consent\": true\n}"},
+            "url": {
+              "raw": "{{base_url}}/api/{{api_prefix}}/my/support",
+              "host": ["{{base_url}}"],
+              "path": ["api", "{{api_prefix}}", "my", "support"]
+            },
+            "description": "Creates or appends. Contact details in body are 422. author is user|sales only."
+          }
+        }
+      ]
+    }
+  ]
+}

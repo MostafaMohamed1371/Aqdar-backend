@@ -1,0 +1,509 @@
+openapi: 3.0.3
+info:
+  title: "AQDAR API"
+  version: v1
+  description: "Generated from Laravel routes. Staff desk is Blade, not this spec."
+servers:
+  - url: "/api/v1"
+paths:
+  "/amenities":
+    get:
+      summary: "api.throttle:api"
+      responses:
+        "200":
+          description: OK
+  "/appointments":
+    post:
+      summary: "api.auth:sanctum.marketplace.active.throttle:api"
+      responses:
+        "200":
+          description: OK
+  "/auth/forgot-password":
+    post:
+      summary: "api.throttle:password-reset"
+      responses:
+        "200":
+          description: OK
+  "/auth/login":
+    post:
+      summary: "api.throttle:login"
+      responses:
+        "200":
+          description: OK
+  "/auth/logout":
+    post:
+      summary: "api.auth:sanctum"
+      responses:
+        "200":
+          description: OK
+  "/auth/me":
+    get:
+      summary: "api.auth:sanctum"
+      responses:
+        "200":
+          description: OK
+  "/auth/otp/send":
+    post:
+      summary: "api.throttle:otp"
+      responses:
+        "200":
+          description: OK
+  "/auth/otp/verify":
+    post:
+      summary: "api.throttle:otp"
+      responses:
+        "200":
+          description: OK
+  "/auth/register":
+    post:
+      summary: "api.throttle:api-auth"
+      responses:
+        "200":
+          description: OK
+  "/auth/reset-password":
+    post:
+      summary: "api.throttle:password-reset"
+      responses:
+        "200":
+          description: OK
+  "/buyer-requests":
+    post:
+      summary: "api.auth:sanctum.marketplace.active.throttle:api"
+      responses:
+        "200":
+          description: OK
+  "/categories":
+    get:
+      summary: "api.throttle:api"
+      responses:
+        "200":
+          description: OK
+    post:
+      summary: "api.auth:sanctum"
+      responses:
+        "200":
+          description: OK
+  "/categories/slug/{slug}":
+    get:
+      summary: "api.throttle:api"
+      responses:
+        "200":
+          description: OK
+  "/categories/{category}":
+    put:
+      summary: "api.auth:sanctum"
+      responses:
+        "200":
+          description: OK
+    patch:
+      summary: "api.auth:sanctum"
+      responses:
+        "200":
+          description: OK
+    delete:
+      summary: "api.auth:sanctum"
+      responses:
+        "200":
+          description: OK
+  "/config":
+    get:
+      summary: "api.throttle:api"
+      responses:
+        "200":
+          description: OK
+  "/config/sales-contact":
+    get:
+      summary: "api.throttle:api"
+      responses:
+        "200":
+          description: OK
+  "/content/banners":
+    get:
+      summary: "api.throttle:api"
+      responses:
+        "200":
+          description: OK
+  "/content/faqs":
+    get:
+      summary: "api.throttle:api"
+      responses:
+        "200":
+          description: OK
+  "/content/support":
+    get:
+      summary: "api.throttle:api"
+      responses:
+        "200":
+          description: OK
+  "/developers":
+    get:
+      summary: "api.throttle:api"
+      responses:
+        "200":
+          description: OK
+  "/devices":
+    post:
+      summary: "api.auth:sanctum.marketplace.active"
+      responses:
+        "200":
+          description: OK
+  "/favorites":
+    get:
+      summary: "api.auth:sanctum.marketplace.active.throttle:api"
+      responses:
+        "200":
+          description: OK
+  "/favorites/{listing}":
+    post:
+      summary: "api.auth:sanctum.marketplace.active.throttle:api"
+      responses:
+        "200":
+          description: OK
+    delete:
+      summary: "api.auth:sanctum.marketplace.active.throttle:api"
+      responses:
+        "200":
+          description: OK
+  "/inquiries":
+    post:
+      summary: "api.auth:sanctum.marketplace.active.throttle:api"
+      responses:
+        "200":
+          description: OK
+  "/listings":
+    get:
+      summary: "api.optional.sanctum.throttle:search"
+      responses:
+        "200":
+          description: OK
+  "/listings/counts":
+    get:
+      summary: "api.optional.sanctum.throttle:search"
+      responses:
+        "200":
+          description: OK
+  "/listings/{listing}":
+    get:
+      summary: "api.optional.sanctum.throttle:search"
+      responses:
+        "200":
+          description: OK
+  "/listings/{listing}/estimate":
+    get:
+      summary: "api.auth:sanctum.marketplace.active.throttle:api"
+      responses:
+        "200":
+          description: OK
+  "/listings/{listing}/media":
+    get:
+      summary: "api.optional.sanctum.throttle:search"
+      responses:
+        "200":
+          description: OK
+  "/locations":
+    get:
+      summary: "api.throttle:api"
+      responses:
+        "200":
+          description: OK
+  "/map":
+    get:
+      summary: "api.optional.sanctum.throttle:search"
+      responses:
+        "200":
+          description: OK
+  "/me":
+    get:
+      summary: "api.auth:sanctum"
+      responses:
+        "200":
+          description: OK
+    patch:
+      summary: "api.auth:sanctum.marketplace.active"
+      responses:
+        "200":
+          description: OK
+  "/me/notification-preferences":
+    get:
+      summary: "api.auth:sanctum.marketplace.active.throttle:api"
+      responses:
+        "200":
+          description: OK
+    patch:
+      summary: "api.auth:sanctum.marketplace.active.throttle:api"
+      responses:
+        "200":
+          description: OK
+  "/my/appointments":
+    get:
+      summary: "api.auth:sanctum.marketplace.active.throttle:api"
+      responses:
+        "200":
+          description: OK
+  "/my/appointments/{appointment}":
+    get:
+      summary: "api.auth:sanctum.marketplace.active.throttle:api"
+      responses:
+        "200":
+          description: OK
+  "/my/buyer-requests":
+    get:
+      summary: "api.auth:sanctum.marketplace.active.throttle:api"
+      responses:
+        "200":
+          description: OK
+  "/my/buyer-requests/{buyerRequest}":
+    get:
+      summary: "api.auth:sanctum.marketplace.active.throttle:api"
+      responses:
+        "200":
+          description: OK
+  "/my/buyer-requests/{buyerRequest}/callback":
+    post:
+      summary: "api.auth:sanctum.marketplace.active.throttle:api"
+      responses:
+        "200":
+          description: OK
+  "/my/cases":
+    get:
+      summary: "api.auth:sanctum.marketplace.active.throttle:api"
+      responses:
+        "200":
+          description: OK
+  "/my/cases/{transferCase}":
+    get:
+      summary: "api.auth:sanctum.marketplace.active.throttle:api"
+      responses:
+        "200":
+          description: OK
+  "/my/cases/{transferCase}/documents":
+    post:
+      summary: "api.auth:sanctum.marketplace.active.throttle:api"
+      responses:
+        "200":
+          description: OK
+  "/my/documents":
+    get:
+      summary: "api.auth:sanctum.marketplace.active.throttle:api"
+      responses:
+        "200":
+          description: OK
+  "/my/inquiries":
+    get:
+      summary: "api.auth:sanctum.marketplace.active.throttle:api"
+      responses:
+        "200":
+          description: OK
+  "/my/inquiries/{inquiry}":
+    get:
+      summary: "api.auth:sanctum.marketplace.active.throttle:api"
+      responses:
+        "200":
+          description: OK
+  "/my/inquiries/{inquiry}/callback":
+    post:
+      summary: "api.auth:sanctum.marketplace.active.throttle:api"
+      responses:
+        "200":
+          description: OK
+  "/my/listings":
+    get:
+      summary: "api.auth:sanctum.marketplace.active.throttle:api"
+      responses:
+        "200":
+          description: OK
+    post:
+      summary: "api.auth:sanctum.marketplace.active.throttle:api"
+      responses:
+        "200":
+          description: OK
+  "/my/listings/{listing}":
+    get:
+      summary: "api.auth:sanctum.marketplace.active.throttle:api"
+      responses:
+        "200":
+          description: OK
+  "/my/listings/{listing}/documents":
+    post:
+      summary: "api.auth:sanctum.marketplace.active.throttle:api"
+      responses:
+        "200":
+          description: OK
+  "/my/listings/{listing}/history":
+    get:
+      summary: "api.auth:sanctum.marketplace.active.throttle:api"
+      responses:
+        "200":
+          description: OK
+  "/my/listings/{listing}/interest":
+    get:
+      summary: "api.auth:sanctum.marketplace.active.throttle:api"
+      responses:
+        "200":
+          description: OK
+  "/my/listings/{listing}/media":
+    post:
+      summary: "api.auth:sanctum.marketplace.active.throttle:api"
+      responses:
+        "200":
+          description: OK
+  "/my/listings/{listing}/media/{media}":
+    delete:
+      summary: "api.auth:sanctum.marketplace.active.throttle:api"
+      responses:
+        "200":
+          description: OK
+  "/my/listings/{listing}/resubmit":
+    put:
+      summary: "api.auth:sanctum.marketplace.active.throttle:api"
+      responses:
+        "200":
+          description: OK
+  "/my/listings/{listing}/step/{step}":
+    put:
+      summary: "api.auth:sanctum.marketplace.active.throttle:api"
+      responses:
+        "200":
+          description: OK
+  "/my/listings/{listing}/submit":
+    post:
+      summary: "api.auth:sanctum.marketplace.active.throttle:api"
+      responses:
+        "200":
+          description: OK
+  "/notifications":
+    get:
+      summary: "api.auth:sanctum.marketplace.active.throttle:api"
+      responses:
+        "200":
+          description: OK
+  "/notifications/read-all":
+    post:
+      summary: "api.auth:sanctum.marketplace.active.throttle:api"
+      responses:
+        "200":
+          description: OK
+  "/notifications/{notification}/read":
+    post:
+      summary: "api.auth:sanctum.marketplace.active.throttle:api"
+      responses:
+        "200":
+          description: OK
+  "/projects":
+    get:
+      summary: "api.throttle:api"
+      responses:
+        "200":
+          description: OK
+  "/settings":
+    get:
+      summary: "api.auth:sanctum"
+      responses:
+        "200":
+          description: OK
+    post:
+      summary: "api.auth:sanctum"
+      responses:
+        "200":
+          description: OK
+    put:
+      summary: "api.auth:sanctum"
+      responses:
+        "200":
+          description: OK
+    patch:
+      summary: "api.auth:sanctum"
+      responses:
+        "200":
+          description: OK
+    delete:
+      summary: "api.auth:sanctum"
+      responses:
+        "200":
+          description: OK
+  "/settings/key/{key}":
+    get:
+      summary: "api.auth:sanctum"
+      responses:
+        "200":
+          description: OK
+  "/settings/{setting}":
+    get:
+      summary: "api.auth:sanctum"
+      responses:
+        "200":
+          description: OK
+    put:
+      summary: "api.auth:sanctum"
+      responses:
+        "200":
+          description: OK
+    patch:
+      summary: "api.auth:sanctum"
+      responses:
+        "200":
+          description: OK
+    delete:
+      summary: "api.auth:sanctum"
+      responses:
+        "200":
+          description: OK
+  "/tags":
+    get:
+      summary: "api.throttle:api"
+      responses:
+        "200":
+          description: OK
+  "/unit-types":
+    get:
+      summary: "api.throttle:api"
+      responses:
+        "200":
+          description: OK
+  "/users":
+    get:
+      summary: "api.auth:sanctum"
+      responses:
+        "200":
+          description: OK
+    post:
+      summary: "api.auth:sanctum"
+      responses:
+        "200":
+          description: OK
+    put:
+      summary: "api.auth:sanctum"
+      responses:
+        "200":
+          description: OK
+    patch:
+      summary: "api.auth:sanctum"
+      responses:
+        "200":
+          description: OK
+    delete:
+      summary: "api.auth:sanctum"
+      responses:
+        "200":
+          description: OK
+  "/users/{user}":
+    get:
+      summary: "api.auth:sanctum"
+      responses:
+        "200":
+          description: OK
+    put:
+      summary: "api.auth:sanctum"
+      responses:
+        "200":
+          description: OK
+    patch:
+      summary: "api.auth:sanctum"
+      responses:
+        "200":
+          description: OK
+    delete:
+      summary: "api.auth:sanctum"
+      responses:
+        "200":
+          description: OK
