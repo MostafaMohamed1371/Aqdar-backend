@@ -26,6 +26,7 @@
             @include('dashboard::partials.icon', ['name' => 'search'])
             <input type="search" name="q" value="{{ $search }}" placeholder="{{ __('aqdar.listings.desk.search') }}">
         </div>
+        @include('dashboard::partials.date-range')
         <button type="submit" class="btn ghost">{{ __('aqdar.search') }}</button>
     </form>
 
@@ -38,21 +39,40 @@
         @endforeach
     </div>
 
+    <form id="bulk-form" method="POST" action="{{ route('dashboard.listings.bulk') }}" class="toolbar" style="gap:8px">
+        @csrf
+        <span class="tiny">{{ __('aqdar.listings.desk.bulk_label') }}</span>
+        <select name="action" required>
+            @foreach (\App\Modules\Dashboard\Http\Requests\BulkModerateListingsRequest::ACTIONS as $bulkAction)
+                <option value="{{ $bulkAction }}">{{ __('aqdar.listings.desk.'.$bulkAction) }}</option>
+            @endforeach
+        </select>
+        <input type="text" name="reason" required minlength="3" maxlength="500" placeholder="{{ __('aqdar.listings.desk.reason') }}" style="flex:1;min-width:180px">
+        <button type="submit" class="btn sm">{{ __('aqdar.listings.desk.bulk_apply') }}</button>
+    </form>
+
     <div class="tw">
         <table class="t">
             <tr>
+                <th title="{{ __('aqdar.listings.desk.bulk_select') }}"></th>
                 <th></th>
-                <th>{{ __('aqdar.listings.desk.title') }}</th>
-                <th>{{ __('aqdar.listings.desk.market') }}</th>
+                @include('dashboard::partials.sort-th', ['key' => 'title', 'label' => __('aqdar.listings.desk.title')])
+                @include('dashboard::partials.sort-th', ['key' => 'market', 'label' => __('aqdar.listings.desk.market')])
                 <th>{{ __('aqdar.listings.desk.governorate') }}</th>
                 <th>{{ __('aqdar.listings.desk.developer') }}</th>
-                <th>{{ __('aqdar.listings.desk.added') }}</th>
+                @include('dashboard::partials.sort-th', ['key' => 'added', 'label' => __('aqdar.listings.desk.added')])
                 <th>{{ __('aqdar.listings.desk.alerts') }}</th>
-                <th>{{ __('structer.status') }}</th>
+                @include('dashboard::partials.sort-th', ['key' => 'status', 'label' => __('structer.status')])
                 <th>{{ __('structer.actions') }}</th>
             </tr>
             @forelse ($listings as $listing)
+                @php $reviewable = in_array($listing->status->value, ['submitted', 'in_review', 'resubmitted'], true); @endphp
                 <tr>
+                    <td>
+                        @if ($reviewable)
+                            <input type="checkbox" name="ids[]" value="{{ $listing->id }}" form="bulk-form" aria-label="{{ $listing->public_code }}">
+                        @endif
+                    </td>
                     <td>
                         @php $cover = $listing->media->first(fn ($media) => $media->isApproved()); @endphp
                         @if ($cover?->publicUrl())
@@ -85,6 +105,17 @@
                     <td><span class="badge {{ $listing->statusBadgeTone() }}">{{ __('aqdar.listings.status.'.$listing->status->value) }}</span></td>
                     <td style="white-space:nowrap">
                         <a class="btn ghost sm" href="{{ route('dashboard.listings.show', $listing) }}">{{ __('aqdar.listings.desk.view') }}</a>
+                        @if ($reviewable)
+                            @foreach (['approve' => 'check', 'reject' => 'x'] as $quickAction => $quickIcon)
+                                <form method="POST" action="{{ route('dashboard.listings.'.$quickAction, $listing) }}" style="display:inline" onsubmit="const r = prompt(@js(__('aqdar.listings.desk.reason'))); if (!r || r.trim().length < 3) return false; this.reason.value = r; return true;">
+                                    @csrf
+                                    <input type="hidden" name="reason" value="">
+                                    <button class="ib" type="submit" title="{{ __('aqdar.listings.desk.'.$quickAction) }}">
+                                        @include('dashboard::partials.icon', ['name' => $quickIcon])
+                                    </button>
+                                </form>
+                            @endforeach
+                        @endif
                         @if ($listing->status->value === 'approved')
                             @can('publish_listing')
                                 <form method="POST" action="{{ route('dashboard.listings.publish', $listing) }}" style="display:inline">
@@ -112,7 +143,7 @@
                 </tr>
             @empty
                 <tr>
-                    <td colspan="9">{{ __('aqdar.listings.desk.empty') }}</td>
+                    <td colspan="10">{{ __('aqdar.listings.desk.empty') }}</td>
                 </tr>
             @endforelse
         </table>

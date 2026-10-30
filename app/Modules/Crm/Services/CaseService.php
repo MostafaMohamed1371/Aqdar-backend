@@ -6,11 +6,15 @@ use App\Core\Audit\AuditLogger;
 use App\Core\Enums\CaseDocumentKind;
 use App\Core\Enums\CaseStage;
 use App\Core\Enums\CaseStatus;
+use App\Core\Enums\Permission;
 use App\Core\Enums\PublicCodePrefix;
 use App\Core\Identity\PublicCodeGenerator;
+use App\Core\Services\QueueQuery;
+use App\Core\Uploads\UploadScanner;
 use App\Modules\Crm\Models\BuyerRequest;
 use App\Modules\Crm\Models\CaseDocument;
 use App\Modules\Crm\Models\Lead;
+use App\Modules\Crm\Models\RequestMatch;
 use App\Modules\Crm\Models\TransferCase;
 use App\Modules\Listing\Models\Listing;
 use App\Modules\Notification\Services\NotificationService;
@@ -29,11 +33,14 @@ class CaseService
         private AuditLogger $audit,
         private LeadService $leads,
         private NotificationService $notifications,
+        private UploadScanner $uploads,
     ) {}
 
     public function openFromLead(Lead $lead, StaffUser $actor, string $reason): TransferCase
     {
-        $existing = TransferCase::query()->where('lead_id', $lead->id)->first();
+        $existing = $this->activeCase(
+            TransferCase::query()->where('lead_id', $lead->id)->where('listing_id', $lead->listing_id)
+        );
         if ($existing !== null) {
             return $existing;
         }
@@ -47,11 +54,21 @@ class CaseService
         ], $actor, $reason);
     }
 
-    public function openFromBuyerRequest(BuyerRequest $request, StaffUser $actor, string $reason): TransferCase
+    /**
+     * Each confirmed transaction gets its own case: one active case per (request, listing) pair.
+     */
+    public function openFromBuyerRequest(BuyerRequest $request, StaffUser $actor, string $reason, ?RequestMatch $match = null): TransferCase
     {
-        $sent = $request->matches()->whereNotNull('sent_at')->orderByDesc('score')->first();
-        $listingId = $sent?->listing_id;
+        $match ??= $request->matches()->whereNotNull('sent_at')->orderByDesc('score')->first();
+        $listingId = $match?->listing_id;
         $listing = $listingId ? Listing::query()->find($listingId) : null;
+
+        $existing = $this->activeCase(
+            TransferCase::query()->where('buyer_request_id', $request->id)->where('listing_id', $listing?->id)
+        );
+        if ($existing !== null) {
+            return $existing;
+        }
 
         return $this->open([
             'buyer_id' => $request->user_id,
@@ -74,6 +91,14 @@ class CaseService
             'lead_id' => $data['lead_id'] ?? null,
             'assigned_to' => $data['assigned_to'] ?? ($this->leads->canManageAll($staff) ? null : $staff->id),
         ], $staff, $data['reason'] ?? __('aqdar.cases.opened'));
+    }
+
+    private function activeCase(Builder $query): ?TransferCase
+    {
+        return $query
+            ->whereNotIn('status', [CaseStatus::Cancelled->value, CaseStatus::Lost->value])
+            ->latest('id')
+            ->first();
     }
 
     /** @param array<string, mixed> $attrs */
@@ -125,6 +150,12 @@ class CaseService
                     ->orWhereHas('buyer', fn ($buyer) => $buyer->where('name', 'ilike', $like));
             });
         }
+        QueueQuery::apply($query, $filters, [
+            'code' => 'public_code',
+            'stage' => 'stage',
+            'status' => 'status',
+            'updated' => 'updated_at',
+        ]);
 
         return $query->paginate(20)->withQueryString();
     }
@@ -148,7 +179,9 @@ class CaseService
 
     public function showForStaff(StaffUser $staff, TransferCase $case): TransferCase
     {
-        $this->assertCanAct($staff, $case);
+        if (! $this->isFinanceOnly($staff)) {
+            $this->assertCanAct($staff, $case);
+        }
 
         return $case->load(['buyer', 'seller', 'listing.media', 'assignee', 'lead', 'history.actor', 'documents']);
     }
@@ -182,18 +215,22 @@ class CaseService
             ->paginate(20);
     }
 
-    public function assign(TransferCase $case, StaffUser $actor, int $assigneeId): TransferCase
+    public function assign(TransferCase $case, StaffUser $actor, int $assigneeId, ?string $reason = null): TransferCase
     {
         $this->leads->assertCanManageAll($actor);
+        $this->leads->assertReassignReason($case->assigned_to, $assigneeId, $reason);
         $case->forceFill(['assigned_to' => $assigneeId])->save();
-        $this->audit->write('case.assigned', $actor, $case, ['assignee_id' => $assigneeId]);
+        $this->audit->write('case.assigned', $actor, $case, array_filter([
+            'assignee_id' => $assigneeId,
+            'reason' => $reason,
+        ]));
 
         return $case->fresh(['assignee']) ?? $case;
     }
 
     public function setStage(TransferCase $case, StaffUser $actor, CaseStage $stage, string $reason, ?string $note = null): TransferCase
     {
-        $this->assertCanAdvance($actor, $case);
+        $this->assertCanAdvance($actor, $case, $stage);
         $old = $case->internal_stage;
         $oldStatus = $case->status;
         $status = $stage === CaseStage::Completed ? CaseStatus::Completed : ($oldStatus ?? CaseStatus::Open);
@@ -256,6 +293,8 @@ class CaseService
             $this->assertCanAct($staff, $case);
         }
 
+        $this->uploads->assertSafe($file, (array) config('aqdar.files.documents.mimes', []));
+
         $disk = (string) config('aqdar.files.documents.disk');
         $path = 'cases/'.$case->id.'/'.$kind->value.'-'.Str::random(8).'.'.$file->getClientOriginalExtension();
         Storage::disk($disk)->put($path, $file->getContent());
@@ -294,6 +333,35 @@ class CaseService
         return $this->leads->canManageAll($staff);
     }
 
+    public function isFinanceOnly(StaffUser $staff): bool
+    {
+        return $staff->hasPermission(Permission::AdvanceFinanceStages)
+            && ! $staff->hasPermission(Permission::AdvanceCase)
+            && ! $this->leads->canManageAll($staff);
+    }
+
+    public function isReadyForFinance(TransferCase $case): bool
+    {
+        $current = $case->internal_stage;
+
+        return $current === null
+            || $current === CaseStage::DeveloperApproval
+            || $current->isFinanceStage();
+    }
+
+    /** @return list<CaseStage> */
+    public function allowedStagesFor(StaffUser $staff, TransferCase $case): array
+    {
+        if ($this->isFinanceOnly($staff)) {
+            return array_values(array_filter(
+                CaseStage::cases(),
+                fn (CaseStage $stage): bool => $stage->isFinanceStage(),
+            ));
+        }
+
+        return CaseStage::cases();
+    }
+
     public function assignableStaff()
     {
         return $this->leads->assignableStaff();
@@ -305,10 +373,23 @@ class CaseService
         $this->leads->assertCanAct($staff, $lead);
     }
 
-    private function assertCanAdvance(StaffUser $staff, TransferCase $case): void
+    private function assertCanAdvance(StaffUser $staff, TransferCase $case, ?CaseStage $target = null): void
     {
+        if ($this->isFinanceOnly($staff)) {
+            if ($target === null || ! $target->isFinanceStage() || ! $this->isReadyForFinance($case)) {
+                $this->audit->write('permission_denied', $staff, $case, [
+                    'permission' => Permission::AdvanceFinanceStages->value,
+                    'path' => request()->path(),
+                    'target' => $target?->value,
+                ]);
+                abort(403, __('aqdar.cases.finance_stage_denied'));
+            }
+
+            return;
+        }
+
         $this->assertCanAct($staff, $case);
-        if (! $staff->hasPermission('advance_case')) {
+        if (! $staff->hasPermission(Permission::AdvanceCase)) {
             $this->leads->assertCanManageAll($staff);
         }
     }

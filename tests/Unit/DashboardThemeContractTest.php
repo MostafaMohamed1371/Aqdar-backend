@@ -11,6 +11,8 @@ class DashboardThemeContractTest extends TestCase
         $css = (string) file_get_contents(base_path('resources/css/aqdar-ui.css'));
 
         $this->assertStringContainsString('--ink: #14283f;', $css);
+        $this->assertStringContainsString('--navy: #14283f;', $css);
+        $this->assertStringContainsString('--desk: #f7f5f0;', $css);
         $this->assertStringContainsString('--ink-2: #1d3b58;', $css);
         $this->assertStringContainsString('--teal: #087e82;', $css);
         $this->assertStringContainsString('--gold: #c5985f;', $css);
@@ -42,18 +44,31 @@ class DashboardThemeContractTest extends TestCase
         $this->assertStringContainsString('.dbody', $admin);
         $this->assertStringContainsString('overflow: auto', $admin);
         $this->assertStringContainsString('.dside.is-open', $admin);
+        $this->assertStringContainsString('input::placeholder', $admin);
+        $this->assertStringContainsString('opacity: 1', $admin);
+        $this->assertStringContainsString('html.dark option', $admin);
+        $this->assertStringContainsString('color-scheme: dark', $admin);
+        $this->assertStringContainsString('html.dark .ctabs a em', $admin);
+        $this->assertStringContainsString('.dhead a.who', $ui);
+        $this->assertStringContainsString('background: var(--cream)', $ui);
     }
 
-    public function test_layout_keeps_light_desk_and_rtl_ltr_shell(): void
+    public function test_layout_keeps_light_dark_desk_and_rtl_ltr_shell(): void
     {
         $layout = (string) file_get_contents(base_path('app/Modules/Dashboard/Resources/views/layouts/app.blade.php'));
 
-        $this->assertStringContainsString('name="color-scheme" content="light"', $layout);
+        $this->assertStringContainsString('name="color-scheme" content="light dark"', $layout);
         $this->assertStringContainsString("dir=\"{{ app()->getLocale() === 'ar' ? 'rtl' : 'ltr' }}\"", $layout);
         $this->assertStringContainsString("class=\"desk {{ app()->getLocale() === 'ar' ? 'is-rtl' : 'is-ltr' }}\"", $layout);
         $this->assertStringContainsString('class="aqdar-desk"', $layout);
         $this->assertStringContainsString('class="dside"', (string) file_get_contents(base_path('app/Modules/Dashboard/Resources/views/partials/sidebar.blade.php')));
-        $this->assertStringContainsString('class="dhead"', (string) file_get_contents(base_path('app/Modules/Dashboard/Resources/views/partials/header.blade.php')));
+        $header = (string) file_get_contents(base_path('app/Modules/Dashboard/Resources/views/partials/header.blade.php'));
+        $icons = (string) file_get_contents(base_path('app/Modules/Dashboard/Resources/views/partials/icon.blade.php'));
+        $this->assertStringContainsString('class="dhead"', $header);
+        $this->assertStringContainsString("route('dashboard.profile.show')", $header);
+        $this->assertStringContainsString("['name' => 'settings']", $header);
+        $this->assertStringContainsString('1.65 1.65', $icons);
+        $this->assertStringNotContainsString('M12 2.5v2.5M12 19v2.5', $icons);
         $this->assertStringContainsString('<x-bilingual', (string) file_get_contents(base_path('app/Modules/Dashboard/Resources/views/partials/sidebar.blade.php')));
     }
 }

@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <meta name="color-scheme" content="light">
+    <meta name="color-scheme" content="light dark">
     <title>{{ __('structer.dashboard') }} — {{ config('app.name') }}</title>
     @include('dashboard::partials.favicon')
     @include('dashboard::partials.theme-script')
@@ -15,6 +15,7 @@
 </head>
 <body class="aqdar-login" data-screen="staff-login">
     <div class="login-top">
+        @include('dashboard::partials.theme-toggle')
         @include('dashboard::partials.locale-switcher')
     </div>
 

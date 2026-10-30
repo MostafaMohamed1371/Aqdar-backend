@@ -7,31 +7,62 @@ use App\Modules\Catalog\Models\Developer;
 use App\Modules\Catalog\Models\Project;
 use App\Modules\Catalog\Services\MasterDataService;
 use App\Modules\Dashboard\Http\Requests\SaveCatalogRecordRequest;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\View\View;
 
 class DeveloperController extends BaseController
 {
     public function __construct(private MasterDataService $masterData) {}
 
-    public function index(): View
+    public function index(Request $request): View
     {
+        $tab = $request->query('tab') === 'projects' ? 'projects' : 'developers';
+        $search = trim((string) $request->query('q', ''));
+        $pattern = '%'.addcslashes($search, '%_\\').'%';
+
+        $developers = Developer::query()
+            ->withCount('projects')
+            ->when($search !== '', fn (Builder $query) => $query->where(fn (Builder $inner) => $inner
+                ->where('name_ar', 'ilike', $pattern)
+                ->orWhere('name_en', 'ilike', $pattern)
+                ->orWhere('commercial_register', 'ilike', $pattern)))
+            ->orderBy('is_other')
+            ->orderBy('sort_order')
+            ->orderBy('id');
+
+        $projects = Project::query()
+            ->with('developer')
+            ->when($search !== '', fn (Builder $query) => $query->where(fn (Builder $inner) => $inner
+                ->where('name_ar', 'ilike', $pattern)
+                ->orWhere('name_en', 'ilike', $pattern)
+                ->orWhereHas('developer', fn (Builder $developer) => $developer
+                    ->where('name_ar', 'ilike', $pattern)
+                    ->orWhere('name_en', 'ilike', $pattern))))
+            ->orderBy('is_other')
+            ->orderBy('sort_order')
+            ->orderBy('id');
+
         return view('dashboard::developers.index', [
-            'developers' => Developer::query()->withCount('projects')->orderBy('is_other')->orderBy('sort_order')->get(),
-            'projects' => Project::query()->with('developer')->orderBy('is_other')->orderBy('sort_order')->get(),
+            'tab' => $tab,
+            'search' => $search,
+            'developers' => $tab === 'developers' ? $developers->paginate(20)->withQueryString() : null,
+            'projects' => $tab === 'projects' ? $projects->paginate(20)->withQueryString() : null,
+            'developerOptions' => Developer::query()->orderBy('is_other')->orderBy('sort_order')->get(),
         ]);
     }
 
     public function storeDeveloper(SaveCatalogRecordRequest $request): RedirectResponse
     {
-        $this->masterData->createDeveloper($request->validated());
+        $this->masterData->createDeveloper($request->safe()->except(['logo', 'image']), $request->file('logo'));
 
         return redirect()->route('dashboard.developers.index')->with('status', __('aqdar.catalog.saved'));
     }
 
     public function updateDeveloper(SaveCatalogRecordRequest $request, Developer $developer): RedirectResponse
     {
-        $this->masterData->updateDeveloper($developer, $request->validated());
+        $this->masterData->updateDeveloper($developer, $request->safe()->except(['logo', 'image']), $request->file('logo'));
 
         return redirect()->route('dashboard.developers.index')->with('status', __('aqdar.catalog.saved'));
     }
@@ -47,20 +78,20 @@ class DeveloperController extends BaseController
     {
         $this->masterData->createProject($request->validated());
 
-        return redirect()->route('dashboard.developers.index')->with('status', __('aqdar.catalog.saved'));
+        return redirect()->route('dashboard.developers.index', ['tab' => 'projects'])->with('status', __('aqdar.catalog.saved'));
     }
 
     public function updateProject(SaveCatalogRecordRequest $request, Project $project): RedirectResponse
     {
         $this->masterData->updateProject($project, $request->validated());
 
-        return redirect()->route('dashboard.developers.index')->with('status', __('aqdar.catalog.saved'));
+        return redirect()->route('dashboard.developers.index', ['tab' => 'projects'])->with('status', __('aqdar.catalog.saved'));
     }
 
     public function destroyProject(Project $project): RedirectResponse
     {
         $this->masterData->deleteProject($project);
 
-        return redirect()->route('dashboard.developers.index')->with('status', __('aqdar.catalog.deactivated'));
+        return redirect()->route('dashboard.developers.index', ['tab' => 'projects'])->with('status', __('aqdar.catalog.deactivated'));
     }
 }

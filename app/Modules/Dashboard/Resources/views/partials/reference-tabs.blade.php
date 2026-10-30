@@ -1,10 +1,20 @@
 @php
     $tab = $tab ?? 'categories';
+    $referenceTabs = [
+        'developers' => [route('dashboard.developers.index'), __('aqdar.catalog.developers')],
+        'projects' => [route('dashboard.developers.index', ['tab' => 'projects']), __('aqdar.catalog.projects')],
+        'locations' => [route('dashboard.locations.index'), __('aqdar.catalog.locations')],
+        'unit-types' => [route('dashboard.unit-types.index'), __('aqdar.catalog.unit_types')],
+        'categories' => [route('dashboard.categories.index'), __('aqdar.catalog.categories')],
+        'amenities' => [route('dashboard.amenities.index'), __('aqdar.catalog.amenities')],
+        'tags' => [route('dashboard.tags.index'), __('aqdar.catalog.tags')],
+    ];
 @endphp
-<div class="toolbar" style="margin-bottom:16px">
-    <a href="{{ route('dashboard.categories.index') }}" class="btn {{ $tab === 'categories' ? '' : 'ghost' }} sm">{{ __('aqdar.catalog.categories') }}</a>
-    <a href="{{ route('dashboard.locations.index') }}" class="btn {{ $tab === 'locations' ? '' : 'ghost' }} sm">{{ __('aqdar.catalog.locations') }}</a>
-    <a href="{{ route('dashboard.unit-types.index') }}" class="btn {{ $tab === 'unit-types' ? '' : 'ghost' }} sm">{{ __('aqdar.catalog.unit_types') }}</a>
-    <a href="{{ route('dashboard.amenities.index') }}" class="btn {{ $tab === 'amenities' ? '' : 'ghost' }} sm">{{ __('aqdar.catalog.amenities') }}</a>
-    <a href="{{ route('dashboard.tags.index') }}" class="btn {{ $tab === 'tags' ? '' : 'ghost' }} sm">{{ __('aqdar.catalog.tags') }}</a>
+<div class="ctabs">
+    @foreach ($referenceTabs as $key => [$href, $label])
+        <a href="{{ $href }}" @class(['on' => $tab === $key])>
+            {{ $label }}
+            <em>{{ number_format($referenceCounts[$key] ?? 0) }}</em>
+        </a>
+    @endforeach
 </div>

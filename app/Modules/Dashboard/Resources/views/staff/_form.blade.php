@@ -32,6 +32,19 @@
         </div>
     </div>
 
+    <div class="field">
+        <label for="branch">{{ __('aqdar.staff.branch') }}</label>
+        <div class="inp">
+            <input id="branch" name="branch" type="text" maxlength="80" list="staff-branches" value="{{ old('branch', $staffUser?->branch) }}" placeholder="{{ __('aqdar.staff.branch_placeholder') }}">
+            <datalist id="staff-branches">
+                @foreach ($branches ?? [] as $branch)
+                    <option value="{{ $branch }}"></option>
+                @endforeach
+            </datalist>
+        </div>
+        @error('branch')<span class="err">{{ $message }}</span>@enderror
+    </div>
+
     <div class="acts">
         <button type="submit" class="btn">{{ $submit }}</button>
         <a href="{{ route('dashboard.staff.index') }}" class="btn ghost">{{ __('structer.cancel') }}</a>

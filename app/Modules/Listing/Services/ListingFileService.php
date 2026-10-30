@@ -6,6 +6,7 @@ use App\Core\Audit\AuditLogger;
 use App\Core\Enums\DocumentReviewStatus;
 use App\Core\Enums\DocumentType;
 use App\Core\Enums\MediaModerationStatus;
+use App\Core\Uploads\UploadScanner;
 use App\Modules\Listing\Jobs\ProcessListingMediaJob;
 use App\Modules\Listing\Models\Listing;
 use App\Modules\Listing\Models\ListingDocument;
@@ -14,6 +15,7 @@ use App\Modules\Staff\Models\StaffUser;
 use App\Modules\User\Models\User;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -25,11 +27,13 @@ class ListingFileService
         private ImageProcessor $images,
         private AuditLogger $audit,
         private ListingModerationService $moderation,
+        private UploadScanner $uploads,
     ) {}
 
     public function storeDocument(Listing $listing, User $user, DocumentType $type, UploadedFile $file): ListingDocument
     {
         $this->assertDocumentUploadAllowed($listing, $type);
+        $this->uploads->assertSafe($file, (array) config('aqdar.files.documents.mimes', []));
 
         $latest = $listing->documents()->where('type', $type->value)->latest('version')->first();
         $version = $latest === null ? 1 : ((int) $latest->version + 1);
@@ -43,7 +47,9 @@ class ListingFileService
             'version' => $version,
             'disk' => $disk,
             'path' => $path,
-            'original_name' => $file->getClientOriginalName(),
+            'original_name' => $this->scanner->scan(null, $file->getClientOriginalName()) === null
+                ? $file->getClientOriginalName()
+                : $type->value.'-v'.$version.'.'.$file->getClientOriginalExtension(),
             'mime' => $file->getMimeType() ?: $file->getClientMimeType(),
             'size_bytes' => $file->getSize(),
             'review_status' => DocumentReviewStatus::Pending,
@@ -61,6 +67,7 @@ class ListingFileService
     public function storeMedia(Listing $listing, User $user, UploadedFile $file, ?string $caption = null): ListingMedia
     {
         $this->assertEditable($listing);
+        $this->uploads->assertSafe($file, (array) config('aqdar.files.media.mimes', []));
 
         $max = (int) config('aqdar.files.media.max_count', 20);
         if ($listing->media()->count() >= $max) {
@@ -127,6 +134,31 @@ class ListingFileService
         }
         $media->delete();
         $this->moderation->returnToReview($listing->fresh() ?? $listing, $user, 'public_media_changed');
+    }
+
+    /**
+     * @param  list<int>  $mediaIds  every media id of the listing, in the new display order
+     */
+    public function reorderMedia(Listing $listing, User $user, array $mediaIds): void
+    {
+        $this->assertEditable($listing);
+
+        $current = $listing->media()->pluck('id')->map(fn ($id): int => (int) $id)->sort()->values()->all();
+        $requested = collect($mediaIds)->map(fn ($id): int => (int) $id)->sort()->values()->all();
+
+        if ($current !== $requested) {
+            throw ValidationException::withMessages([
+                'ids' => [__('aqdar.listings.media_order_mismatch')],
+            ]);
+        }
+
+        DB::transaction(function () use ($listing, $mediaIds): void {
+            foreach (array_values($mediaIds) as $position => $mediaId) {
+                $listing->media()->whereKey($mediaId)->update(['sort_order' => $position + 1]);
+            }
+        });
+
+        $this->audit->write('listing.media_reordered', $user, $listing, ['order' => array_values($mediaIds)]);
     }
 
     /** @return list<DocumentType> */
@@ -230,7 +262,7 @@ class ListingFileService
             'public_path' => $status === MediaModerationStatus::Approved ? $media->public_path : null,
         ])->save();
 
-        if ($status === MediaModerationStatus::Approved) {
+        if ($status === MediaModerationStatus::Approved && ! $media->isVideo()) {
             ProcessListingMediaJob::dispatch($media->id);
         }
 

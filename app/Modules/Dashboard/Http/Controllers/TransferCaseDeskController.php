@@ -7,6 +7,7 @@ use App\Core\Enums\CaseDocumentKind;
 use App\Core\Enums\CaseStage;
 use App\Core\Enums\CaseStatus;
 use App\Core\Http\Controllers\BaseController;
+use App\Core\Services\QueueQuery;
 use App\Modules\Crm\Http\Requests\UploadCaseDocumentRequest;
 use App\Modules\Crm\Models\CaseDocument;
 use App\Modules\Crm\Models\TransferCase;
@@ -38,6 +39,7 @@ class TransferCaseDeskController extends BaseController
             'status' => (string) $request->query('status', ''),
             'assigned_to' => (string) $request->query('assigned_to', ''),
             'q' => trim((string) $request->query('q', '')),
+            ...QueueQuery::filtersFrom($request),
         ];
 
         return view('dashboard::cases.index', [
@@ -49,6 +51,8 @@ class TransferCaseDeskController extends BaseController
             'search' => $filters['q'],
             'assignable' => $this->cases->assignableStaff(),
             'canAssign' => $this->cases->canManageAll($staff),
+            'canCreate' => $staff->can('manage_crm'),
+            'financeOnly' => $this->cases->isFinanceOnly($staff),
         ]);
     }
 
@@ -57,10 +61,16 @@ class TransferCaseDeskController extends BaseController
         /** @var StaffUser $staff */
         $staff = $request->user();
 
+        $case = $this->cases->showForStaff($staff, $transferCase);
+        $financeOnly = $this->cases->isFinanceOnly($staff);
+
         return view('dashboard::cases.show', [
-            'caseModel' => $this->cases->showForStaff($staff, $transferCase),
+            'caseModel' => $case,
             'assignable' => $this->cases->assignableStaff(),
             'canAssign' => $this->cases->canManageAll($staff),
+            'financeOnly' => $financeOnly,
+            'allowedStages' => $this->cases->allowedStagesFor($staff, $case),
+            'canAdvanceFinance' => ! $financeOnly || $this->cases->isReadyForFinance($case),
         ]);
     }
 
@@ -79,7 +89,7 @@ class TransferCaseDeskController extends BaseController
     {
         /** @var StaffUser $staff */
         $staff = $request->user();
-        $this->cases->assign($transferCase, $staff, (int) $request->validated('assigned_to'));
+        $this->cases->assign($transferCase, $staff, (int) $request->validated('assigned_to'), $request->validated('reason'));
 
         return back()->with('status', __('aqdar.cases.assigned'));
     }
@@ -96,7 +106,7 @@ class TransferCaseDeskController extends BaseController
             $data['reason'],
             $data['internal_note'] ?? null,
         );
-        if (! empty($data['requested_document_note'])) {
+        if (! empty($data['requested_document_note']) && ! $this->cases->isFinanceOnly($staff)) {
             $this->cases->requestBuyerDocument($transferCase->fresh() ?? $transferCase, $staff, $data['requested_document_note']);
         }
 

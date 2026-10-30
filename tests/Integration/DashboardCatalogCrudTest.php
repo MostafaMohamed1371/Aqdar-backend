@@ -4,7 +4,6 @@ namespace Tests\Integration;
 
 use App\Core\Enums\ContentBlockType;
 use App\Modules\Catalog\Database\Seeders\CatalogSeeder;
-use App\Modules\Category\Models\Category;
 use App\Modules\Catalog\Models\Amenity;
 use App\Modules\Catalog\Models\Area;
 use App\Modules\Catalog\Models\ContentBlock;
@@ -13,6 +12,7 @@ use App\Modules\Catalog\Models\Governorate;
 use App\Modules\Catalog\Models\Project;
 use App\Modules\Catalog\Models\Tag;
 use App\Modules\Catalog\Models\UnitType;
+use App\Modules\Category\Models\Category;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
@@ -53,17 +53,110 @@ class DashboardCatalogCrudTest extends TestCase
             'slug' => 'rehab-city',
             'name_ar' => 'الرحاب',
             'name_en' => 'Al Rehab',
-        ])->assertRedirect(route('dashboard.developers.index'));
+        ])->assertRedirect(route('dashboard.developers.index', ['tab' => 'projects']));
 
         $project = Project::query()->where('slug', 'rehab-city')->firstOrFail();
         $this->delete(route('dashboard.projects.destroy', $project))
-            ->assertRedirect(route('dashboard.developers.index'))
+            ->assertRedirect(route('dashboard.developers.index', ['tab' => 'projects']))
             ->assertSessionHas('status');
         $this->assertDatabaseHas('projects', ['slug' => 'rehab-city', 'is_active' => false]);
 
         $this->delete(route('dashboard.developers.destroy', $developer))
             ->assertRedirect(route('dashboard.developers.index'));
         $this->assertDatabaseHas('developers', ['slug' => 'palm-hills', 'is_active' => false]);
+    }
+
+    public function test_master_data_tabs_search_and_project_tab(): void
+    {
+        $this->actingAsStaff();
+        $nile = Developer::factory()->create(['name_en' => 'Nile Developments', 'name_ar' => 'النيل', 'commercial_register' => '584392']);
+        Developer::factory()->create(['name_en' => 'Royal Group', 'name_ar' => 'رويال']);
+        Project::factory()->create(['developer_id' => $nile->id, 'name_en' => 'Nile Towers', 'name_ar' => 'أبراج النيل']);
+
+        $this->get(route('dashboard.developers.index', ['q' => '584392']))
+            ->assertOk()
+            ->assertSee('class="ctabs"', false)
+            ->assertSee($nile->localizedName())
+            ->assertDontSee('Royal Group')
+            ->assertDontSee('رويال');
+
+        $this->get(route('dashboard.developers.index', ['tab' => 'projects', 'q' => 'Nile']))
+            ->assertOk()
+            ->assertSee('أبراج النيل');
+    }
+
+    public function test_developer_registry_fields_and_pending_status(): void
+    {
+        Storage::fake('public_media');
+        $this->actingAsStaff();
+
+        $this->post(route('dashboard.developers.store'), [
+            'slug' => 'nile-dev',
+            'name_ar' => 'النيل للتطوير',
+            'name_en' => 'Nile Developments',
+            'commercial_register' => '584392',
+            'registered_on' => '2024-05-10',
+            'logo' => UploadedFile::fake()->image('logo.png', 120, 120),
+            'is_verified' => '0',
+        ])->assertRedirect(route('dashboard.developers.index'));
+
+        $developer = Developer::query()->where('slug', 'nile-dev')->firstOrFail();
+        $this->assertSame('584392', $developer->commercial_register);
+        $this->assertSame('2024-05-10', $developer->registered_on->toDateString());
+        $this->assertFalse($developer->is_verified);
+        Storage::disk('public_media')->assertExists($developer->logo_path);
+
+        $this->get(route('dashboard.developers.index'))
+            ->assertOk()
+            ->assertSee('584392')
+            ->assertSee(__('aqdar.catalog.developer_status.pending'));
+        $this->getJson('/api/v1/developers')->assertOk()->assertJsonMissing(['slug' => 'nile-dev']);
+
+        $this->put(route('dashboard.developers.update', $developer), ['is_verified' => '1'])
+            ->assertRedirect(route('dashboard.developers.index'));
+        $this->assertTrue($developer->fresh()->is_verified);
+        $this->getJson('/api/v1/developers')->assertOk()->assertJsonFragment(['slug' => 'nile-dev']);
+
+        $this->post(route('dashboard.developers.store'), [
+            'slug' => 'bad-dev',
+            'name_ar' => 'س',
+            'name_en' => 'Bad',
+            'commercial_register' => '12 34; drop',
+        ])->assertSessionHasErrors('commercial_register');
+    }
+
+    public function test_cities_show_code_area_count_and_can_be_retired(): void
+    {
+        $this->actingAsStaff();
+
+        $this->post(route('dashboard.governorates.store'), [
+            'slug' => 'cairo-test',
+            'code' => 'cai',
+            'name_ar' => 'القاهرة',
+            'name_en' => 'Cairo',
+        ])->assertRedirect(route('dashboard.locations.index'));
+
+        $governorate = Governorate::query()->where('slug', 'cairo-test')->firstOrFail();
+        $this->assertSame('CAI', $governorate->code);
+        Area::query()->create(['governorate_id' => $governorate->id, 'slug' => 'maadi-t', 'name_ar' => 'المعادي', 'name_en' => 'Maadi']);
+        Area::query()->create(['governorate_id' => $governorate->id, 'slug' => 'zamalek-t', 'name_ar' => 'الزمالك', 'name_en' => 'Zamalek']);
+
+        $this->get(route('dashboard.locations.index'))
+            ->assertOk()
+            ->assertSee('CAI')
+            ->assertSee(route('dashboard.governorates.destroy', $governorate), false)
+            ->assertViewHas('governorates', fn ($rows) => $rows->firstWhere('id', $governorate->id)->areas_count === 2);
+
+        $this->post(route('dashboard.governorates.store'), [
+            'slug' => 'cairo-copy',
+            'code' => 'CAI',
+            'name_ar' => 'نسخة',
+            'name_en' => 'Copy',
+        ])->assertSessionHasErrors('code');
+
+        $this->delete(route('dashboard.governorates.destroy', $governorate))
+            ->assertRedirect(route('dashboard.locations.index'));
+        $this->assertFalse($governorate->fresh()->is_active);
     }
 
     public function test_super_admin_can_crud_locations_unit_types_amenities_tags_and_content(): void

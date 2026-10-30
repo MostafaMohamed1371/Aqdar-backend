@@ -6,6 +6,7 @@ use Illuminate\Support\Facades\Route;
 Route::prefix('auth')->group(function (): void {
     Route::post('register', [AuthController::class, 'register'])->middleware('throttle:api-auth');
     Route::post('login', [AuthController::class, 'login'])->middleware('throttle:login');
+    Route::post('login/two-factor', [AuthController::class, 'verifyTwoFactor'])->middleware('throttle:otp');
     Route::post('otp/send', [AuthController::class, 'sendOtp'])->middleware('throttle:otp');
     Route::post('otp/verify', [AuthController::class, 'verifyOtp'])->middleware('throttle:otp');
     Route::post('forgot-password', [AuthController::class, 'forgotPassword'])
@@ -24,6 +25,9 @@ Route::middleware('auth:sanctum')->group(function (): void {
 
     Route::middleware('marketplace.active')->group(function (): void {
         Route::patch('me', [AuthController::class, 'updateMe']);
+        Route::post('me/close', [AuthController::class, 'closeMe']);
+        Route::put('me/two-factor', [AuthController::class, 'updateTwoFactor'])->middleware('throttle:password-reset');
+        Route::post('me/password', [AuthController::class, 'changePassword'])->middleware('throttle:password-reset');
         Route::post('devices', [AuthController::class, 'registerDevice']);
     });
 });

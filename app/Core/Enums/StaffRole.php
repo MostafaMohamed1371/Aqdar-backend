@@ -44,6 +44,8 @@ enum StaffRole: string
                 Permission::RevealPhone,
                 Permission::ManageCrm,
                 Permission::AdvanceCase,
+                Permission::ApproveCommissions,
+                Permission::ApproveBroadcasts,
                 Permission::ExportCsv,
                 Permission::ViewUsers,
                 Permission::SuspendUser,
@@ -56,9 +58,11 @@ enum StaffRole: string
                 Permission::ManageCrm,
                 Permission::AdvanceCase,
                 Permission::ViewUsers,
+                Permission::ViewCommissions,
             ],
             self::Finance => [
                 Permission::EditCommissions,
+                Permission::AdvanceFinanceStages,
                 Permission::ExportCsv,
             ],
         };

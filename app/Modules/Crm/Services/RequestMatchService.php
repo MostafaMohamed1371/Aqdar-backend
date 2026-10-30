@@ -8,6 +8,7 @@ use App\Core\Enums\SegmentPreference;
 use App\Modules\Crm\Models\BuyerRequest;
 use App\Modules\Crm\Models\RequestMatch;
 use App\Modules\Listing\Models\Listing;
+use Illuminate\Validation\ValidationException;
 
 class RequestMatchService
 {
@@ -21,6 +22,23 @@ class RequestMatchService
         foreach ($listings as $listing) {
             $this->upsert($request, $listing);
         }
+    }
+
+    public function attach(BuyerRequest $request, Listing $listing): RequestMatch
+    {
+        if (! $listing->isPubliclyVisible()) {
+            throw ValidationException::withMessages([
+                'listing_code' => [__('aqdar.requests.listing_not_public')],
+            ]);
+        }
+
+        return RequestMatch::query()->updateOrCreate(
+            [
+                'buyer_request_id' => $request->id,
+                'listing_id' => $listing->id,
+            ],
+            ['score' => $this->score($request, $listing)],
+        );
     }
 
     public function indexListing(Listing $listing): void

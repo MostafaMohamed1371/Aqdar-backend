@@ -7,12 +7,16 @@ use App\Core\Enums\IdentityStatus;
 use App\Modules\Auth\Notifications\ResetPasswordNotification;
 use App\Modules\Listing\Models\Favorite;
 use App\Modules\Listing\Models\Listing;
+use App\Modules\Listing\Models\SavedSearch;
 use App\Modules\Notification\Models\NotificationPreference;
+use App\Modules\Staff\Models\StaffUser;
 use App\Modules\User\Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
@@ -60,7 +64,17 @@ class User extends Authenticatable
         return $this->hasMany(Favorite::class);
     }
 
-    public function notificationPreference(): \Illuminate\Database\Eloquent\Relations\HasOne
+    public function savedSearches(): HasMany
+    {
+        return $this->hasMany(SavedSearch::class);
+    }
+
+    public function closer(): BelongsTo
+    {
+        return $this->belongsTo(StaffUser::class, 'closed_by');
+    }
+
+    public function notificationPreference(): HasOne
     {
         return $this->hasOne(NotificationPreference::class);
     }
@@ -68,6 +82,21 @@ class User extends Authenticatable
     public function isSuspended(): bool
     {
         return $this->suspended_at !== null;
+    }
+
+    public function isClosePending(): bool
+    {
+        return $this->close_requested_at !== null && $this->closed_at === null;
+    }
+
+    public function isClosed(): bool
+    {
+        return $this->closed_at !== null;
+    }
+
+    public function isMarketplaceBlocked(): bool
+    {
+        return $this->isSuspended() || $this->isClosePending() || $this->isClosed();
     }
 
     public function activityLabel(): string
@@ -94,7 +123,10 @@ class User extends Authenticatable
             'identity_status' => IdentityStatus::class,
             'is_buyer' => 'boolean',
             'is_seller' => 'boolean',
+            'two_factor_enabled' => 'boolean',
             'suspended_at' => 'datetime',
+            'close_requested_at' => 'datetime',
+            'closed_at' => 'datetime',
             'consent_privacy_at' => 'datetime',
             'consent_terms_at' => 'datetime',
         ];

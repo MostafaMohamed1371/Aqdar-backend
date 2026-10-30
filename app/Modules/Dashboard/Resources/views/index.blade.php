@@ -18,12 +18,31 @@
         $chartH = 220;
         $chartPad = 30;
         $chartN = max(count($chartRows), 1);
-        $chartM = 3;
         $chartGw = ($chartW - $chartPad - 10) / $chartN;
-        $chartBw = min(18, ($chartGw - 12) / $chartM);
+        $chartBase = $chartH - 26;
+        $chartPoints = [];
+        foreach (['approved', 'in_review', 'rejected'] as $series) {
+            $chartPoints[$series] = collect($chartRows)->values()->map(fn ($row, $i) => [
+                round($chartPad + $chartGw * $i + $chartGw / 2, 1),
+                round($chartBase - ($chartH - 40) * ((float) $row[$series]) / $chartMax, 1),
+            ])->all();
+        }
         $donut = $charts['donut'] ?? [];
         $donutTotal = max(array_sum(array_column($donut, 'count')), 1);
-        $donutColors = ['approved' => '#087e82', 'in_review' => '#c5985f', 'rejected' => '#c0392b', 'hold' => '#9fb0c2'];
+        $donutColors = ['approved' => '#087e82', 'in_review' => '#c5985f', 'rejected' => '#c0392b', 'hold' => '#9fb0c2', 'other' => '#6b7280'];
+        $period = array_filter(['from' => $from ?? null, 'to' => $to ?? null]);
+        $kpiLinks = [
+            'total_listings' => route('dashboard.listings.index', $period),
+            'listings_in_review' => route('dashboard.listings.index', ['status' => 'in_review'] + $period),
+            'listings_approved' => route('dashboard.listings.index', ['status' => 'approved'] + $period),
+            'listings_rejected' => route('dashboard.listings.index', ['status' => 'rejected'] + $period),
+            'approved_developers' => route('dashboard.developers.index'),
+            'inquiries_in_range' => route('dashboard.leads.index', ['source' => 'listing_inquiry'] + $period),
+            'custom_buy_requests' => route('dashboard.requests.index', $period),
+            'overdue_followups' => route('dashboard.leads.index', ['status' => 'overdue'] + $period),
+            'active_transfers' => route('dashboard.cases.index', $period),
+            'recorded_commissions' => route('dashboard.commissions.index', $period),
+        ];
         $donutOff = 25;
         $needs = [
             ['listings_in_review', 'building', 'aqdar.needs.listings_in_review', 'approve_listing', 'dashboard.listings.index', ['status' => 'in_review']],
@@ -72,14 +91,14 @@
             ['x', 'bad', 'listings_rejected', 'aqdar.listings_rejected'],
             ['briefcase', 'info', 'approved_developers', 'aqdar.approved_developers'],
         ] as [$icon, $tone, $key, $label])
-            <div class="kpi">
+            <a class="kpi" href="{{ $kpiLinks[$key] }}" style="text-decoration:none;color:inherit">
                 <span class="ic {{ $tone }}">@include('dashboard::partials.icon', ['name' => $icon])</span>
                 <div style="flex:1">
                     <span>{{ __($label) }}</span>
                     <b>{{ number_format((float) ($stats[$key] ?? 0)) }}</b>
                     @include('dashboard::partials.kpi-delta', ['key' => $key, 'deltas' => $deltas])
                 </div>
-            </div>
+            </a>
         @endforeach
     </div>
 
@@ -91,14 +110,14 @@
             ['swap', 'info', 'active_transfers', 'aqdar.active_transfers'],
             ['cash', 'ok', 'recorded_commissions', 'aqdar.recorded_commissions'],
         ] as [$icon, $tone, $key, $label])
-            <div class="kpi">
+            <a class="kpi" href="{{ $kpiLinks[$key] }}" style="text-decoration:none;color:inherit">
                 <span class="ic {{ $tone }}">@include('dashboard::partials.icon', ['name' => $icon])</span>
                 <div style="flex:1">
                     <span>{{ __($label) }}</span>
                     <b>{{ $key === 'recorded_commissions' ? \App\Modules\Dashboard\Services\DashboardService::compactEgp((float) ($stats[$key] ?? 0)) : number_format((float) ($stats[$key] ?? 0)) }}</b>
                     @include('dashboard::partials.kpi-delta', ['key' => $key, 'deltas' => $deltas])
                 </div>
-            </div>
+            </a>
         @endforeach
     </div>
 
@@ -125,19 +144,26 @@
             <svg viewBox="0 0 {{ $chartW }} {{ $chartH }}" width="100%" style="direction:ltr;display:block">
                 @for ($grid = 0; $grid <= 4; $grid++)
                     @php $yy = 14 + ($chartH - 40) * $grid / 4; @endphp
-                    <line x1="{{ $chartPad }}" x2="{{ $chartW - 10 }}" y1="{{ $yy }}" y2="{{ $yy }}" stroke="#eef0ee"/>
+                    <line class="chart-grid" x1="{{ $chartPad }}" x2="{{ $chartW - 10 }}" y1="{{ $yy }}" y2="{{ $yy }}"/>
                 @endfor
-                @foreach ($chartRows as $i => $row)
+                @if ($chartPoints['approved'] !== [])
                     @php
-                        $gx = $chartPad + $chartGw * $i + ($chartGw - $chartBw * $chartM - 4 * ($chartM - 1)) / 2;
-                        $hA = ($chartH - 40) * ((float) $row['approved']) / $chartMax;
-                        $hR = ($chartH - 40) * ((float) $row['in_review']) / $chartMax;
-                        $hX = ($chartH - 40) * ((float) $row['rejected']) / $chartMax;
+                        $approvedLine = collect($chartPoints['approved'])->map(fn ($p) => $p[0].','.$p[1])->implode(' ');
+                        $first = $chartPoints['approved'][0];
+                        $last = $chartPoints['approved'][count($chartPoints['approved']) - 1];
                     @endphp
-                    <rect x="{{ $gx }}" y="{{ $chartH - 26 - $hA }}" width="{{ $chartBw }}" height="{{ $hA }}" rx="5" fill="#087e82"/>
-                    <rect x="{{ $gx + $chartBw + 4 }}" y="{{ $chartH - 26 - $hR }}" width="{{ $chartBw }}" height="{{ $hR }}" rx="5" fill="#c5985f"/>
-                    <rect x="{{ $gx + ($chartBw + 4) * 2 }}" y="{{ $chartH - 26 - $hX }}" width="{{ $chartBw }}" height="{{ $hX }}" rx="5" fill="#c0392b"/>
-                    <text x="{{ $chartPad + $chartGw * $i + $chartGw / 2 }}" y="{{ $chartH - 8 }}" text-anchor="middle" font-size="10.5" fill="#6b7280">{{ $row['label'] }}</text>
+                    <polygon points="{{ $first[0] }},{{ $chartBase }} {{ $approvedLine }} {{ $last[0] }},{{ $chartBase }}" fill="#087e82" fill-opacity="0.12"/>
+                @endif
+                @foreach (['approved' => '#087e82', 'in_review' => '#c5985f', 'rejected' => '#c0392b'] as $series => $color)
+                    <polyline data-series="{{ $series }}" points="{{ collect($chartPoints[$series])->map(fn ($p) => $p[0].','.$p[1])->implode(' ') }}" fill="none" stroke="{{ $color }}" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+                    @foreach ($chartPoints[$series] as $i => $point)
+                        <circle class="chart-dot" cx="{{ $point[0] }}" cy="{{ $point[1] }}" r="3.5" stroke="{{ $color }}" stroke-width="2">
+                            <title>{{ $chartRows[$i]['label'] }} · {{ number_format((float) $chartRows[$i][$series]) }}</title>
+                        </circle>
+                    @endforeach
+                @endforeach
+                @foreach ($chartRows as $i => $row)
+                    <text class="chart-muted" x="{{ $chartPad + $chartGw * $i + $chartGw / 2 }}" y="{{ $chartH - 8 }}" text-anchor="middle" font-size="10.5">{{ $row['label'] }}</text>
                 @endforeach
             </svg>
         </div>
@@ -150,14 +176,14 @@
                         <circle r="15.915" cx="21" cy="21" fill="none" stroke="{{ $donutColors[$seg['key']] ?? '#9fb0c2' }}" stroke-width="6" stroke-dasharray="{{ $pct }} {{ 100 - $pct }}" stroke-dashoffset="{{ $donutOff }}"/>
                         @php $donutOff -= $pct; @endphp
                     @endforeach
-                    <text x="21" y="21.5" text-anchor="middle" font-size="6.2" font-weight="800" fill="#14283f">{{ number_format((float) ($stats['total_listings'] ?? 0)) }}</text>
-                    <text x="21" y="27" text-anchor="middle" font-size="3.2" fill="#6b7280">{{ __('aqdar.total_listings') }}</text>
+                    <text class="chart-fg" x="21" y="21.5" text-anchor="middle" font-size="6.2" font-weight="800">{{ number_format((float) ($stats['total_listings'] ?? 0)) }}</text>
+                    <text class="chart-muted" x="21" y="27" text-anchor="middle" font-size="3.2">{{ __('aqdar.total_listings') }}</text>
                 </svg>
                 <div style="flex:1;min-width:130px">
                     @foreach ($donut as $seg)
                         <div class="dl" style="white-space:nowrap">
                             <span><i style="display:inline-block;width:10px;height:10px;border-radius:3px;background:{{ $donutColors[$seg['key']] ?? '#9fb0c2' }};margin-inline-end:6px"></i>{{ __('aqdar.charts.'.$seg['key']) }}</span>
-                            <b class="en">{{ number_format($seg['count']) }}</b>
+                            <b class="en" title="{{ number_format($seg['count']) }}">{{ round(($seg['count'] / $donutTotal) * 100) }}%</b>
                         </div>
                     @endforeach
                 </div>

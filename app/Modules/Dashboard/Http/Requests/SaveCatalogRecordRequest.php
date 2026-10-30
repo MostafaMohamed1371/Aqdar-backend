@@ -34,6 +34,14 @@ class SaveCatalogRecordRequest extends BaseFormRequest
             'body_en' => ['nullable', 'string', 'max:5000'],
             'link_url' => ['nullable', 'string', 'max:500'],
             'image' => ['nullable', 'image', 'max:2048', 'mimes:jpeg,jpg,png,webp'],
+            'logo' => ['nullable', 'image', 'max:1024', 'mimes:jpeg,jpg,png,webp'],
+            'commercial_register' => ['nullable', 'string', 'max:32', 'regex:/^[0-9A-Za-z-]+$/'],
+            'registered_on' => ['nullable', 'date', 'before_or_equal:today'],
+            'is_verified' => ['sometimes', 'boolean'],
+            'code' => [
+                'nullable', 'string', 'min:2', 'max:8', 'regex:/^[A-Z0-9]+$/',
+                Rule::unique('governorates', 'code')->ignore($this->route('governorate')),
+            ],
         ];
     }
 
@@ -59,12 +67,20 @@ class SaveCatalogRecordRequest extends BaseFormRequest
             $merged['is_other'] = $this->boolean('is_other');
         }
 
+        if ($this->exists('is_verified')) {
+            $merged['is_verified'] = $this->boolean('is_verified');
+        }
+
+        if ($this->exists('code')) {
+            $merged['code'] = $this->filled('code') ? mb_strtoupper(trim((string) $this->input('code'))) : null;
+        }
+
         $this->merge($merged);
     }
 
     /** @return list<string> */
     protected function fieldsToTrim(): array
     {
-        return ['name_ar', 'name_en', 'slug', 'key', 'title_ar', 'title_en', 'body_ar', 'body_en', 'link_url'];
+        return ['name_ar', 'name_en', 'slug', 'key', 'title_ar', 'title_en', 'body_ar', 'body_en', 'link_url', 'commercial_register'];
     }
 }

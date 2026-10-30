@@ -2,9 +2,9 @@
 
 namespace Tests\Integration;
 
+use App\Core\Enums\DistressedChild;
 use App\Core\Enums\DocumentReviewStatus;
 use App\Core\Enums\DocumentType;
-use App\Core\Enums\DistressedChild;
 use App\Core\Enums\ListingStatus;
 use App\Core\Enums\StaffRole;
 use App\Modules\Catalog\Database\Seeders\CatalogSeeder;
@@ -16,11 +16,11 @@ use App\Modules\Listing\Models\ListingDocument;
 use App\Modules\Listing\Models\ListingMedia;
 use App\Modules\Listing\Services\ListingFileService;
 use App\Modules\User\Models\User;
-use Tests\Concerns\CreatesStaffUsers;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Laravel\Sanctum\Sanctum;
+use Tests\Concerns\CreatesStaffUsers;
 use Tests\Concerns\UploadsListingDocuments;
 use Tests\TestCase;
 
@@ -146,7 +146,6 @@ class ListingPhase4Test extends TestCase
         $this->assertArrayNotHasKey('disk', $response->json('data.0'));
     }
 
-
     public function test_distressed_submit_requires_developer_status_letter(): void
     {
         $this->marketplaceUser();
@@ -234,9 +233,9 @@ class ListingPhase4Test extends TestCase
         ], ['Accept' => 'application/json'])
             ->assertCreated()
             ->assertJsonPath('data.mime', 'video/mp4')
+            ->assertJsonPath('data.kind', 'video')
             ->assertJsonPath('data.url', null);
     }
-
 
     public function test_owner_can_replace_document_while_listing_is_in_review(): void
     {
@@ -272,7 +271,7 @@ class ListingPhase4Test extends TestCase
             ->assertJsonValidationErrors('status');
     }
 
-        /** @return array{non: Category, distressed: Category, area: Area, unit: UnitType} */
+    /** @return array{non: Category, distressed: Category, area: Area, unit: UnitType} */
     private function seedCatalog(): array
     {
         $this->seed(CatalogSeeder::class);

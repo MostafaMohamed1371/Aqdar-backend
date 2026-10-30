@@ -10,6 +10,7 @@ use App\Modules\Listing\Http\Requests\StartListingRequest;
 use App\Modules\Listing\Http\Requests\SubmitListingRequest;
 use App\Modules\Listing\Http\Resources\ListingHistoryResource;
 use App\Modules\Listing\Http\Resources\OwnerListingResource;
+use App\Modules\Listing\Http\Resources\PublicListingResource;
 use App\Modules\Listing\Models\Listing;
 use App\Modules\Listing\Services\ListingService;
 use App\Modules\User\Models\User;
@@ -36,16 +37,40 @@ class SellerListingController extends BaseController
                 ListingStatus::Submitted,
                 ListingStatus::InReview,
                 ListingStatus::Resubmitted,
+                ListingStatus::Approved,
             ]);
         } elseif (in_array($status, ['live', 'published'], true)) {
             $query->whereIn('status', ListingStatus::publicCases());
+        } elseif ($status === 'ended') {
+            $query->whereIn('status', [ListingStatus::Hold, ListingStatus::Closed, ListingStatus::Archived]);
         } elseif (is_string($status) && $status !== '') {
             $query->where('status', $status);
         }
 
         return OwnerListingResource::collection(
             $query->paginate(min(max((int) $request->integer('per_page', 15), 1), 50)),
-        );
+        )->additional(['counts' => $this->statusCounts($request->user()->id)]);
+    }
+
+    /** @return array{all: int, draft: int, review: int, needs_changes: int, live: int, rejected: int, ended: int} */
+    private function statusCounts(int $userId): array
+    {
+        $byStatus = Listing::query()
+            ->where('user_id', $userId)
+            ->pluck('status')
+            ->countBy(fn (ListingStatus $status) => $status->value);
+
+        $sum = fn (array $statuses): int => collect($statuses)->sum(fn (ListingStatus $status) => $byStatus[$status->value] ?? 0);
+
+        return [
+            'all' => (int) $byStatus->sum(),
+            'draft' => $sum([ListingStatus::Draft]),
+            'review' => $sum([ListingStatus::Submitted, ListingStatus::InReview, ListingStatus::Resubmitted, ListingStatus::Approved]),
+            'needs_changes' => $sum([ListingStatus::NeedsChanges]),
+            'live' => $sum(ListingStatus::publicCases()),
+            'rejected' => $sum([ListingStatus::Rejected]),
+            'ended' => $sum([ListingStatus::Hold, ListingStatus::Closed, ListingStatus::Archived]),
+        ];
     }
 
     public function store(StartListingRequest $request): JsonResponse
@@ -67,6 +92,14 @@ class SellerListingController extends BaseController
         $listing->loadCount('favorites');
 
         return new OwnerListingResource($listing);
+    }
+
+    public function preview(Request $request, Listing $listing): PublicListingResource
+    {
+        $this->authorizeOwner($request, $listing);
+        $listing->load(['financials', 'installmentItems', 'governorate', 'area', 'developer', 'project', 'unitType', 'category', 'media']);
+
+        return new PublicListingResource($listing);
     }
 
     public function history(Request $request, Listing $listing): AnonymousResourceCollection

@@ -3,6 +3,8 @@
 namespace App\Modules\Auth\Http\Controllers;
 
 use App\Core\Http\Controllers\BaseController;
+use App\Modules\Auth\Http\Requests\ChangePasswordRequest;
+use App\Modules\Auth\Http\Requests\CloseAccountRequest;
 use App\Modules\Auth\Http\Requests\ForgotPasswordRequest;
 use App\Modules\Auth\Http\Requests\LoginRequest;
 use App\Modules\Auth\Http\Requests\RegisterDeviceRequest;
@@ -10,7 +12,9 @@ use App\Modules\Auth\Http\Requests\RegisterRequest;
 use App\Modules\Auth\Http\Requests\ResetPasswordRequest;
 use App\Modules\Auth\Http\Requests\SendOtpRequest;
 use App\Modules\Auth\Http\Requests\UpdateMeRequest;
+use App\Modules\Auth\Http\Requests\UpdateTwoFactorRequest;
 use App\Modules\Auth\Http\Requests\VerifyOtpRequest;
+use App\Modules\Auth\Http\Requests\VerifyTwoFactorRequest;
 use App\Modules\Auth\Http\Resources\AuthResource;
 use App\Modules\Auth\Services\AuthService;
 use App\Modules\User\Http\Resources\UserResource;
@@ -35,14 +39,34 @@ class AuthController extends BaseController
             ->setStatusCode(201);
     }
 
-    public function login(LoginRequest $request): AuthResource
+    public function login(LoginRequest $request): AuthResource|JsonResponse
     {
         $auth = $this->authService->login(
             $request->validated('email'),
             $request->validated('password'),
         );
 
+        if (isset($auth['two_factor_required'])) {
+            return response()->json($auth + ['message' => __('aqdar.auth.two_factor_sent')], 202);
+        }
+
         return new AuthResource($auth);
+    }
+
+    public function verifyTwoFactor(VerifyTwoFactorRequest $request): AuthResource
+    {
+        return new AuthResource($this->authService->completeTwoFactorLogin(
+            $request->validated('challenge'),
+            $request->validated('code'),
+        ));
+    }
+
+    public function updateTwoFactor(UpdateTwoFactorRequest $request): UserResource
+    {
+        /** @var User $user */
+        $user = $request->user();
+
+        return new UserResource($this->authService->setTwoFactor($user, $request->boolean('enabled')));
     }
 
     public function sendOtp(SendOtpRequest $request): JsonResponse
@@ -92,6 +116,26 @@ class AuthController extends BaseController
         $user = $request->user();
 
         return new UserResource($this->userService->updateProfile($user, $request->validated()));
+    }
+
+    public function changePassword(ChangePasswordRequest $request): JsonResponse
+    {
+        /** @var User $user */
+        $user = $request->user();
+        $this->authService->changePassword($user, $request->validated('password'));
+
+        return response()->json(['message' => __('aqdar.auth.password_changed')]);
+    }
+
+    public function closeMe(CloseAccountRequest $request): JsonResponse
+    {
+        /** @var User $user */
+        $user = $request->user();
+        $closed = $this->userService->requestClose($user, $request->validated('reason'));
+
+        return (new UserResource($closed))
+            ->additional(['message' => __('aqdar.auth.close_requested')])
+            ->response();
     }
 
     public function registerDevice(RegisterDeviceRequest $request): JsonResponse

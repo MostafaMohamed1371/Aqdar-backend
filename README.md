@@ -9,7 +9,7 @@ This repository is the Laravel backend:
 
 **Stack:** Laravel 13 · PHP 8.4+ · PostgreSQL · Sanctum · Vite · Tailwind 4 + `ui.css`
 
-**Current delivery:** Phase 0 through Phase 9, plus Phases 10–15 (OTP/consent, session audit, listing publish gate, listing fields, seller case timeline + history, notification matrix leftovers).
+**Current delivery:** Phase 0 through Phase 9, plus Phases 10–18 (OTP/consent, session audit, listing publish gate, listing fields, seller case timeline + history, notification matrix leftovers, staff permission table vs BRD §8.2, manual exit estimate + upload scan + private video, account closure + saved searches + broadcast approval).
 
 ---
 
@@ -75,6 +75,8 @@ Base: `{APP_URL}/api/v1`
 | Auth | POST | `/auth/forgot-password`, `/auth/reset-password` | Public |
 | Me | GET | `/me` | Bearer |
 | Me | PATCH | `/me` | Bearer (not suspended) |
+| Me | POST | `/me/close` | Bearer (closure request; staff then anonymize) |
+| Saved searches | GET/POST/PATCH/DELETE | `/saved-searches` | Bearer |
 | Devices | POST | `/devices` | Bearer (not suspended) |
 | Auth | POST | `/auth/logout` | Bearer |
 | Listings | GET | `/listings`, `/listings/counts`, `/listings/{id}`, `/map` | Public (published) |
@@ -97,7 +99,7 @@ Import [postman/AQDAR-API.postman_collection.json](postman/AQDAR-API.postman_col
 | ADM-04 Users | `/dashboard/users` | `view_users`; create/edit/delete: `suspend_user` |
 | ADM-06 Staff | `/dashboard/staff` | `manage_staff` (super admin) |
 | ADM-05 Developers | `/dashboard/developers` | `manage_catalog` |
-| ADM-11 Content | `/dashboard/content` | `manage_catalog` (banners/FAQs/support) |
+| ADM-11 Content | `/dashboard/content` | `manage_catalog` **or** `approve_broadcasts` (schedule/approve); banners/templates/test-send stay `manage_catalog` |
 | ADM-15 Reference | `/dashboard/categories`, `/locations`, `/unit-types`, `/amenities`, `/tags` | `manage_catalog` |
 | ADM-07 Leads | `/dashboard/leads` | `manage_crm` |
 | ADM-08 Buyer requests | `/dashboard/requests` | `manage_crm` |

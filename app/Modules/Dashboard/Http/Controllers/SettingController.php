@@ -4,11 +4,15 @@ namespace App\Modules\Dashboard\Http\Controllers;
 
 use App\Core\Audit\AuditLogger;
 use App\Core\Audit\Models\AuditLog;
+use App\Core\Enums\DeliveryStatus;
+use App\Core\Enums\NotificationChannel;
 use App\Core\Http\Controllers\BaseController;
 use App\Modules\Dashboard\Http\Requests\UpdatePlatformSettingsRequest;
+use App\Modules\Notification\Models\NotificationDelivery;
 use App\Modules\Setting\Services\SettingService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 
 class SettingController extends BaseController
@@ -48,7 +52,24 @@ class SettingController extends BaseController
                 ->first(),
             'providerStatus' => $this->pushProviderStatus(),
             'providerStatuses' => $this->providerStatuses(),
+            'diagnostics' => $this->diagnostics(),
         ]);
+    }
+
+    /** @return array{failed_jobs: int, last_failed_at: ?string, push_failed: int, push_pending: int} */
+    private function diagnostics(): array
+    {
+        $since = now()->subDays(7);
+        $pushDeliveries = NotificationDelivery::query()
+            ->where('channel', NotificationChannel::Push->value)
+            ->where('created_at', '>=', $since);
+
+        return [
+            'failed_jobs' => DB::table('failed_jobs')->count(),
+            'last_failed_at' => DB::table('failed_jobs')->max('failed_at'),
+            'push_failed' => (clone $pushDeliveries)->where('status', DeliveryStatus::Failed->value)->count(),
+            'push_pending' => (clone $pushDeliveries)->where('status', DeliveryStatus::Pending->value)->count(),
+        ];
     }
 
     public function update(UpdatePlatformSettingsRequest $request): RedirectResponse

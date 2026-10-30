@@ -13,7 +13,9 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Password;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
+use Laravel\Sanctum\PersonalAccessToken;
 
 class AuthService
 {
@@ -35,7 +37,9 @@ class AuthService
     }
 
     /**
-     * @return array{user: User, token: string}
+     * Returns a token, or — when the account has two-factor enabled — an OTP challenge to finish with completeTwoFactorLogin().
+     *
+     * @return array{user: User, token: string}|array{two_factor_required: true, challenge: string, phone: string, resend_after: int}
      */
     public function login(string $email, string $password): array
     {
@@ -53,9 +57,73 @@ class AuthService
         }
 
         $this->userService->assertNotSuspended($user, 'email');
+
+        if ($user->two_factor_enabled && $user->phone !== null) {
+            return $this->startTwoFactorChallenge($user);
+        }
+
         $this->auditLogger->write('auth.login', $user, $user, ['guard' => 'sanctum']);
 
         return $this->createAuthResponse($user);
+    }
+
+    /**
+     * @return array{user: User, token: string}
+     */
+    public function completeTwoFactorLogin(string $challenge, string $code): array
+    {
+        $userId = Cache::get($this->twoFactorCacheKey($challenge));
+        $user = $userId !== null ? User::query()->find($userId) : null;
+
+        if ($user === null || $user->phone === null) {
+            throw ValidationException::withMessages([
+                'challenge' => [__('aqdar.auth.two_factor_expired')],
+            ]);
+        }
+
+        $this->otpService->verify($user->phone, $code);
+        Cache::forget($this->twoFactorCacheKey($challenge));
+        $this->userService->assertNotSuspended($user, 'email');
+        $this->auditLogger->write('auth.login', $user, $user, ['guard' => 'sanctum', 'two_factor' => true]);
+
+        return $this->createAuthResponse($user);
+    }
+
+    public function setTwoFactor(User $user, bool $enabled): User
+    {
+        if ($enabled && ($user->phone === null || $user->phone_verified_at === null)) {
+            throw ValidationException::withMessages([
+                'enabled' => [__('aqdar.auth.two_factor_needs_phone')],
+            ]);
+        }
+
+        $user->forceFill(['two_factor_enabled' => $enabled])->save();
+        $this->auditLogger->write($enabled ? 'auth.two_factor_enabled' : 'auth.two_factor_disabled', $user, $user, ['guard' => 'sanctum']);
+
+        return $user;
+    }
+
+    /**
+     * @return array{two_factor_required: true, challenge: string, phone: string, resend_after: int}
+     */
+    private function startTwoFactorChallenge(User $user): array
+    {
+        $this->otpService->send($user->phone);
+        $challenge = Str::random(64);
+        Cache::put($this->twoFactorCacheKey($challenge), $user->id, max(1, (int) config('aqdar.otp.ttl_seconds', 300)));
+        $this->auditLogger->write('auth.two_factor_challenged', $user, $user, ['guard' => 'sanctum']);
+
+        return [
+            'two_factor_required' => true,
+            'challenge' => $challenge,
+            'phone' => ContactMask::phone($user->phone),
+            'resend_after' => max(1, (int) config('aqdar.otp.resend_after_seconds', 45)),
+        ];
+    }
+
+    private function twoFactorCacheKey(string $challenge): string
+    {
+        return 'aqdar:auth:2fa:'.hash('sha256', $challenge);
     }
 
     /**
@@ -78,6 +146,10 @@ class AuthService
                 'consent_privacy' => [__('aqdar.auth.consent_required')],
                 'consent_terms' => [__('aqdar.auth.consent_required')],
             ]);
+        }
+
+        if ($existing !== null) {
+            $this->userService->assertNotSuspended($existing, 'phone');
         }
 
         $this->otpService->send($phone);
@@ -194,6 +266,20 @@ class AuthService
         }
 
         return __($status);
+    }
+
+    /**
+     * Sets a new password and signs the account out of every other device.
+     */
+    public function changePassword(User $user, string $password): void
+    {
+        $user->forceFill(['password' => $password])->save();
+
+        $token = $user->currentAccessToken();
+        $currentTokenId = $token instanceof PersonalAccessToken ? $token->getKey() : null;
+        $user->tokens()->when($currentTokenId, fn ($query) => $query->whereKeyNot($currentTokenId))->delete();
+
+        $this->auditLogger->write('auth.password_changed', $user, $user, ['guard' => 'sanctum']);
     }
 
     public function resetPassword(array $data): string

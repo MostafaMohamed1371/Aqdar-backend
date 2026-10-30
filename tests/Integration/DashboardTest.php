@@ -136,7 +136,7 @@ class DashboardTest extends TestCase
         ])->assertRedirect(route('dashboard'));
 
         $this->actingAs($admin)
-            ->post(route('dashboard.staff.deactivate', $sales))
+            ->post(route('dashboard.staff.deactivate', $sales), ['reason' => 'Left the company'])
             ->assertRedirect();
 
         $this->actingAs($sales->fresh())

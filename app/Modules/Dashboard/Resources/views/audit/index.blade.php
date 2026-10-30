@@ -47,7 +47,7 @@
                     <td class="en">{{ optional($row->created_at)?->toDateTimeString() }}</td>
                     <td>{{ $row->actor?->name ?? $row->actor_type }}</td>
                     <td><span class="badge">{{ \App\Modules\Dashboard\Services\AuditSearchService::actionLabel($row->action) }}</span></td>
-                    <td class="en">{{ \App\Modules\Dashboard\Services\AuditSearchService::details($row) }}</td>
+                    <td class="en" style="max-width:360px;overflow-wrap:anywhere">{{ \App\Modules\Dashboard\Services\AuditSearchService::details($row) }}</td>
                     <td class="en">{{ $row->ip_address }}</td>
                 </tr>
             @empty

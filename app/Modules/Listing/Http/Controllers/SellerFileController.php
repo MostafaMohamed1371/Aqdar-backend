@@ -4,6 +4,7 @@ namespace App\Modules\Listing\Http\Controllers;
 
 use App\Core\Enums\DocumentType;
 use App\Core\Http\Controllers\BaseController;
+use App\Modules\Listing\Http\Requests\ReorderListingMediaRequest;
 use App\Modules\Listing\Http\Requests\UploadListingDocumentRequest;
 use App\Modules\Listing\Http\Requests\UploadListingMediaRequest;
 use App\Modules\Listing\Http\Resources\ListingDocumentResource;
@@ -55,6 +56,14 @@ class SellerFileController extends BaseController
         $this->files->deleteMedia($listing, $media, $request->user());
 
         return response()->json(['message' => __('aqdar.listings.media_removed')]);
+    }
+
+    public function reorderMedia(ReorderListingMediaRequest $request, Listing $listing): AnonymousResourceCollection
+    {
+        $this->authorizeOwner($request, $listing);
+        $this->files->reorderMedia($listing, $request->user(), $request->mediaIds());
+
+        return ListingMediaResource::collection($listing->media()->orderBy('sort_order')->get());
     }
 
     public function indexDocuments(Request $request): AnonymousResourceCollection

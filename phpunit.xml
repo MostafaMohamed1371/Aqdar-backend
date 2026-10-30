@@ -35,5 +35,6 @@
         <env name="AQDAR_UI_MOCKUP_PATH" value=""/>
         <env name="SANCTUM_EXPIRATION_MINUTES" value="43200"/>
         <env name="AQDAR_SMS_DRIVER" value="log"/>
+        <env name="AQDAR_UPLOAD_SCAN_DRIVER" value="null"/>
     </php>
 </phpunit>

@@ -8,9 +8,12 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 
-#[Fillable(['listing_id', 'from_status', 'to_status', 'actor_type', 'actor_id', 'reason'])]
+#[Fillable(['listing_id', 'from_status', 'to_status', 'actor_type', 'actor_id', 'reason', 'field_notes'])]
 class ListingStatusHistory extends Model
 {
+    /** Seller wizard sections a reviewer can attach a note to. */
+    public const NOTE_SECTIONS = ['category', 'specs', 'financials', 'media', 'documents'];
+
     public $timestamps = false;
 
     protected $table = 'listing_status_history';
@@ -20,6 +23,7 @@ class ListingStatusHistory extends Model
         return [
             'from_status' => ListingStatus::class,
             'to_status' => ListingStatus::class,
+            'field_notes' => 'array',
             'created_at' => 'datetime',
         ];
     }

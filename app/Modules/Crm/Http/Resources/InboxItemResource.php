@@ -19,6 +19,10 @@ class InboxItemResource extends JsonResource
             'status' => $row['status'],
             'label' => $row['label'] ?? $row['status'],
             'listing' => $row['listing'],
+            $this->mergeWhen($row['kind'] === 'appointment', fn (): array => [
+                'requested_date' => $row['requested_date'] ?? null,
+                'requested_slot' => $row['requested_slot'] ?? null,
+            ]),
             'created_at' => $row['created_at'],
         ];
     }

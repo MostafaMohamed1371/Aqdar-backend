@@ -32,6 +32,7 @@ class EstimatePhase7Test extends TestCase
 
         $response = $this->getJson('/api/v1/listings/'.$listing->id.'/estimate')
             ->assertOk()
+            ->assertJsonPath('data.source', 'listing')
             ->assertJsonPath('data.computable', false)
             ->assertJsonPath('data.reason', 'cancellation_percent_missing')
             ->assertJsonPath('data.cancellation', null);
@@ -89,13 +90,37 @@ class EstimatePhase7Test extends TestCase
             ->assertJsonPath('data.cancellation.penalty', 50000);
     }
 
-    public function test_other_user_cannot_see_seller_estimate(): void
+    public function test_other_user_cannot_see_estimate_of_unpublished_listing(): void
     {
         $owner = User::factory()->seller()->create();
-        $listing = Listing::factory()->published()->create(['user_id' => $owner->id]);
+        $listing = Listing::factory()->create(['user_id' => $owner->id]);
         $this->seller();
 
         $this->getJson('/api/v1/listings/'.$listing->id.'/estimate')->assertNotFound();
+    }
+
+    public function test_buyer_estimate_on_published_listing_hides_seller_cancellation_terms(): void
+    {
+        $owner = User::factory()->seller()->create();
+        $listing = Listing::factory()->published()->create(['user_id' => $owner->id]);
+        $listing->financials?->forceFill([
+            'declared_total_paid' => 1450000,
+            'declared_cancellation_percent' => 10,
+        ])->save();
+        $this->seller();
+
+        $response = $this->getJson('/api/v1/listings/'.$listing->id.'/estimate')
+            ->assertOk()
+            ->assertJsonPath('data.viewer', 'buyer')
+            ->assertJsonPath('data.computable', false)
+            ->assertJsonPath('data.reason', 'cancellation_terms_private')
+            ->assertJsonPath('data.cancellation', null)
+            ->assertJsonPath('data.transfer.paid', 1450000);
+
+        $keys = collect($response->json('data.inputs'))->pluck('key')->all();
+        $this->assertNotContains('cancellation_percent', $keys);
+        $this->assertStringNotContainsString('"percent":10', $response->getContent());
+        $this->assertNotNull($response->json('data.disclaimer.text'));
     }
 
     public function test_zero_percent_is_computable_and_not_treated_as_missing(): void

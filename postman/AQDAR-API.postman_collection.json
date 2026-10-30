@@ -65,6 +65,14 @@
     {
       "key": "case_id",
       "value": "1"
+    },
+    {
+      "key": "two_factor_challenge",
+      "value": ""
+    },
+    {
+      "key": "support_thread_id",
+      "value": "1"
     }
   ],
   "auth": {
@@ -609,7 +617,7 @@
                 "login"
               ]
             },
-            "description": "Email login. Suspended users are rejected. 5/min.",
+            "description": "Email login. Suspended users are rejected. 5/min.\n\nIf the account has two-factor on, the response is **202** `{two_factor_required, challenge, phone (masked), resend_after}` and no token — finish with `POST /auth/login/two-factor`.",
             "auth": {
               "type": "noauth"
             },
@@ -635,6 +643,15 @@
                   "    }",
                   "}",
                   "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 202) { pm.collectionVariables.set('two_factor_challenge', pm.response.json().challenge); }"
                 ]
               }
             }
@@ -1905,7 +1922,38 @@
                 "{{listing_id}}"
               ]
             },
-            "description": ""
+            "description": "Owner DTO including declared and staff-verified financials."
+          }
+        },
+        {
+          "name": "My listing public preview",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept-Language",
+                "value": "ar"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/{{api_prefix}}/my/listings/{{listing_id}}/preview",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "{{api_prefix}}",
+                "my",
+                "listings",
+                "{{listing_id}}",
+                "preview"
+              ]
+            },
+            "description": "Public listing DTO for the owner before publish. Does not increment view_count."
           }
         },
         {
@@ -1965,7 +2013,7 @@
                 "counts"
               ]
             },
-            "description": "Published counts for APP-04/05 home cards.",
+            "description": "Published counts for APP-04/05 home cards.\n\nIncludes `unit_types` counts.",
             "auth": {
               "type": "noauth"
             }
@@ -2040,6 +2088,16 @@
                   "key": "installment_max",
                   "value": "40000",
                   "disabled": true
+                },
+                {
+                  "key": "bedrooms",
+                  "value": "3",
+                  "disabled": true
+                },
+                {
+                  "key": "finishing",
+                  "value": "finished",
+                  "disabled": true
                 }
               ]
             },
@@ -2075,7 +2133,7 @@
                 "{{listing_id}}"
               ]
             },
-            "description": "",
+            "description": "Includes labelled financial_summary and installment_items (no evidence ids).",
             "auth": {
               "type": "noauth"
             }
@@ -3339,6 +3397,85 @@
       ]
     },
     {
+      "name": "Phase 10–12 — Consent, session, publish gate",
+      "description": "No new routes. Phase 10: first otp/send needs consent (422 otherwise), returns resend_after; PATCH /me locale. Phase 11: Sanctum expiry + staff session invalidation (Blade). Phase 12: approve/publish need latest required docs Approved; under_offer is public, archived is not; unpublish/under-offer/archive are Blade ADM-02.",
+      "item": [
+        {
+          "name": "Send OTP without consent (expect 422)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phone\": \"01099990000\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/{{api_prefix}}/auth/otp/send",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "{{api_prefix}}",
+                "auth",
+                "otp",
+                "send"
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            },
+            "description": "New or unconsented phone without consent is 422 and no SMS is sent."
+          }
+        },
+        {
+          "name": "Update locale",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"locale\": \"en\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/{{api_prefix}}/me",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "{{api_prefix}}",
+                "me"
+              ]
+            },
+            "description": "locale is ar or en (other values 422). Verified phone cannot be changed."
+          }
+        }
+      ]
+    },
+    {
       "name": "Phase 13 — Listing fields",
       "description": "No new marketplace routes. Specs: phase, parking, unit_code (never public). Financials: offer_expires_at, installment paid + evidence_document_id (same listing). Category step copies commission_policy_code (not a payout). Public GET /categories omits the policy code. Staff assign-reviewer is Blade ADM-02.",
       "item": [
@@ -3347,9 +3484,18 @@
           "request": {
             "method": "PUT",
             "header": [
-              {"key": "Accept", "value": "application/json"},
-              {"key": "Authorization", "value": "Bearer {{auth_token}}"},
-              {"key": "Content-Type", "value": "application/json"}
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
@@ -3357,8 +3503,18 @@
             },
             "url": {
               "raw": "{{base_url}}/api/{{api_prefix}}/my/listings/{{listing_id}}/step/specs",
-              "host": ["{{base_url}}"],
-              "path": ["api", "{{api_prefix}}", "my", "listings", "{{listing_id}}", "step", "specs"]
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "{{api_prefix}}",
+                "my",
+                "listings",
+                "{{listing_id}}",
+                "step",
+                "specs"
+              ]
             },
             "description": "Owner + staff see unit_code. Public listing JSON never includes it."
           }
@@ -3368,9 +3524,18 @@
           "request": {
             "method": "PUT",
             "header": [
-              {"key": "Accept", "value": "application/json"},
-              {"key": "Authorization", "value": "Bearer {{auth_token}}"},
-              {"key": "Content-Type", "value": "application/json"}
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
@@ -3378,8 +3543,18 @@
             },
             "url": {
               "raw": "{{base_url}}/api/{{api_prefix}}/my/listings/{{listing_id}}/step/financials",
-              "host": ["{{base_url}}"],
-              "path": ["api", "{{api_prefix}}", "my", "listings", "{{listing_id}}", "step", "financials"]
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "{{api_prefix}}",
+                "my",
+                "listings",
+                "{{listing_id}}",
+                "step",
+                "financials"
+              ]
             },
             "description": "evidence_document_id must belong to the same listing."
           }
@@ -3388,11 +3563,22 @@
           "name": "Public categories (no commission policy)",
           "request": {
             "method": "GET",
-            "header": [{"key": "Accept", "value": "application/json"}],
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
             "url": {
               "raw": "{{base_url}}/api/{{api_prefix}}/categories",
-              "host": ["{{base_url}}"],
-              "path": ["api", "{{api_prefix}}", "categories"]
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "{{api_prefix}}",
+                "categories"
+              ]
             },
             "description": "Must not include commission_policy_code."
           }
@@ -3408,13 +3594,26 @@
           "request": {
             "method": "GET",
             "header": [
-              {"key": "Accept", "value": "application/json"},
-              {"key": "Authorization", "value": "Bearer {{auth_token}}"}
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              }
             ],
             "url": {
               "raw": "{{base_url}}/api/{{api_prefix}}/my/cases",
-              "host": ["{{base_url}}"],
-              "path": ["api", "{{api_prefix}}", "my", "cases"]
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "{{api_prefix}}",
+                "my",
+                "cases"
+              ]
             },
             "description": "No internal_stage, buyer, or seller objects. status is the client stage label."
           }
@@ -3424,13 +3623,27 @@
           "request": {
             "method": "GET",
             "header": [
-              {"key": "Accept", "value": "application/json"},
-              {"key": "Authorization", "value": "Bearer {{auth_token}}"}
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              }
             ],
             "url": {
               "raw": "{{base_url}}/api/{{api_prefix}}/my/cases/{{case_id}}",
-              "host": ["{{base_url}}"],
-              "path": ["api", "{{api_prefix}}", "my", "cases", "{{case_id}}"]
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "{{api_prefix}}",
+                "my",
+                "cases",
+                "{{case_id}}"
+              ]
             },
             "description": "timeline[].at is the recorded milestone. viewer is buyer|seller. lifecycle is the alternative status. No counterparty PII."
           }
@@ -3446,15 +3659,320 @@
           "request": {
             "method": "GET",
             "header": [
-              {"key": "Accept", "value": "application/json"},
-              {"key": "Authorization", "value": "Bearer {{auth_token}}"}
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              }
             ],
             "url": {
               "raw": "{{base_url}}/api/{{api_prefix}}/notifications",
-              "host": ["{{base_url}}"],
-              "path": ["api", "{{api_prefix}}", "notifications"]
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "{{api_prefix}}",
+                "notifications"
+              ]
             },
             "description": "Must not include staff_new_submission / staff_unassigned_lead / party phones."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Phase 16 — Staff RBAC",
+      "description": "No new marketplace routes. Blade ADM-09/ADM-10: Finance advances schedule_transfer/completed only; Operations approve commissions; Sales view assigned-case rows. Reviewer PATCH commission stays 403 (UAT-16). Teams stay out (DEC-05).",
+      "item": [
+        {
+          "name": "No new API routes",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/{{api_prefix}}/config",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "{{api_prefix}}",
+                "config"
+              ]
+            },
+            "description": "Phase 16 is staff Blade RBAC only. Use the dashboard session, not this collection."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Phase 17 — Manual estimate and uploads",
+      "description": "BRD APP-17: POST /estimates with manual contract inputs. Missing cancellation % never invents a penalty. Videos stay private after staff approve. Upload scan is AQDAR_UPLOAD_SCAN_DRIVER=null locally.",
+      "item": [
+        {
+          "name": "Manual estimate (missing %)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"contract_price\": 2900000,\n  \"total_paid\": 1450000,\n  \"remaining\": 1450000,\n  \"asking_price\": 2650000\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/{{api_prefix}}/estimates",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "{{api_prefix}}",
+                "estimates"
+              ]
+            },
+            "description": "computable false, reason cancellation_percent_missing, source manual, inputs verified false."
+          }
+        },
+        {
+          "name": "Manual estimate (with %)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"total_paid\": 1450000,\n  \"cancellation_percent\": 10,\n  \"asking_price\": 2650000\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/{{api_prefix}}/estimates",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "{{api_prefix}}",
+                "estimates"
+              ]
+            },
+            "description": "computable true. penalty = paid × percent / 100. percent_source manual. Guest is 401."
+          }
+        },
+        {
+          "name": "Manual estimate (area comparables)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"area_id\": 1,\n  \"unit_type_id\": 1,\n  \"total_paid\": 1450000,\n  \"cancellation_percent\": 10\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/{{api_prefix}}/estimates",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "{{api_prefix}}",
+                "estimates"
+              ]
+            },
+            "description": "listing_id null. Market uses published comparables in that area and unit type. Other-user listing_id is 404."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Phase 18 — Account closure and saved searches",
+      "description": "FR-007 POST /me/close requests closure (staff then anonymize; no hard-delete). FR-016/060 saved-searches CRUD always; match alerts only when feature_smart_notifications is on. Broadcast approval is Blade ADM-11.",
+      "item": [
+        {
+          "name": "Request account closure",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"أريد إغلاق الحساب\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/{{api_prefix}}/me/close",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "{{api_prefix}}",
+                "me",
+                "close"
+              ]
+            },
+            "description": "Archives public listings, revokes tokens. Returns user snapshot with is_close_pending. Does not anonymize. Guest is 401. After this call the token is dead."
+          }
+        },
+        {
+          "name": "List saved searches",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/{{api_prefix}}/saved-searches",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "{{api_prefix}}",
+                "saved-searches"
+              ]
+            },
+            "description": "CRUD works even when the smart flag is off. Guest is 401."
+          }
+        },
+        {
+          "name": "Create saved search",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"القاهرة الجديدة\",\n  \"notify\": true,\n  \"filters\": {\n    \"area_id\": 1,\n    \"price_max\": 3000000\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/{{api_prefix}}/saved-searches",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "{{api_prefix}}",
+                "saved-searches"
+              ]
+            },
+            "description": "Max 20. Match alerts on publish only if feature_smart_notifications=1. Copy never includes seller PII."
+          }
+        },
+        {
+          "name": "Update saved search",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"القاهرة الجديدة\",\n  \"notify\": false,\n  \"filters\": {\n    \"area_id\": 1,\n    \"price_max\": 2500000\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/{{api_prefix}}/saved-searches/1",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "{{api_prefix}}",
+                "saved-searches",
+                "1"
+              ]
+            },
+            "description": "APP-14 settings gear: name, notify, and/or filters. Other users' ids are 404."
+          }
+        },
+        {
+          "name": "Delete saved search",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/{{api_prefix}}/saved-searches/1",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "{{api_prefix}}",
+                "saved-searches",
+                "1"
+              ]
+            },
+            "description": "Other users' ids are 404."
           }
         }
       ]
@@ -3467,11 +3985,27 @@
           "name": "Current support thread",
           "request": {
             "method": "GET",
-            "header": [{"key": "Accept", "value": "application/json"}, {"key": "Authorization", "value": "Bearer {{auth_token}}"}],
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              }
+            ],
             "url": {
               "raw": "{{base_url}}/api/{{api_prefix}}/my/support",
-              "host": ["{{base_url}}"],
-              "path": ["api", "{{api_prefix}}", "my", "support"]
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "{{api_prefix}}",
+                "my",
+                "support"
+              ]
             },
             "description": "Open Sales-support thread or data null. Auth user only."
           }
@@ -3480,14 +4014,489 @@
           "name": "Send support message",
           "request": {
             "method": "POST",
-            "header": [{"key": "Accept", "value": "application/json"}, {"key": "Authorization", "value": "Bearer {{auth_token}}"}, {"key": "Content-Type", "value": "application/json"}],
-            "body": {"mode": "raw", "raw": "{\n  \"body\": \"Need help with my listing\",\n  \"consent\": true\n}"},
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"body\": \"Need help with my listing\",\n  \"consent\": true\n}"
+            },
             "url": {
               "raw": "{{base_url}}/api/{{api_prefix}}/my/support",
-              "host": ["{{base_url}}"],
-              "path": ["api", "{{api_prefix}}", "my", "support"]
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "{{api_prefix}}",
+                "my",
+                "support"
+              ]
             },
             "description": "Creates or appends. Contact details in body are 422. author is user|sales only."
+          }
+        }
+      ]
+    },
+    {
+      "name": "UI closure — 2FA, discovery, tracking, account, recently viewed, media order",
+      "item": [
+        {
+          "name": "Login — second factor (2FA)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept-Language",
+                "value": "ar"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/{{api_prefix}}/auth/login/two-factor",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "{{api_prefix}}",
+                "auth",
+                "login",
+                "two-factor"
+              ]
+            },
+            "description": "When `POST /auth/login` returns **202** with `two_factor_required: true`, an OTP was sent to the verified phone. Send the `challenge` from that response with the 6-digit code to receive the token. Challenge lives for the OTP TTL and is single-use.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"challenge\": \"{{two_factor_challenge}}\",\n  \"code\": \"123456\"\n}"
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200) { pm.collectionVariables.set('auth_token', pm.response.json().data.token); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Two-factor on/off",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept-Language",
+                "value": "ar"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/{{api_prefix}}/me/two-factor",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "{{api_prefix}}",
+                "me",
+                "two-factor"
+              ]
+            },
+            "description": "Bearer. Turns two-factor on or off for password logins. Requires a verified phone to enable; `current_password` is required when the account has a password (prohibited otherwise). Response is the user resource (`two_factor_enabled`, `region`).",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"enabled\": true,\n  \"current_password\": \"password\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Change password",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept-Language",
+                "value": "ar"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/{{api_prefix}}/me/password",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "{{api_prefix}}",
+                "me",
+                "password"
+              ]
+            },
+            "description": "Bearer. `current_password` required when a password exists; OTP-only accounts set their first password without it. Other sessions are signed out; the current token stays valid.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"current_password\": \"OldPassword123!\",\n  \"password\": \"NewPassword123!\",\n  \"password_confirmation\": \"NewPassword123!\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Viewing slots for a day",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept-Language",
+                "value": "ar"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/{{api_prefix}}/appointments/slots?date=2026-11-02",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "{{api_prefix}}",
+                "appointments",
+                "slots"
+              ],
+              "query": [
+                {
+                  "key": "date",
+                  "value": "2026-11-02"
+                }
+              ]
+            },
+            "description": "Bearer. Returns `{date, open, slots:[{value, available}]}` from `AQDAR_VIEWING_SLOTS`. Past slots and closed weekdays are unavailable; booking validates against the same list."
+          }
+        },
+        {
+          "name": "Compare listings (2–3)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept-Language",
+                "value": "ar"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/{{api_prefix}}/listings/compare?ids=1,2",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "{{api_prefix}}",
+                "listings",
+                "compare"
+              ],
+              "query": [
+                {
+                  "key": "ids",
+                  "value": "1,2"
+                }
+              ]
+            },
+            "description": "Public. `ids` is 2–3 distinct published listing ids (array or comma-separated). Returned in the requested order with public fields only."
+          }
+        },
+        {
+          "name": "Seller — interest across all my listings",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept-Language",
+                "value": "ar"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/{{api_prefix}}/my/interest",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "{{api_prefix}}",
+                "my",
+                "interest"
+              ]
+            },
+            "description": "Bearer, seller. Anonymous buyer interest rows (`Buyer #n` per listing) with listing title; no buyer contact data."
+          }
+        },
+        {
+          "name": "Support thread detail",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept-Language",
+                "value": "ar"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/{{api_prefix}}/my/support/{{support_thread_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "{{api_prefix}}",
+                "my",
+                "support",
+                "{{support_thread_id}}"
+              ]
+            },
+            "description": "Bearer. One support thread with its messages, owner only."
+          }
+        },
+        {
+          "name": "Recently viewed",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept-Language",
+                "value": "ar"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/{{api_prefix}}/recently-viewed",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "{{api_prefix}}",
+                "recently-viewed"
+              ]
+            },
+            "description": "FR-014. Up to 30 public listing cards, most recently opened first. A view is stored whenever a signed-in user opens `GET /listings/{id}`. Listings that are no longer public drop out."
+          }
+        },
+        {
+          "name": "Clear recently viewed",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept-Language",
+                "value": "ar"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/{{api_prefix}}/recently-viewed",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "{{api_prefix}}",
+                "recently-viewed"
+              ]
+            },
+            "description": "Clears the signed-in user's recently viewed history."
+          }
+        },
+        {
+          "name": "Seller — reorder listing photos",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept-Language",
+                "value": "ar"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/{{api_prefix}}/my/listings/{{listing_id}}/media/order",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "{{api_prefix}}",
+                "my",
+                "listings",
+                "{{listing_id}}",
+                "media",
+                "order"
+              ]
+            },
+            "description": "Send every media id of the listing exactly once, in the new order (first = cover). 422 on `ids` when the list doesn't match. Does not send the listing back to review.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ids\": [{{media_id}}]\n}"
+            }
+          }
+        },
+        {
+          "name": "Onboarding slides",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept-Language",
+                "value": "ar"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/{{api_prefix}}/content/onboarding",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "{{api_prefix}}",
+                "content",
+                "onboarding"
+              ]
+            },
+            "description": "Active `onboarding` content blocks for the first-run intro, ordered by `sort_order`.",
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
+        {
+          "name": "Seller guide",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept-Language",
+                "value": "ar"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/{{api_prefix}}/content/seller-guide",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "{{api_prefix}}",
+                "content",
+                "seller-guide"
+              ]
+            },
+            "description": "Active `seller_guide` content blocks for the seller \"how it works\" screen.",
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
+        {
+          "name": "Home counts (incl. tags)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept-Language",
+                "value": "ar"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/{{api_prefix}}/listings/counts",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "{{api_prefix}}",
+                "listings",
+                "counts"
+              ]
+            },
+            "description": "Published totals for home cards. Includes `unit_types` and `tags: [{ id, slug, count }]`.",
+            "auth": {
+              "type": "noauth"
+            }
           }
         }
       ]

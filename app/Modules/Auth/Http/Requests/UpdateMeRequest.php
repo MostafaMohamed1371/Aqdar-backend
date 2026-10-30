@@ -6,6 +6,7 @@ use App\Core\Enums\AccountType;
 use App\Core\Http\Requests\BaseFormRequest;
 use App\Core\Validation\ValidationRules;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Validator;
 
 class UpdateMeRequest extends BaseFormRequest
 {
@@ -31,6 +32,18 @@ class UpdateMeRequest extends BaseFormRequest
             'account_type' => ['sometimes', Rule::enum(AccountType::class)],
             'locale' => ['sometimes', 'in:'.implode(',', config('aqdar.locales', ['ar', 'en']))],
         ];
+    }
+
+    public function withValidator(Validator $validator): void
+    {
+        $validator->after(function (Validator $validator): void {
+            $current = $this->user()?->email;
+            $requested = $this->input('email');
+
+            if ($current !== null && is_string($requested) && strcasecmp(trim($requested), $current) !== 0) {
+                $validator->errors()->add('email', __('aqdar.auth.email_locked'));
+            }
+        });
     }
 
     /** @return list<string> */

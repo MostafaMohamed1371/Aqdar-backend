@@ -48,14 +48,11 @@ return [
     |--------------------------------------------------------------------------
     */
 
-    'available_locales' => ['en', 'ar', 'fr', 'es', 'de'],
+    'available_locales' => ['ar', 'en'],
 
     'locale_labels' => [
-        'en' => 'English',
         'ar' => 'العربية',
-        'fr' => 'Français',
-        'es' => 'Español',
-        'de' => 'Deutsch',
+        'en' => 'English',
     ],
 
     /*

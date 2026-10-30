@@ -20,7 +20,7 @@ class ReferenceController extends BaseController
     public function locations(): View
     {
         return view('dashboard::reference.locations', [
-            'governorates' => Governorate::query()->with('areas')->orderBy('sort_order')->get(),
+            'governorates' => Governorate::query()->with('areas')->withCount('areas')->orderBy('sort_order')->get(),
         ]);
     }
 

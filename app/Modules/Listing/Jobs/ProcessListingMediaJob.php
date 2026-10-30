@@ -22,6 +22,10 @@ class ProcessListingMediaJob implements ShouldQueue
             return;
         }
 
+        if ($media->isVideo()) {
+            return;
+        }
+
         $bytes = Storage::disk($media->original_disk)->get($media->original_path);
         $extension = pathinfo((string) $media->original_path, PATHINFO_EXTENSION) ?: 'bin';
         $publicPath = 'listings/'.$media->listing_id.'/'.$media->id.'.'.$extension;

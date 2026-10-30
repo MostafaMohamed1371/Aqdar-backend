@@ -20,5 +20,21 @@ class EstimateServiceTest extends TestCase
         $this->assertFalse($payload['computable']);
         $this->assertSame('cancellation_percent_missing', $payload['reason']);
         $this->assertNull($payload['cancellation']);
+        $this->assertSame('listing', $payload['source']);
+    }
+
+    public function test_manual_missing_percent_never_invents_a_penalty(): void
+    {
+        $user = Listing::factory()->create()->owner;
+        $payload = app(EstimateService::class)->fromManual($user, [
+            'total_paid' => 1450000,
+            'asking_price' => 2650000,
+        ]);
+
+        $this->assertSame('manual', $payload['source']);
+        $this->assertFalse($payload['computable']);
+        $this->assertSame('cancellation_percent_missing', $payload['reason']);
+        $this->assertNull($payload['cancellation']);
+        $this->assertFalse($payload['inputs'][3]['verified']);
     }
 }

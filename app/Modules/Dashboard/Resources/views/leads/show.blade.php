@@ -62,15 +62,7 @@
                 <b>
                     {{ $lead->assignee?->name ?? __('aqdar.crm.unassigned') }}
                     @if ($canAssign)
-                        <form method="POST" action="{{ route('dashboard.leads.assign', $lead) }}" style="display:inline">
-                            @csrf
-                            <select name="assigned_to" onchange="this.form.submit()">
-                                <option value="">{{ __('aqdar.crm.unassigned') }}</option>
-                                @foreach ($assignable as $staff)
-                                    <option value="{{ $staff->id }}" @selected((int) $lead->assigned_to === (int) $staff->id)>{{ $staff->name }}</option>
-                                @endforeach
-                            </select>
-                        </form>
+                        @include('dashboard::partials.assign-select', ['action' => route('dashboard.leads.assign', $lead), 'current' => $lead->assigned_to, 'assignable' => $assignable, 'inline' => true])
                     @endif
                 </b>
             </div>

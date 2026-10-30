@@ -10,8 +10,9 @@ use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Foundation\Auth\User as Authenticatable;
+use Illuminate\Support\Facades\Storage;
 
-#[Fillable(['name', 'email', 'password', 'role_id', 'is_active', 'last_login_at'])]
+#[Fillable(['name', 'email', 'password', 'role_id', 'branch', 'avatar_path', 'is_active', 'last_login_at'])]
 #[Hidden(['password', 'remember_token'])]
 class StaffUser extends Authenticatable
 {
@@ -45,6 +46,29 @@ class StaffUser extends Authenticatable
     public function isSuperAdmin(): bool
     {
         return $this->role?->slug === StaffRole::SuperAdmin->value;
+    }
+
+    public function avatarUrl(): ?string
+    {
+        return $this->avatar_path ? Storage::disk('public_media')->url($this->avatar_path) : null;
+    }
+
+    public function roleName(?string $locale = null): string
+    {
+        $this->loadMissing('role');
+        $role = $this->role;
+
+        if ($role === null) {
+            return '—';
+        }
+
+        $locale ??= app()->getLocale();
+
+        if ($locale === 'en') {
+            return $role->name_en ?: $role->name_ar;
+        }
+
+        return $role->name_ar ?: $role->name_en;
     }
 
     protected static function newFactory(): StaffUserFactory

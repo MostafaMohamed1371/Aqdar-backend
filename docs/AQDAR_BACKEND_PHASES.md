@@ -330,11 +330,11 @@ Dashboard (parallel, per phase, from the UI mockup): [DASHBOARD_PHASES.md](DASHB
 **Commissions:**
 - Data: `commissions`, `commission_history`.
 - Admin (ADM-10): create on closed case; payer party, basis/rate/amount, invoice reference, status `earned | due | paid | waived`; reason on changes; CSV export.
-- Finance only for edits; every change audited. Default rate is a setting, not hard-coded.
+- Finance records/edits (pending until Operations approve); Sales view assigned-case rows only; every change audited. Default rate is a setting, not hard-coded.
 
 **Screens served:** APP-32, ADM-10.
 
-**Implemented:** owner-only `GET /listings/{id}/estimate`; missing % never invents a penalty; CMS disclaimer `exit_estimate`; ADM-10 Finance desk (`commissions` + `commission_history`); default rate/status/tax from settings/config (DEC-02/03); month filter; SVG monthly bars (sale value vs commission) and unit-type donut. Notifications stay Phase 8.
+**Implemented:** owner-only `GET /listings/{id}/estimate`; Phase 17 `POST /estimates` (BRD APP-17) accepts manual contract inputs with the same `computable: false` / disclaimer rules; missing % never invents a penalty; CMS disclaimer `exit_estimate`; ADM-10 desk (`commissions` + `commission_history`); Finance edit pending Operations approve, Sales view own rows (Phase 16 / BRD §8.2); default rate/status/tax from settings/config (DEC-02/03); month filter; SVG monthly bars (sale value vs commission) and unit-type donut. Notifications stay Phase 8.
 
 **Tests:**
 - UAT-19: estimate without cancellation % → `computable: false`.

@@ -5,7 +5,9 @@ namespace App\Modules\Dashboard\Http\Controllers;
 use App\Core\Enums\MediaModerationStatus;
 use App\Core\Enums\Permission;
 use App\Core\Http\Controllers\BaseController;
+use App\Core\Services\QueueQuery;
 use App\Modules\Dashboard\Http\Requests\AssignListingReviewerRequest;
+use App\Modules\Dashboard\Http\Requests\BulkModerateListingsRequest;
 use App\Modules\Dashboard\Http\Requests\ModerateListingRequest;
 use App\Modules\Dashboard\Http\Requests\VerifyListingFinancialsRequest;
 use App\Modules\Listing\Models\Listing;
@@ -15,6 +17,7 @@ use App\Modules\Listing\Services\ListingModerationService;
 use App\Modules\Staff\Models\StaffUser;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 class ListingDeskController extends BaseController
@@ -78,6 +81,13 @@ class ListingDeskController extends BaseController
             });
         }
 
+        QueueQuery::apply($query, QueueQuery::filtersFrom($request), [
+            'title' => 'title_ar',
+            'market' => 'segment',
+            'added' => 'created_at',
+            'status' => 'status',
+        ]);
+
         $counts = [];
         foreach (self::TABS as $key => $values) {
             $countQuery = Listing::query();
@@ -112,6 +122,7 @@ class ListingDeskController extends BaseController
             'documents',
             'media',
             'assignedReviewer',
+            'statusHistory.actor',
         ]);
 
         return view('dashboard::listings.show', [
@@ -136,6 +147,7 @@ class ListingDeskController extends BaseController
             $request->validated('assigned_reviewer_id') !== null
                 ? (int) $request->validated('assigned_reviewer_id')
                 : null,
+            $request->validated('reason'),
         );
 
         return back()->with('status', __('aqdar.listings.desk.reviewer_assigned'));
@@ -150,7 +162,12 @@ class ListingDeskController extends BaseController
 
     public function requestChanges(ModerateListingRequest $request, Listing $listing): RedirectResponse
     {
-        $this->moderation->requestChanges($listing, $request->user(), (string) $request->validated('reason'));
+        $this->moderation->requestChanges(
+            $listing,
+            $request->user(),
+            (string) $request->validated('reason'),
+            (array) $request->validated('field_notes', []),
+        );
 
         return back()->with('status', __('aqdar.listings.desk.changes_requested'));
     }
@@ -160,6 +177,30 @@ class ListingDeskController extends BaseController
         $this->moderation->reject($listing, $request->user(), (string) $request->validated('reason'));
 
         return back()->with('status', __('aqdar.listings.desk.rejected'));
+    }
+
+    public function bulk(BulkModerateListingsRequest $request): RedirectResponse
+    {
+        $reason = (string) $request->validated('reason');
+        $done = 0;
+        $skipped = 0;
+
+        Listing::query()->whereIn('id', $request->validated('ids'))->get()->each(
+            function (Listing $listing) use ($request, $reason, &$done, &$skipped): void {
+                try {
+                    match ($request->validated('action')) {
+                        'approve' => $this->moderation->approve($listing, $request->user(), $reason),
+                        'request_changes' => $this->moderation->requestChanges($listing, $request->user(), $reason),
+                        'reject' => $this->moderation->reject($listing, $request->user(), $reason),
+                    };
+                    $done++;
+                } catch (ValidationException) {
+                    $skipped++;
+                }
+            },
+        );
+
+        return back()->with('status', __('aqdar.listings.desk.bulk_result', ['done' => $done, 'skipped' => $skipped]));
     }
 
     public function reopen(ModerateListingRequest $request, Listing $listing): RedirectResponse

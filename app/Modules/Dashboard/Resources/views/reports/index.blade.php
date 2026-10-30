@@ -78,12 +78,20 @@
         <button type="submit" class="btn ghost">{{ __('aqdar.reports.apply') }}</button>
     </form>
 
-    <div class="kpis" style="grid-template-columns:repeat(4,1fr)">
+    @php
+        $firstResponseHours = (float) ($rates['first_response_hours'] ?? 0);
+        $firstResponseLabel = $firstResponseHours > 0 && $firstResponseHours < 2
+            ? number_format($firstResponseHours * 60).' '.__('aqdar.reports.minutes_short')
+            : number_format($firstResponseHours, 1).' '.__('aqdar.reports.hours_short');
+    @endphp
+    <div class="kpis" style="grid-template-columns:repeat(3,1fr)">
         @foreach ([
             ['clock', '', number_format((float) ($rates['avg_listing_review_hours'] ?? 0), 1).' '. __('aqdar.reports.hours_short'), 'aqdar.reports.kpi.review_hours'],
-            ['phone', 'gold', number_format((float) ($rates['first_response_hours'] ?? 0), 1).' '. __('aqdar.reports.hours_short'), 'aqdar.reports.kpi.first_response'],
+            ['phone', 'gold', $firstResponseLabel, 'aqdar.reports.kpi.first_response'],
             ['target', 'info', number_format((float) ($rates['qualified_rate'] ?? 0), 1).'%', 'aqdar.reports.kpi.qualified'],
             ['swap', 'ok', number_format((float) ($rates['converted_rate'] ?? 0), 1).'%', 'aqdar.reports.kpi.converted'],
+            ['inbox', 'info', number_format((float) ($rates['request_qualified_rate'] ?? 0), 1).'%', 'aqdar.reports.kpi.request_qualified'],
+            ['check', 'ok', number_format((float) ($rates['request_transaction_rate'] ?? 0), 1).'%', 'aqdar.reports.kpi.request_transaction'],
         ] as [$icon, $tone, $value, $label])
             <div class="kpi">
                 <span class="ic {{ $tone }}">@include('dashboard::partials.icon', ['name' => $icon])</span>
@@ -120,7 +128,7 @@
                     <rect x="{{ $gx }}" y="{{ $chartH - 26 - $hL }}" width="{{ $chartBw }}" height="{{ $hL }}" rx="5" fill="#087e82"/>
                     <rect x="{{ $gx + $chartBw + 4 }}" y="{{ $chartH - 26 - $hR }}" width="{{ $chartBw }}" height="{{ $hR }}" rx="5" fill="#c5985f"/>
                     <rect x="{{ $gx + ($chartBw + 4) * 2 }}" y="{{ $chartH - 26 - $hU }}" width="{{ $chartBw }}" height="{{ $hU }}" rx="5" fill="#9fb0c2"/>
-                    <text x="{{ $chartPad + $chartGw * $i + $chartGw / 2 }}" y="{{ $chartH - 8 }}" text-anchor="middle" font-size="10.5" fill="#6b7280">{{ $row['label'] }}</text>
+                    <text class="chart-muted" x="{{ $chartPad + $chartGw * $i + $chartGw / 2 }}" y="{{ $chartH - 8 }}" text-anchor="middle" font-size="10.5">{{ $row['label'] }}</text>
                 @endforeach
             </svg>
             <p class="tiny">{{ __('aqdar.reports.range_note', ['from' => $filters['from'], 'to' => $filters['to']]) }}</p>

@@ -5,6 +5,8 @@ namespace App\Modules\Dashboard\Http\Controllers;
 use App\Core\Enums\BuyerRequestStatus;
 use App\Core\Enums\MatchBuyerResponse;
 use App\Core\Http\Controllers\BaseController;
+use App\Core\Services\QueueQuery;
+use App\Modules\Catalog\Models\Governorate;
 use App\Modules\Crm\Models\BuyerRequest;
 use App\Modules\Crm\Models\RequestMatch;
 use App\Modules\Crm\Services\BuyerRequestService;
@@ -29,10 +31,19 @@ class BuyerRequestDeskController extends BaseController
             'type' => (string) $request->query('type', ''),
             'assigned_to' => (string) $request->query('assigned_to', ''),
             'q' => trim((string) $request->query('q', '')),
+            'governorate_id' => (string) $request->query('governorate_id', ''),
+            'segment' => (string) $request->query('segment', ''),
+            'budget_min' => (string) $request->query('budget_min', ''),
+            'budget_max' => (string) $request->query('budget_max', ''),
+            'overdue' => $request->boolean('overdue'),
+            'duplicates' => $request->boolean('duplicates'),
+            ...QueueQuery::filtersFrom($request),
         ];
 
         return view('dashboard::requests.index', [
             'requests' => $this->requests->paginateFor($staff, $filters),
+            'filters' => $filters,
+            'governorates' => Governorate::query()->where('is_active', true)->orderBy('sort_order')->get(),
             'counts' => $this->requests->countsFor($staff),
             'tab' => $filters['status'] === '' ? 'all' : $filters['status'],
             'type' => $filters['type'],
@@ -70,7 +81,7 @@ class BuyerRequestDeskController extends BaseController
     {
         /** @var StaffUser $staff */
         $staff = $request->user();
-        $this->requests->assign($buyerRequest, $staff, (int) $request->validated('assigned_to'));
+        $this->requests->assign($buyerRequest, $staff, (int) $request->validated('assigned_to'), $request->validated('reason'));
 
         return back()->with('status', __('aqdar.requests.assigned'));
     }
@@ -87,6 +98,18 @@ class BuyerRequestDeskController extends BaseController
         );
 
         return back()->with('status', __('aqdar.requests.status_updated'));
+    }
+
+    public function attachMatch(Request $request, BuyerRequest $buyerRequest): RedirectResponse
+    {
+        $data = $request->validate([
+            'listing_code' => ['required', 'string', 'max:40'],
+        ]);
+        /** @var StaffUser $staff */
+        $staff = $request->user();
+        $this->requests->attachListing($buyerRequest, $staff, $data['listing_code']);
+
+        return back()->with('status', __('aqdar.requests.attached'));
     }
 
     public function refresh(Request $request, BuyerRequest $buyerRequest): RedirectResponse
@@ -137,8 +160,14 @@ class BuyerRequestDeskController extends BaseController
     {
         /** @var StaffUser $staff */
         $staff = $request->user();
-        $reason = (string) $request->validate(['reason' => ['required', 'string', 'min:3', 'max:500']])['reason'];
-        $case = $this->requests->convertToCase($buyerRequest, $staff, $reason);
+        $data = $request->validate([
+            'reason' => ['required', 'string', 'min:3', 'max:500'],
+            'match_id' => ['nullable', 'integer'],
+        ]);
+        $match = isset($data['match_id'])
+            ? RequestMatch::query()->where('buyer_request_id', $buyerRequest->id)->findOrFail((int) $data['match_id'])
+            : null;
+        $case = $this->requests->convertToCase($buyerRequest, $staff, (string) $data['reason'], $match);
 
         return redirect()
             ->route('dashboard.cases.show', $case)

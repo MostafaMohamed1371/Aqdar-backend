@@ -6,7 +6,9 @@ use App\Core\Audit\Models\AccessLog;
 use App\Core\Audit\Models\AuditLog;
 use App\Core\Enums\StaffRole;
 use App\Core\Identity\ContactMask;
+use App\Modules\Staff\Models\Role;
 use App\Modules\User\Models\User;
+use App\Modules\User\Services\UserService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Concerns\CreatesStaffUsers;
 use Tests\TestCase;
@@ -39,6 +41,46 @@ class StaffRbacTest extends TestCase
 
         $this->post('/dashboard/users/'.$user->id.'/reveal')->assertForbidden();
         $this->assertSame(0, AccessLog::query()->where('action', 'user.phone_revealed')->count());
+    }
+
+    public function test_reveal_shows_full_email_and_logs_it(): void
+    {
+        $this->actingAsStaff(StaffRole::Operations);
+        $user = User::factory()->create(['email' => 'hidden.person@example.com', 'phone' => '+201012345678']);
+
+        $this->get('/dashboard/users')->assertDontSee('hidden.person@example.com');
+
+        $this->from('/dashboard/users')
+            ->followingRedirects()
+            ->post('/dashboard/users/'.$user->id.'/reveal')
+            ->assertOk()
+            ->assertSee('hidden.person@example.com');
+
+        $this->assertSame(1, AccessLog::query()->where('action', 'user.email_revealed')->where('subject_id', $user->id)->count());
+    }
+
+    public function test_users_desk_flags_possible_duplicate_accounts(): void
+    {
+        $this->actingAsStaff(StaffRole::Operations);
+        $first = User::factory()->create(['email' => 'owner@example.com']);
+        $second = User::factory()->create(['email' => 'Owner@Example.com']);
+        $third = User::factory()->create();
+        $fourth = User::factory()->create();
+        $first->devices()->create(['device_uuid' => 'shared-device-1', 'platform' => 'android']);
+        $third->devices()->create(['device_uuid' => 'shared-device-2', 'platform' => 'ios']);
+        $fourth->devices()->create(['device_uuid' => 'shared-device-2', 'platform' => 'ios']);
+        $clean = User::factory()->create();
+
+        $duplicates = app(UserService::class)
+            ->possibleDuplicates([$first, $second, $third, $fourth, $clean]);
+
+        $this->assertSame(['email'], $duplicates[$first->id]);
+        $this->assertSame(['email'], $duplicates[$second->id]);
+        $this->assertSame(['device'], $duplicates[$third->id]);
+        $this->assertSame(['device'], $duplicates[$fourth->id]);
+        $this->assertArrayNotHasKey($clean->id, $duplicates);
+
+        $this->get('/dashboard/users')->assertOk()->assertSee(__('aqdar.users.possible_duplicate'));
     }
 
     public function test_operations_can_reveal_and_suspend_with_reason(): void
@@ -77,7 +119,7 @@ class StaffRbacTest extends TestCase
             ->assertOk()
             ->assertSee(__('aqdar.staff.matrix'));
 
-        $roleId = \App\Modules\Staff\Models\Role::query()->where('slug', StaffRole::Reviewer->value)->value('id');
+        $roleId = Role::query()->where('slug', StaffRole::Reviewer->value)->value('id');
 
         $this->post('/dashboard/staff', [
             'name' => 'Omar Reviewer',
@@ -89,11 +131,38 @@ class StaffRbacTest extends TestCase
         $this->assertDatabaseHas('staff_users', ['email' => 'omar@aqdar.com']);
     }
 
+    public function test_staff_branch_is_saved_listed_and_counted(): void
+    {
+        $this->actingAsStaff(StaffRole::SuperAdmin, ['branch' => 'Cairo']);
+        $roleId = Role::query()->where('slug', StaffRole::Sales->value)->value('id');
+
+        $this->post('/dashboard/staff', [
+            'name' => 'Mohamed Sales',
+            'email' => 'mohamed@aqdar.com',
+            'password' => 'password123',
+            'role_id' => $roleId,
+            'branch' => '  New Cairo ',
+        ])->assertRedirect(route('dashboard.staff.index'));
+
+        $this->assertDatabaseHas('staff_users', ['email' => 'mohamed@aqdar.com', 'branch' => 'New Cairo']);
+
+        $this->get('/dashboard/staff')
+            ->assertOk()
+            ->assertSee(__('aqdar.staff.branches'))
+            ->assertSee('New Cairo')
+            ->assertViewHas('stats', fn (array $stats) => $stats['branches'] === 2);
+
+        $this->get('/dashboard/staff?q=new cairo')
+            ->assertOk()
+            ->assertSee('mohamed@aqdar.com')
+            ->assertDontSee('Omar Reviewer');
+    }
+
     public function test_super_admin_can_edit_and_delete_staff(): void
     {
         $actor = $this->actingAsStaff(StaffRole::SuperAdmin);
-        $reviewerRoleId = \App\Modules\Staff\Models\Role::query()->where('slug', StaffRole::Reviewer->value)->value('id');
-        $salesRoleId = \App\Modules\Staff\Models\Role::query()->where('slug', StaffRole::Sales->value)->value('id');
+        $reviewerRoleId = Role::query()->where('slug', StaffRole::Reviewer->value)->value('id');
+        $salesRoleId = Role::query()->where('slug', StaffRole::Sales->value)->value('id');
 
         $member = $this->makeStaff(StaffRole::Reviewer, [
             'email' => 'nour@aqdar.com',

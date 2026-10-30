@@ -13,11 +13,11 @@
             ['id' => 'ADM-06', 'icon' => 'key', 'key' => 'aqdar.menu.adm_06', 'route' => 'dashboard.staff.index', 'active' => request()->routeIs('dashboard.staff.*'), 'can' => 'manage_staff'],
             ['id' => 'ADM-07', 'icon' => 'target', 'key' => 'aqdar.menu.adm_07', 'route' => 'dashboard.leads.index', 'active' => request()->routeIs('dashboard.leads.*') || request()->routeIs('dashboard.support.*'), 'can' => 'manage_crm'],
             ['id' => 'ADM-08', 'icon' => 'inbox', 'key' => 'aqdar.menu.adm_08', 'route' => 'dashboard.requests.index', 'active' => request()->routeIs('dashboard.requests.*'), 'can' => 'manage_crm'],
-            ['id' => 'ADM-09', 'icon' => 'swap', 'key' => 'aqdar.menu.adm_09', 'route' => 'dashboard.cases.index', 'active' => request()->routeIs('dashboard.cases.*'), 'can' => 'manage_crm'],
+            ['id' => 'ADM-09', 'icon' => 'swap', 'key' => 'aqdar.menu.adm_09', 'route' => 'dashboard.cases.index', 'active' => request()->routeIs('dashboard.cases.*'), 'can' => ['manage_crm', 'advance_finance_stages']],
         ],
         'finance' => [
-            ['id' => 'ADM-10', 'icon' => 'percent', 'key' => 'aqdar.menu.adm_10', 'route' => 'dashboard.commissions.index', 'active' => request()->routeIs('dashboard.commissions.*'), 'can' => 'edit_commissions'],
-            ['id' => 'ADM-11', 'icon' => 'megaphone', 'key' => 'aqdar.menu.adm_11', 'route' => 'dashboard.content.index', 'active' => request()->routeIs('dashboard.content.*'), 'can' => 'manage_catalog'],
+            ['id' => 'ADM-10', 'icon' => 'percent', 'key' => 'aqdar.menu.adm_10', 'route' => 'dashboard.commissions.index', 'active' => request()->routeIs('dashboard.commissions.*'), 'can' => ['edit_commissions', 'approve_commissions', 'view_commissions']],
+            ['id' => 'ADM-11', 'icon' => 'megaphone', 'key' => 'aqdar.menu.adm_11', 'route' => 'dashboard.content.index', 'active' => request()->routeIs('dashboard.content.*'), 'can' => ['manage_catalog', 'approve_broadcasts']],
             ['id' => 'ADM-12', 'icon' => 'chart', 'key' => 'aqdar.menu.adm_12', 'route' => 'dashboard.reports.index', 'active' => request()->routeIs('dashboard.reports.*'), 'can' => 'export_csv'],
         ],
         'system' => [
@@ -41,10 +41,18 @@
     @foreach ($menu as $group => $items)
         <div class="grp"><x-bilingual :key="'aqdar.group.'.$group" /></div>
         @foreach ($items as $item)
-            @if (! empty($item['route']) && (empty($item['can']) || auth()->user()?->can($item['can'])))
+            @php
+                $perms = $item['can'] ?? null;
+                $canSee = empty($perms) || collect(is_array($perms) ? $perms : [$perms])
+                    ->contains(fn ($permission) => auth()->user()?->can($permission));
+            @endphp
+            @if (! empty($item['route']) && $canSee)
                 <a href="{{ route($item['route']) }}" @class(['on' => $item['active'] ?? false])>
                     @include('dashboard::partials.icon', ['name' => $item['icon']])
                     <span><x-bilingual :key="$item['key']" /></span>
+                    @if (! empty($queueBadges[$item['id']]))
+                        <span class="cnt">{{ number_format($queueBadges[$item['id']]) }}</span>
+                    @endif
                 </a>
             @else
                 <span class="nav-item soon" title="{{ __('aqdar.coming_soon') }}">

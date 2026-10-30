@@ -13,4 +13,6 @@ Route::middleware('throttle:api')->group(function (): void {
     Route::get('content/banners', [CatalogController::class, 'banners']);
     Route::get('content/faqs', [CatalogController::class, 'faqs']);
     Route::get('content/support', [CatalogController::class, 'support']);
+    Route::get('content/onboarding', [CatalogController::class, 'onboarding']);
+    Route::get('content/seller-guide', [CatalogController::class, 'sellerGuide']);
 });

@@ -52,8 +52,14 @@
                             <a class="btn ghost sm" href="{{ URL::temporarySignedRoute('dashboard.documents.download', now()->addMinutes(config('aqdar.files.signed_url_minutes', 10)), ['document' => $doc]) }}">{{ __('aqdar.listings.docs.open') }}</a>
                             @if ($doc->review_status->value !== 'approved')
                                 <form method="POST" action="{{ route('dashboard.documents.approve', $doc) }}" style="display:inline">@csrf<input type="hidden" name="reason" value="{{ __('aqdar.listings.docs.approve_default') }}"><button class="btn sm" type="submit">{{ __('aqdar.listings.desk.approve') }}</button></form>
-                                <form method="POST" action="{{ route('dashboard.documents.request-replacement', $doc) }}" style="display:inline">@csrf<input type="hidden" name="reason" value="{{ __('aqdar.listings.docs.replace_default') }}"><button class="btn ghost sm" type="submit">{{ __('aqdar.listings.docs.request_replacement') }}</button></form>
-                                <form method="POST" action="{{ route('dashboard.documents.reject', $doc) }}" style="display:inline">@csrf<input type="hidden" name="reason" value="{{ __('aqdar.listings.docs.reject_default') }}"><button class="btn ghost sm" type="submit">{{ __('aqdar.listings.desk.reject') }}</button></form>
+                                <details style="display:inline-block">
+                                    <summary class="btn ghost sm">{{ __('aqdar.listings.docs.request_replacement') }}</summary>
+                                    @include('dashboard::partials.reason-form', ['action' => route('dashboard.documents.request-replacement', $doc), 'label' => __('aqdar.listings.docs.request_replacement'), 'tone' => 'ghost'])
+                                </details>
+                                <details style="display:inline-block">
+                                    <summary class="btn ghost sm">{{ __('aqdar.listings.desk.reject') }}</summary>
+                                    @include('dashboard::partials.reason-form', ['action' => route('dashboard.documents.reject', $doc), 'label' => __('aqdar.listings.desk.reject'), 'tone' => 'ghost'])
+                                </details>
                             @endif
                         </span>
                     @endif

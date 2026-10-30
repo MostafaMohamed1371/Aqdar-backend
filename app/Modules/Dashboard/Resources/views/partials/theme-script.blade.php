@@ -2,13 +2,18 @@
     (function () {
         const storageKey = 'structer-theme';
         const root = document.documentElement;
-
-        root.classList.remove('dark');
-        root.dataset.theme = 'light';
-        root.style.colorScheme = 'light';
+        let theme = null;
 
         try {
-            localStorage.setItem(storageKey, 'light');
+            theme = localStorage.getItem(storageKey);
         } catch (e) {}
+
+        if (theme !== 'light' && theme !== 'dark') {
+            theme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        }
+
+        root.classList.toggle('dark', theme === 'dark');
+        root.dataset.theme = theme;
+        root.style.colorScheme = theme;
     })();
 </script>

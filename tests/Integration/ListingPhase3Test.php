@@ -233,8 +233,8 @@ class ListingPhase3Test extends TestCase
         ]);
 
         $cheap = Listing::query()->where('title_ar', 'رخيص')->firstOrFail();
-        $cheap->financials()->update(['declared_asking_price' => 100000]);
-        $cairo->financials()->update(['declared_asking_price' => 3000000]);
+        $cheap->financials->update(['declared_asking_price' => 100000]);
+        $cairo->financials->update(['declared_asking_price' => 3000000]);
 
         $this->getJson('/api/v1/listings')
             ->assertOk()
@@ -381,11 +381,11 @@ class ListingPhase3Test extends TestCase
     {
         $low = Listing::factory()->published()->create(['title_ar' => 'قسط منخفض']);
         $high = Listing::factory()->published()->create(['title_ar' => 'قسط مرتفع']);
-        $low->financials()->update([
+        $low->financials->update([
             'declared_remaining' => 50000,
             'declared_installment_amount' => 2000,
         ]);
-        $high->financials()->update([
+        $high->financials->update([
             'declared_remaining' => 900000,
             'declared_installment_amount' => 25000,
         ]);
@@ -430,7 +430,7 @@ class ListingPhase3Test extends TestCase
             'amenity_ids' => [$amenity->id],
             'tag_ids' => [$tag->id],
         ]);
-        $listing->financials()->update([
+        $listing->financials->update([
             'declared_contract_price' => 2900000,
             'declared_total_paid' => 1450000,
             'declared_remaining' => 1450000,
@@ -450,6 +450,51 @@ class ListingPhase3Test extends TestCase
             ->assertJsonPath('data.amenities.0.slug', 'elevator')
             ->assertJsonPath('data.tags.0.slug', 'featured')
             ->assertJsonPath('data.is_favorited', false);
+    }
+
+    public function test_public_detail_includes_installment_schedule_without_evidence_ids(): void
+    {
+        $listing = Listing::factory()->published()->create();
+        $listing->installmentItems()->create([
+            'sequence' => 1,
+            'due_date' => '2026-11-01',
+            'amount' => 15000,
+            'paid' => false,
+        ]);
+
+        $this->getJson('/api/v1/listings/'.$listing->id)
+            ->assertOk()
+            ->assertJsonPath('data.installment_items.0.sequence', 1)
+            ->assertJsonPath('data.installment_items.0.amount', 15000)
+            ->assertJsonMissingPath('data.installment_items.0.evidence_document_id');
+    }
+
+    public function test_owner_sees_verified_financials_and_can_preview_the_public_shape_before_publish(): void
+    {
+        $listing = Listing::factory()->create(['status' => ListingStatus::Draft]);
+        $listing->financials->forceFill([
+            'declared_asking_price' => 2000000,
+            'verified_asking_price' => 1800000,
+            'asking_price_verified' => true,
+        ])->save();
+        Sanctum::actingAs($listing->owner);
+
+        $this->getJson('/api/v1/my/listings/'.$listing->id)
+            ->assertOk()
+            ->assertJsonPath('data.financials.declared_asking_price', 2000000)
+            ->assertJsonPath('data.financials.verified_asking_price', 1800000)
+            ->assertJsonPath('data.financials.asking_price_verified', true);
+
+        $this->getJson('/api/v1/listings/'.$listing->id)->assertNotFound();
+        $this->getJson('/api/v1/my/listings/'.$listing->id.'/preview')
+            ->assertOk()
+            ->assertJsonPath('data.asking_price', 1800000)
+            ->assertJsonPath('data.price_badge', 'verified')
+            ->assertJsonMissingPath('data.user_id')
+            ->assertJsonMissingPath('data.financials');
+
+        Sanctum::actingAs(User::factory()->create());
+        $this->getJson('/api/v1/my/listings/'.$listing->id.'/preview')->assertNotFound();
     }
 
     public function test_optional_auth_marks_public_listing_as_favorited(): void
@@ -482,8 +527,8 @@ class ListingPhase3Test extends TestCase
             'tag_ids' => [],
             'area_sqm' => 300,
         ]);
-        $cheap->financials()->update(['declared_asking_price' => 100000]);
-        $expensive->financials()->update(['declared_asking_price' => 9000000]);
+        $cheap->financials->update(['declared_asking_price' => 100000]);
+        $expensive->financials->update(['declared_asking_price' => 9000000]);
 
         $this->getJson('/api/v1/listings?q='.rawurlencode('مميزة'))
             ->assertOk()

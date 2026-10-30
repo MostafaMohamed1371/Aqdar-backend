@@ -12,7 +12,9 @@ use App\Modules\Listing\Models\Listing;
 use App\Modules\Listing\Services\ContactLeakScanner;
 use App\Modules\Staff\Models\StaffUser;
 use App\Modules\User\Models\User;
+use Carbon\CarbonInterface;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -25,6 +27,33 @@ class AppointmentService
         private AuditLogger $audit,
     ) {}
 
+    /** @return array{date: string, open: bool, slots: list<array{value: string, available: bool}>} */
+    public function slotsFor(CarbonInterface $date): array
+    {
+        $open = $this->isBookableDay($date);
+
+        return [
+            'date' => $date->toDateString(),
+            'open' => $open,
+            'slots' => collect(config('aqdar.appointments.slots', []))
+                ->map(fn (string $slot) => [
+                    'value' => $slot,
+                    'available' => $open && $date->copy()->setTimeFromTimeString($slot)->isFuture(),
+                ])
+                ->values()
+                ->all(),
+        ];
+    }
+
+    public function isBookableDay(CarbonInterface $date): bool
+    {
+        $day = $date->copy()->startOfDay();
+
+        return ! $day->isBefore(today())
+            && ! $day->isAfter(today()->addDays((int) config('aqdar.appointments.days_ahead', 30)))
+            && ! in_array($day->dayOfWeek, config('aqdar.appointments.closed_weekdays', []), true);
+    }
+
     public function create(User $buyer, array $data): Appointment
     {
         $listing = Listing::query()->find($data['listing_id']);
@@ -33,6 +62,14 @@ class AppointmentService
         if ((int) $listing->user_id === (int) $buyer->id) {
             throw ValidationException::withMessages([
                 'listing_id' => [__('aqdar.crm.cannot_inquire_own')],
+            ]);
+        }
+
+        $date = Carbon::parse($data['requested_date']);
+        $slot = collect($this->slotsFor($date)['slots'])->firstWhere('value', $data['requested_slot']);
+        if ($slot === null || ! $slot['available']) {
+            throw ValidationException::withMessages([
+                'requested_slot' => [__('aqdar.crm.slot_unavailable')],
             ]);
         }
 

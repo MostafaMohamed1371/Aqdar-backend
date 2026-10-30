@@ -5,6 +5,7 @@ namespace App\Modules\Listing\Services;
 use App\Core\Audit\AuditLogger;
 use App\Core\Enums\ListingStatus;
 use App\Core\Enums\Permission;
+use App\Modules\Listing\Jobs\MatchSavedSearchesJob;
 use App\Modules\Listing\Models\Listing;
 use App\Modules\Listing\Models\ListingStatusHistory;
 use App\Modules\Notification\Services\NotificationService;
@@ -29,9 +30,16 @@ class ListingModerationService
         return $this->move($listing, ListingStatus::Approved, $staff, $reason, 'listing.approved');
     }
 
-    public function requestChanges(Listing $listing, StaffUser $staff, string $reason): Listing
+    /** @param array<string, string> $fieldNotes section => note shown to the seller */
+    public function requestChanges(Listing $listing, StaffUser $staff, string $reason, array $fieldNotes = []): Listing
     {
-        return $this->move($listing, ListingStatus::NeedsChanges, $staff, $reason, 'listing.needs_changes');
+        $fieldNotes = collect($fieldNotes)
+            ->only(ListingStatusHistory::NOTE_SECTIONS)
+            ->map(fn ($note) => trim((string) $note))
+            ->filter()
+            ->all();
+
+        return $this->move($listing, ListingStatus::NeedsChanges, $staff, $reason, 'listing.needs_changes', $fieldNotes);
     }
 
     public function reject(Listing $listing, StaffUser $staff, string $reason): Listing
@@ -49,6 +57,7 @@ class ListingModerationService
         $this->assertDocumentsApproved($listing);
         $listing = $this->move($listing, ListingStatus::Published, $staff, $reason, 'listing.published');
         $listing->forceFill(['published_at' => $listing->published_at ?? now()])->save();
+        MatchSavedSearchesJob::dispatch($listing->id);
 
         return $listing->fresh(['financials']) ?? $listing;
     }
@@ -78,7 +87,7 @@ class ListingModerationService
         return $this->move($listing, ListingStatus::Archived, $staff, $reason, 'listing.archived');
     }
 
-    public function assignReviewer(Listing $listing, StaffUser $staff, ?int $reviewerId): Listing
+    public function assignReviewer(Listing $listing, StaffUser $staff, ?int $reviewerId, ?string $reason = null): Listing
     {
         $reviewer = null;
         if ($reviewerId !== null) {
@@ -90,10 +99,19 @@ class ListingModerationService
             }
         }
 
+        $current = $listing->assigned_reviewer_id;
+        if ($current !== null && $current !== $reviewer?->id && mb_strlen(trim((string) $reason)) < 3) {
+            throw ValidationException::withMessages([
+                'reason' => [__('aqdar.crm.reassign_reason_required')],
+            ]);
+        }
+
         $listing->forceFill(['assigned_reviewer_id' => $reviewer?->id])->save();
-        $this->audit->write('listing.reviewer_assigned', $staff, $listing, [
+        $this->audit->write('listing.reviewer_assigned', $staff, $listing, array_filter([
             'assigned_reviewer_id' => $reviewer?->id,
-        ]);
+            'previous_reviewer_id' => $current,
+            'reason' => $reason,
+        ]));
 
         return $listing->fresh(['assignedReviewer']) ?? $listing;
     }
@@ -142,14 +160,23 @@ class ListingModerationService
             ]);
         }
 
+        $listing->loadMissing('financials');
+        $before = $listing->isPubliclyVisible() ? $listing->publicAskingPrice() : null;
         $financials->fill($payload)->save();
 
         $this->audit->write('listing.financials_verified', $staff, $listing, [
             'verified' => array_keys($payload),
             'declared_preserved' => true,
+            'reason' => $verified['reason'] ?? null,
         ]);
 
-        return $listing->fresh(['financials']) ?? $listing;
+        $fresh = $listing->fresh(['financials']) ?? $listing;
+        $after = $fresh->publicAskingPrice();
+        if ($fresh->isPubliclyVisible() && $before !== null && $after !== null && (float) $after < (float) $before) {
+            MatchSavedSearchesJob::dispatch($fresh->id, 'price_drop');
+        }
+
+        return $fresh;
     }
 
     private function assertDocumentsApproved(Listing $listing): void
@@ -157,11 +184,12 @@ class ListingModerationService
         app(ListingFileService::class)->assertRequiredDocumentsApproved($listing);
     }
 
-    private function move(Listing $listing, ListingStatus $to, Model $actor, string $reason, string $action): Listing
+    /** @param array<string, string> $fieldNotes */
+    private function move(Listing $listing, ListingStatus $to, Model $actor, string $reason, string $action, array $fieldNotes = []): Listing
     {
         $this->states->assertCanTransition($listing->status, $to);
 
-        return DB::transaction(function () use ($listing, $to, $actor, $reason, $action): Listing {
+        return DB::transaction(function () use ($listing, $to, $actor, $reason, $action, $fieldNotes): Listing {
             $from = $listing->status;
             $listing->status = $to;
             $listing->save();
@@ -173,13 +201,15 @@ class ListingModerationService
                 'actor_type' => $actor->getMorphClass(),
                 'actor_id' => $actor->getKey(),
                 'reason' => $reason,
+                'field_notes' => $fieldNotes === [] ? null : $fieldNotes,
             ]);
 
-            $this->audit->write($action, $actor, $listing, [
+            $this->audit->write($action, $actor, $listing, array_filter([
                 'from' => $from?->value,
                 'to' => $to->value,
                 'reason' => $reason,
-            ]);
+                'field_notes' => $fieldNotes === [] ? null : array_keys($fieldNotes),
+            ], fn ($value) => $value !== null));
 
             $fresh = $listing->fresh(['financials', 'owner', 'area', 'unitType']) ?? $listing;
             $event = match ($action) {

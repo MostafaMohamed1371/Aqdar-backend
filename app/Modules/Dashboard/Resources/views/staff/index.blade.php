@@ -17,24 +17,24 @@
             </div>
         </div>
         <div class="kpi">
-            <span class="ic gold">@include('dashboard::partials.icon', ['name' => 'briefcase'])</span>
+            <span class="ic gold">@include('dashboard::partials.icon', ['name' => 'building'])</span>
+            <div>
+                <span>{{ __('aqdar.staff.branches') }}</span>
+                <b>{{ number_format($stats['branches']) }}</b>
+            </div>
+        </div>
+        <div class="kpi">
+            <span class="ic info">@include('dashboard::partials.icon', ['name' => 'briefcase'])</span>
             <div>
                 <span>{{ __('aqdar.staff.sales_team') }}</span>
                 <b>{{ number_format($stats['sales']) }}</b>
             </div>
         </div>
         <div class="kpi">
-            <span class="ic info">@include('dashboard::partials.icon', ['name' => 'shield'])</span>
+            <span class="ic violet">@include('dashboard::partials.icon', ['name' => 'shield'])</span>
             <div>
                 <span>{{ __('aqdar.staff.admin_ops') }}</span>
                 <b>{{ number_format($stats['admin']) }}</b>
-            </div>
-        </div>
-        <div class="kpi">
-            <span class="ic ok">@include('dashboard::partials.icon', ['name' => 'check'])</span>
-            <div>
-                <span>{{ __('aqdar.staff.active') }}</span>
-                <b>{{ number_format($stats['active']) }}</b>
             </div>
         </div>
     </div>
@@ -56,6 +56,7 @@
                     <th>{{ __('structer.name') }}</th>
                     <th>{{ __('structer.email') }}</th>
                     <th>{{ __('aqdar.staff.role') }}</th>
+                    <th>{{ __('aqdar.staff.branch') }}</th>
                     <th>{{ __('aqdar.users.account') }}</th>
                     <th>{{ __('aqdar.users.actions') }}</th>
                 </tr>
@@ -63,12 +64,13 @@
                     <tr>
                         <td>
                             <div class="who">
-                                <span class="av s c{{ ($member->id % 6) + 1 }}">{{ mb_substr($member->name, 0, 1) }}</span>
+                                @include('dashboard::partials.staff-avatar', ['staff' => $member])
                                 <div><b>{{ $member->name }}</b></div>
                             </div>
                         </td>
                         <td class="en">{{ $member->email }}</td>
                         <td>{{ $member->role?->name_ar }}</td>
+                        <td>{{ $member->branch ?? '—' }}</td>
                         <td>
                             @if ($member->is_active)
                                 <span class="badge ok">{{ __('aqdar.users.active_badge') }}</span>
@@ -84,10 +86,14 @@
                                 <button type="submit" class="btn bad sm">{{ __('structer.delete') }}</button>
                             </form>
                             @if ($member->is_active)
-                                <form method="POST" action="{{ route('dashboard.staff.deactivate', $member) }}" style="display:inline">
-                                    @csrf
-                                    <button class="btn ghost sm" type="submit">{{ __('aqdar.staff.revoke') }}</button>
-                                </form>
+                                <details style="display:inline-block">
+                                    <summary class="btn ghost sm">{{ __('aqdar.staff.sign_out_everywhere') }}</summary>
+                                    @include('dashboard::partials.reason-form', ['action' => route('dashboard.staff.sign-out', $member), 'label' => __('aqdar.staff.sign_out_everywhere'), 'tone' => 'ghost'])
+                                </details>
+                                <details style="display:inline-block">
+                                    <summary class="btn ghost sm">{{ __('aqdar.staff.revoke') }}</summary>
+                                    @include('dashboard::partials.reason-form', ['action' => route('dashboard.staff.deactivate', $member), 'label' => __('aqdar.staff.revoke'), 'tone' => 'bad'])
+                                </details>
                             @else
                                 <form method="POST" action="{{ route('dashboard.staff.activate', $member) }}" style="display:inline">
                                     @csrf
@@ -98,7 +104,7 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="5">{{ __('aqdar.staff.empty') }}</td>
+                        <td colspan="6">{{ __('aqdar.staff.empty') }}</td>
                     </tr>
                 @endforelse
             </table>

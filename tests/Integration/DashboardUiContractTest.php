@@ -91,7 +91,11 @@ class DashboardUiContractTest extends TestCase
                 $this->assertStringContainsString('class="dbody"', $html, $label);
                 $this->assertStringContainsString('data-sidebar', $html, $label);
                 $this->assertStringContainsString("data-screen=\"{$screen['id']}\"", $html, $label);
-                $this->assertStringContainsString('name="color-scheme" content="light"', $html, $label);
+                $this->assertStringContainsString('name="color-scheme" content="light dark"', $html, $label);
+                $this->assertStringContainsString('data-theme-toggle', $html, $label);
+                $this->assertStringNotContainsString('Français', $html, $label);
+                $this->assertStringNotContainsString('Español', $html, $label);
+                $this->assertStringNotContainsString('Deutsch', $html, $label);
                 $this->assertStringContainsString('Cairo', $html, $label);
 
                 $response->assertSee(__($screen['title'], locale: 'ar'))
@@ -110,6 +114,7 @@ class DashboardUiContractTest extends TestCase
                 }
 
                 $response->assertSee(__('aqdar.search_placeholder', locale: $locale))
+                    ->assertSee(__('aqdar.profile.open', locale: $locale))
                     ->assertSee(__('structer.sign_out', locale: $locale))
                     ->assertSee(__('structer.open_menu', locale: $locale))
                     ->assertSee(__('structer.close_menu', locale: $locale))

@@ -228,6 +228,11 @@ body.aqdar-login {
     flex-shrink: 0;
 }
 
+img.av {
+    object-fit: cover;
+    padding: 0;
+}
+
 .av.s {
     width: 32px;
     height: 32px;
@@ -237,6 +242,182 @@ body.aqdar-login {
 html {
     color-scheme: light;
 }
+
+html.dark,
+html[data-theme="dark"] {
+    color-scheme: dark;
+    --ink: #e8eef5;
+    --ink-2: #c5d3e0;
+    --navy: #0f1c2a;
+    --desk: #121e2c;
+    --cream: #152536;
+    --cream-2: #0e1722;
+    --white: #1a2c40;
+    --muted: #9aadc0;
+    --line: #2d445c;
+    --teal-soft: rgba(8, 126, 130, 0.28);
+    --gold-soft: rgba(197, 152, 95, 0.22);
+    --ok-soft: rgba(18, 128, 92, 0.28);
+    --bad-soft: rgba(192, 57, 43, 0.28);
+    --warn-soft: rgba(199, 129, 31, 0.28);
+    --info-soft: rgba(59, 111, 216, 0.28);
+    --violet-soft: rgba(122, 91, 209, 0.28);
+    --shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+}
+
+html.dark body,
+html[data-theme="dark"] body,
+html.dark .desk,
+html[data-theme="dark"] .desk,
+html.dark .dmain,
+html[data-theme="dark"] .dmain,
+html.dark .dbody,
+html[data-theme="dark"] .dbody,
+html.dark .login-card,
+html[data-theme="dark"] .login-card {
+    color: var(--ink);
+}
+
+html.dark .dhead .who b,
+html[data-theme="dark"] .dhead .who b,
+html.dark .kpi b,
+html[data-theme="dark"] .kpi b,
+html.dark .card-h b,
+html[data-theme="dark"] .card-h b,
+html.dark .ptitle h2,
+html[data-theme="dark"] .ptitle h2,
+html.dark .login-card h1,
+html[data-theme="dark"] .login-card h1,
+html.dark label,
+html[data-theme="dark"] label {
+    color: var(--ink);
+}
+
+html.dark .dhead .who span,
+html[data-theme="dark"] .dhead .who span,
+html.dark .kpi span,
+html[data-theme="dark"] .kpi span,
+html.dark .ptitle h2 small,
+html[data-theme="dark"] .ptitle h2 small,
+html.dark .login-card .sub,
+html[data-theme="dark"] .login-card .sub,
+html.dark .profile-hero > div .en,
+html[data-theme="dark"] .profile-hero > div .en,
+html.dark .profile-upload small,
+html[data-theme="dark"] .profile-upload small {
+    color: var(--muted);
+}
+
+html.dark .upload,
+html[data-theme="dark"] .upload {
+    border-color: #2d6a6c;
+    background: var(--cream-2);
+    color: var(--teal);
+}
+
+html.dark .profile-photo .cam,
+html[data-theme="dark"] .profile-photo .cam {
+    border-color: var(--white);
+}
+
+html.dark .locale-menu,
+html[data-theme="dark"] .locale-menu {
+    background: var(--white);
+    border-color: var(--line);
+}
+
+select,
+select.btn,
+select.btn.ghost,
+option,
+optgroup {
+    color: var(--ink);
+    background-color: var(--white);
+}
+
+html:not(.dark):not([data-theme="dark"]) select,
+html:not(.dark):not([data-theme="dark"]) input[type="date"] {
+    color-scheme: light;
+}
+
+html.dark select,
+html[data-theme="dark"] select,
+html.dark input[type="date"],
+html[data-theme="dark"] input[type="date"] {
+    color-scheme: dark;
+    color: var(--ink);
+    background-color: var(--white);
+}
+
+html.dark option,
+html.dark optgroup,
+html[data-theme="dark"] option,
+html[data-theme="dark"] optgroup {
+    color: #e8eef5;
+    background-color: #1a2c40;
+}
+
+html.dark .ctabs a em,
+html.dark .ctabs span em,
+html[data-theme="dark"] .ctabs a em,
+html[data-theme="dark"] .ctabs span em {
+    background: #2a4158;
+    color: #e8eef5;
+}
+
+html.dark .ctabs a.on em,
+html.dark .ctabs span.on em,
+html[data-theme="dark"] .ctabs a.on em,
+html[data-theme="dark"] .ctabs span.on em {
+    background: rgba(255, 255, 255, 0.22);
+    color: #fff;
+}
+
+html.dark .flow .st i,
+html[data-theme="dark"] .flow .st i {
+    background: var(--white);
+    border-color: var(--line);
+    color: var(--muted);
+}
+
+html.dark .flow .st::before,
+html[data-theme="dark"] .flow .st::before {
+    background: var(--line);
+}
+
+.theme-toggle {
+    display: grid;
+    place-items: center;
+}
+
+.theme-toggle svg {
+    grid-area: 1 / 1;
+}
+
+.theme-toggle [data-theme-icon-dark] {
+    visibility: hidden;
+    opacity: 0;
+}
+
+html.dark .theme-toggle [data-theme-icon-light],
+html[data-theme="dark"] .theme-toggle [data-theme-icon-light] {
+    visibility: hidden;
+    opacity: 0;
+}
+
+html.dark .theme-toggle [data-theme-icon-dark],
+html[data-theme="dark"] .theme-toggle [data-theme-icon-dark] {
+    visibility: visible;
+    opacity: 1;
+}
+
+.chart-muted { fill: var(--muted); }
+.chart-fg { fill: var(--ink); }
+.chart-dot { fill: var(--white); }
+.chart-grid { stroke: var(--line); }
+.chart-map-bg { fill: var(--cream-2); }
+.chart-map-land { fill: var(--cream); stroke: var(--line); }
+.chart-callout { fill: var(--white); stroke: var(--line); }
 
 .inp:focus-within {
     border-color: var(--teal);
@@ -256,8 +437,20 @@ html {
 }
 
 .inp input::placeholder,
-.inp textarea::placeholder {
+.inp textarea::placeholder,
+.dhead .q input::placeholder,
+.filters .q input::placeholder,
+input::placeholder,
+textarea::placeholder {
     color: var(--muted);
+    opacity: 1;
+}
+
+.dhead .q input,
+.filters .q input {
+    color: var(--ink);
+    background: transparent;
+    caret-color: var(--ink);
 }
 
 .inp .pw-toggle {
@@ -284,7 +477,7 @@ html {
     overflow: hidden;
     border-radius: 10px;
     border: 1px solid var(--line);
-    background: #fff;
+    background: var(--white);
     box-shadow: var(--shadow);
     padding: 4px;
 }
@@ -356,7 +549,7 @@ html {
     display: flex;
     align-items: center;
     gap: 8px;
-    background: #fff;
+    background: var(--white);
     border: 1px solid var(--line);
     border-radius: 10px;
     padding: 0 12px;
@@ -367,7 +560,8 @@ html {
     border: 1px solid var(--line);
     border-radius: 10px;
     padding: 9px 12px;
-    background: #fff;
+    background: var(--white);
+    color: var(--ink);
     font-size: 13px;
     min-width: 130px;
 }
@@ -378,7 +572,7 @@ html {
     border-radius: 10px;
     padding: 10px 12px;
     margin: 4px 0;
-    background: #fff;
+    background: var(--white);
     font-size: 13px;
     min-height: 42px;
     color: var(--ink);

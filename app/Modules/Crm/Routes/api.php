@@ -13,7 +13,9 @@ Route::middleware(['auth:sanctum', 'marketplace.active', 'throttle:api'])->group
     Route::get('my/inquiries', [InquiryController::class, 'index']);
     Route::get('my/inquiries/{inquiry}', [InquiryController::class, 'show'])->whereNumber('inquiry');
     Route::post('my/inquiries/{inquiry}/callback', [InquiryController::class, 'callback'])->whereNumber('inquiry');
+    Route::get('my/interest', [SellerInterestController::class, 'all']);
     Route::get('my/listings/{listing}/interest', [SellerInterestController::class, 'index'])->whereNumber('listing');
+    Route::get('appointments/slots', [AppointmentController::class, 'slots']);
     Route::post('appointments', [AppointmentController::class, 'store']);
     Route::get('my/appointments', [AppointmentController::class, 'index']);
     Route::get('my/appointments/{appointment}', [AppointmentController::class, 'show'])->whereNumber('appointment');

@@ -3,8 +3,10 @@
 namespace App\Modules\Dashboard\Http\Controllers;
 
 use App\Core\Audit\AuditLogger;
+use App\Core\Audit\Models\AccessLog;
 use App\Core\Enums\DocumentReviewStatus;
 use App\Core\Http\Controllers\BaseController;
+use App\Core\Services\QueueQuery;
 use App\Modules\Dashboard\Http\Requests\ReviewDocumentRequest;
 use App\Modules\Listing\Models\Listing;
 use App\Modules\Listing\Models\ListingDocument;
@@ -53,6 +55,12 @@ class DocumentDeskController extends BaseController
             });
         }
 
+        QueueQuery::apply($query, QueueQuery::filtersFrom($request), [
+            'type' => 'type',
+            'added' => 'created_at',
+            'status' => 'review_status',
+        ]);
+
         $counts = [
             'all' => ListingDocument::query()->count(),
             'pending' => ListingDocument::query()->whereIn('review_status', [DocumentReviewStatus::Pending, DocumentReviewStatus::ReplacementRequested])->count(),
@@ -74,7 +82,7 @@ class DocumentDeskController extends BaseController
         $history = $listing->documents->groupBy(fn ($doc) => $doc->type?->value);
         $latest = $history->map->first();
 
-        $logs = \App\Core\Audit\Models\AccessLog::query()
+        $logs = AccessLog::query()
             ->with('actor')
             ->where('subject_type', (new ListingDocument)->getMorphClass())
             ->whereIn('subject_id', $listing->documents->pluck('id'))

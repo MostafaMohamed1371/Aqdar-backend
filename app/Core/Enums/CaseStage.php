@@ -32,4 +32,12 @@ enum CaseStage: string
     {
         return self::cases();
     }
+
+    public function isFinanceStage(): bool
+    {
+        return match ($this) {
+            self::ScheduleTransfer, self::Completed => true,
+            default => false,
+        };
+    }
 }

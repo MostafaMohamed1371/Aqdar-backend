@@ -91,7 +91,11 @@ class CatalogPhase2Test extends TestCase
             $this->actingAsStaff($role);
 
             $this->get('/dashboard/developers')->assertForbidden();
-            $this->get('/dashboard/content')->assertForbidden();
+            if ($role === StaffRole::Operations) {
+                $this->get('/dashboard/content')->assertOk();
+            } else {
+                $this->get('/dashboard/content')->assertForbidden();
+            }
             $this->get('/dashboard/locations')->assertForbidden();
             $this->get('/dashboard/unit-types')->assertForbidden();
             $this->get('/dashboard/amenities')->assertForbidden();

@@ -50,6 +50,7 @@ class PublicListingResource extends JsonResource
             'tags' => $this->namedTags($this->tag_ids),
             'asking_price' => $this->publicAskingPrice() !== null ? (float) $this->publicAskingPrice() : null,
             'asking_price_source' => $this->askingPriceSource(),
+            'price_badge' => $this->askingPriceSource() === 'verified' ? 'verified' : 'estimated',
             'currency' => 'EGP',
             'financial_summary' => [
                 'contract_price' => $this->labelled($financials, 'contract_price'),
@@ -61,6 +62,19 @@ class PublicListingResource extends JsonResource
                 'installment_amount' => $this->labelled($financials, 'installment_amount'),
                 'remaining_installments' => $this->labelled($financials, 'remaining_installments'),
             ],
+            'installment_items' => $this->when(
+                $this->relationLoaded('installmentItems'),
+                fn () => $this->installmentItems
+                    ->sortBy('sequence')
+                    ->map(fn ($item) => [
+                        'sequence' => $item->sequence,
+                        'due_date' => $item->due_date?->toDateString() ?? $item->due_date,
+                        'amount' => $item->amount !== null ? (float) $item->amount : null,
+                        'paid' => (bool) $item->paid,
+                    ])
+                    ->values()
+                    ->all(),
+            ),
             'verification_badge' => (bool) $financials?->asking_price_verified,
             'photos' => $this->approvedPhotos(),
             'is_favorited' => in_array((int) $this->id, $this->favoriteListingIds($user), true),
@@ -80,6 +94,7 @@ class PublicListingResource extends JsonResource
             ->map(fn ($media) => [
                 'id' => $media->id,
                 'sort_order' => $media->sort_order,
+                'kind' => $media->isVideo() ? 'video' : 'photo',
                 'url' => $media->publicUrl(),
                 'mime' => $media->mime,
                 'width' => $media->width,

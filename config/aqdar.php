@@ -31,6 +31,10 @@ return [
 
     'locales' => ['ar', 'en'],
 
+    'region' => [
+        'code' => 'EG',
+    ],
+
     'sales' => [
         'name' => env('SALES_TEAM_NAME', 'فريق مبيعات عَقدار'),
         'name_en' => env('SALES_TEAM_NAME_EN', 'AQDAR Sales Team'),
@@ -42,6 +46,12 @@ return [
     'crm' => [
         'sla_hours' => (int) env('AQDAR_CRM_SLA_HOURS', 2),
         'assignment_rule' => env('AQDAR_LEAD_ASSIGNMENT_RULE', 'manual'),
+    ],
+
+    'appointments' => [
+        'slots' => array_values(array_filter(explode(',', (string) env('AQDAR_VIEWING_SLOTS', '09:00,10:30,12:00,13:30,15:00,16:30')))),
+        'days_ahead' => (int) env('AQDAR_VIEWING_DAYS_AHEAD', 30),
+        'closed_weekdays' => array_map('intval', array_filter(explode(',', (string) env('AQDAR_VIEWING_CLOSED_WEEKDAYS', '')), 'strlen')),
     ],
 
     'platform' => [
@@ -80,6 +90,10 @@ return [
 
     'files' => [
         'signed_url_minutes' => (int) env('AQDAR_SIGNED_URL_MINUTES', 10),
+        'scan' => [
+            'driver' => env('AQDAR_UPLOAD_SCAN_DRIVER', 'null'),
+            'clamav_binary' => env('AQDAR_CLAMAV_BINARY', 'clamdscan'),
+        ],
         'documents' => [
             'disk' => 'private_documents',
             'max_kb' => (int) env('AQDAR_DOCUMENT_MAX_KB', 10240),
@@ -98,6 +112,9 @@ return [
             'max_count' => (int) env('AQDAR_MEDIA_MAX_COUNT', 20),
             'mimes' => ['jpg', 'jpeg', 'png', 'webp', 'mp4', 'webm'],
             'max_width' => 1600,
+        ],
+        'avatars' => [
+            'disk' => 'public_media',
         ],
     ],
 

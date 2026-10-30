@@ -25,20 +25,41 @@
             · {{ __('aqdar.requests.installment') }} {{ number_format((float) $item->monthly_installment) }}
         @endif
     </p>
+    @if ($item->is_duplicate && $item->duplicateOf)
+        <div class="alert" style="background:var(--warn-soft);color:var(--warn)">
+            <a href="{{ route('dashboard.requests.show', $item->duplicateOf) }}">{{ __('aqdar.requests.duplicate_of', ['code' => $item->duplicateOf->public_code]) }}</a>
+        </div>
+    @endif
+
+    @php
+        $nextFollowUp = $item->lead?->activities->whereNotNull('due_at')->sortByDesc('due_at')->first()?->due_at ?? $item->lead?->next_action_at;
+    @endphp
+    <div class="card" style="margin-bottom:14px">
+        <div class="card-h"><b>{{ __('aqdar.requests.details') }}</b></div>
+        <div class="tw">
+            <table class="t">
+                <tr><th>{{ __('aqdar.requests.intent.'.$item->intent?->value) }}</th><td>{{ __('aqdar.requests.segment.'.($item->segment_preference?->value ?? 'any')) }} · {{ $item->bedrooms ? $item->bedrooms.' BR' : '—' }} · {{ $item->finishing ?? '—' }}</td></tr>
+                <tr><th>{{ __('aqdar.requests.timeline_label') }}</th><td>{{ $item->timeline ?? '—' }}</td></tr>
+                <tr><th>{{ __('aqdar.requests.priorities') }}</th><td>{{ $item->priorities ?: '—' }}</td></tr>
+                <tr><th>{{ __('aqdar.requests.contact_method') }}</th><td>{{ $item->contact_method ? __('aqdar.requests.contact_methods.'.$item->contact_method->value) : '—' }}</td></tr>
+                <tr><th>{{ __('aqdar.requests.consent') }}</th><td class="en">{{ $item->consent_at?->format('Y/m/d H:i') ?? '—' }}</td></tr>
+                <tr><th>{{ __('aqdar.requests.source') }}</th><td>{{ $item->lead?->source ? __('aqdar.crm.source.'.$item->lead->source->value) : '—' }}</td></tr>
+                <tr><th>{{ __('aqdar.requests.priority') }}</th><td>@if ($item->lead?->priority)<span class="badge {{ $item->lead->priorityBadgeTone() }}">{{ __('aqdar.crm.priority.'.$item->lead->priority->value) }}</span>@else — @endif</td></tr>
+                <tr><th>{{ __('aqdar.requests.next_followup') }}</th><td class="en">
+                    {{ $nextFollowUp?->format('Y/m/d H:i') ?? '—' }}
+                    @if ($item->lead?->hasOverdueFollowUp())
+                        <span class="badge bad">{{ __('aqdar.requests.filter.overdue') }}</span>
+                    @endif
+                </td></tr>
+            </table>
+        </div>
+    </div>
 
     <div class="card">
         <div class="card-h">
             <b>{{ __('aqdar.crm.owner') }}</b>
             @if ($canAssign)
-                <form method="POST" action="{{ route('dashboard.requests.assign', $item) }}">
-                    @csrf
-                    <select name="assigned_to" onchange="this.form.submit()">
-                        <option value="">{{ __('aqdar.crm.unassigned') }}</option>
-                        @foreach ($assignable as $staff)
-                            <option value="{{ $staff->id }}" @selected((int) $item->assigned_to === (int) $staff->id)>{{ $staff->name }}</option>
-                        @endforeach
-                    </select>
-                </form>
+                @include('dashboard::partials.assign-select', ['action' => route('dashboard.requests.assign', $item), 'current' => $item->assigned_to, 'assignable' => $assignable])
             @else
                 <span>{{ $item->assignee?->name ?? __('aqdar.crm.unassigned') }}</span>
             @endif
@@ -46,6 +67,11 @@
         <form method="POST" action="{{ route('dashboard.requests.refresh', $item) }}" style="padding:0 14px 12px">
             @csrf
             <button class="btn ghost sm" type="submit">{{ __('aqdar.requests.refresh') }}</button>
+        </form>
+        <form method="POST" action="{{ route('dashboard.requests.matches.attach', $item) }}" class="filters" style="padding:0 14px 12px;margin:0">
+            @csrf
+            <input type="text" name="listing_code" required placeholder="{{ __('aqdar.requests.listing_code') }}" class="btn ghost en" value="{{ old('listing_code') }}">
+            <button class="btn sm" type="submit">{{ __('aqdar.requests.attach') }}</button>
         </form>
         <div class="tw">
             <table class="t">
@@ -84,6 +110,14 @@
                                 </form>
                             @endif
                             <form method="POST" action="{{ route('dashboard.requests.matches.open-lead', [$item, $match]) }}">@csrf<button class="btn sm" type="submit">{{ __('aqdar.requests.open_lead') }}</button></form>
+                            @if ($match->sent_at !== null)
+                                <form method="POST" action="{{ route('dashboard.requests.convert', $item) }}">
+                                    @csrf
+                                    <input type="hidden" name="reason" value="{{ __('aqdar.crm.convert_default') }}">
+                                    <input type="hidden" name="match_id" value="{{ $match->id }}">
+                                    <button class="btn ghost sm" type="submit">@include('dashboard::partials.icon', ['name' => 'swap']){{ __('aqdar.requests.open_case_for_match') }}</button>
+                                </form>
+                            @endif
                         </td>
                     </tr>
                 @empty
@@ -113,5 +147,26 @@
                 <button class="btn sm" type="submit">@include('dashboard::partials.icon', ['name' => 'swap']){{ __('aqdar.requests.convert') }}</button>
             </form>
         @endif
+    </div>
+
+    <div class="card" style="margin-top:14px">
+        <div class="card-h"><b>{{ __('aqdar.requests.history') }}</b></div>
+        <div class="tw">
+            <table class="t">
+                @forelse ($item->history as $entry)
+                    <tr>
+                        <td class="en tiny">{{ $entry->created_at?->format('Y/m/d H:i') }}</td>
+                        <td>
+                            @if ($entry->old_status){{ __('aqdar.requests.status.'.$entry->old_status->value) }} {{ app()->getLocale() === 'ar' ? '←' : '→' }} @endif
+                            <b>{{ __('aqdar.requests.status.'.$entry->new_status?->value) }}</b>
+                        </td>
+                        <td>{{ $entry->reason }}</td>
+                        <td>{{ $entry->actor?->name ?? $item->buyer?->name }}</td>
+                    </tr>
+                @empty
+                    <tr><td>{{ __('aqdar.requests.history_empty') }}</td></tr>
+                @endforelse
+            </table>
+        </div>
     </div>
 @endsection

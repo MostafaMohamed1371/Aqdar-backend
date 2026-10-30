@@ -77,6 +77,26 @@ class DashboardService
     }
 
     /** @return Collection<int, User> */
+    /**
+     * Pending work counts shown as sidebar badges.
+     *
+     * @return array{ADM-02: int, ADM-03: int}
+     */
+    public function queueBadges(): array
+    {
+        return [
+            'ADM-02' => Listing::query()->whereIn('status', [
+                ListingStatus::Submitted,
+                ListingStatus::InReview,
+                ListingStatus::Resubmitted,
+            ])->count(),
+            'ADM-03' => ListingDocument::query()->whereIn('review_status', [
+                DocumentReviewStatus::Pending,
+                DocumentReviewStatus::ReplacementRequested,
+            ])->count(),
+        ];
+    }
+
     public function recentUsers(int $limit = 5): Collection
     {
         return User::query()
@@ -139,20 +159,22 @@ class DashboardService
             'new_users_this_week' => User::query()->where('created_at', '>=', now()->startOfWeek())->count(),
             'new_users_in_range' => User::query()->whereBetween('created_at', [$start, $end])->count(),
             'total_listings' => Listing::query()->count(),
-            'listings_in_review' => Listing::query()->whereIn('status', $listingStatuses)->count(),
-            'listings_approved' => Listing::query()->where('status', ListingStatus::Approved)->count(),
+            'listings_in_review' => Listing::query()->whereIn('status', $listingStatuses)->whereBetween('created_at', [$start, $end])->count(),
+            'listings_approved' => Listing::query()->where('status', ListingStatus::Approved)->whereBetween('created_at', [$start, $end])->count(),
             'listings_published' => Listing::query()->whereIn('status', ListingStatus::publicCases())->count(),
-            'listings_rejected' => Listing::query()->where('status', ListingStatus::Rejected)->count(),
-            'approved_developers' => Developer::query()->where('is_active', true)->where('is_other', false)->count(),
+            'listings_rejected' => Listing::query()->where('status', ListingStatus::Rejected)->whereBetween('created_at', [$start, $end])->count(),
+            'approved_developers' => Developer::query()->where('is_active', true)->where('is_verified', true)->where('is_other', false)->count(),
             'inquiries_this_month' => Inquiry::query()->where('created_at', '>=', now()->startOfMonth())->count(),
             'inquiries_in_range' => Inquiry::query()->whereBetween('created_at', [$start, $end])->count(),
             'custom_buy_requests' => BuyerRequest::query()->whereBetween('created_at', [$start, $end])->count(),
-            'active_transfers' => TransferCase::query()->where('status', CaseStatus::Open->value)->count(),
-            'overdue_followups' => Lead::query()
-                ->where('status', LeadStatus::New->value)
-                ->whereNotNull('sla_due_at')
-                ->where('sla_due_at', '<', now())
+            'active_transfers' => TransferCase::query()
+                ->where('status', CaseStatus::Open->value)
+                ->where(function ($query) use ($start, $end): void {
+                    $query->whereBetween('created_at', [$start, $end])
+                        ->orWhereBetween('last_transition_at', [$start, $end]);
+                })
                 ->count(),
+            'overdue_followups' => Lead::query()->overdueFollowUp()->whereBetween('created_at', [$start, $end])->count(),
             'recorded_commissions' => (float) Commission::query()
                 ->whereIn('status', [
                     CommissionStatus::Earned->value,
@@ -251,11 +273,7 @@ class DashboardService
                 ->whereNull('assigned_to')
                 ->whereNotIn('status', [LeadStatus::Converted->value, LeadStatus::Lost->value])
                 ->count(),
-            'overdue_followups' => Lead::query()
-                ->where('status', LeadStatus::New->value)
-                ->whereNotNull('sla_due_at')
-                ->where('sla_due_at', '<', now())
-                ->count(),
+            'overdue_followups' => Lead::query()->overdueFollowUp()->count(),
             'contact_flagged' => Listing::query()
                 ->where('contact_flagged', true)
                 ->whereIn('status', [
@@ -331,7 +349,7 @@ class DashboardService
             'months' => $months,
             'donut' => [
                 ['key' => 'approved', 'count' => Listing::query()->whereIn('status', [
-                    ListingStatus::Approved, ListingStatus::Published,
+                    ListingStatus::Approved, ListingStatus::Published, ListingStatus::UnderOffer,
                 ])->count()],
                 ['key' => 'in_review', 'count' => Listing::query()->whereIn('status', [
                     ListingStatus::Submitted, ListingStatus::InReview, ListingStatus::Resubmitted,
@@ -339,6 +357,9 @@ class DashboardService
                 ['key' => 'rejected', 'count' => Listing::query()->where('status', ListingStatus::Rejected)->count()],
                 ['key' => 'hold', 'count' => Listing::query()->whereIn('status', [
                     ListingStatus::Hold, ListingStatus::Closed,
+                ])->count()],
+                ['key' => 'other', 'count' => Listing::query()->whereIn('status', [
+                    ListingStatus::Draft, ListingStatus::NeedsChanges, ListingStatus::Archived,
                 ])->count()],
             ],
             'egypt' => $this->egyptDistribution(),

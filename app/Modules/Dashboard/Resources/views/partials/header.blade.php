@@ -23,6 +23,7 @@
         <input type="search" name="q" value="{{ request('q') }}" placeholder="{{ __('aqdar.search_placeholder') }}" aria-label="{{ __('aqdar.search_placeholder') }}">
     </form>
     <span class="grow"></span>
+    @include('dashboard::partials.theme-toggle')
     <div class="locale-mini">
         @include('dashboard::partials.locale-switcher')
     </div>
@@ -37,13 +38,13 @@
             @include('dashboard::partials.icon', ['name' => 'settings'])
         </a>
     @endcan
-    <div class="who">
-        <span class="av s c3">{{ mb_substr(auth()->user()->name, 0, 1) }}</span>
+    <a href="{{ route('dashboard.profile.show') }}" class="who{{ request()->routeIs('dashboard.profile.*') ? ' on' : '' }}" aria-label="{{ __('aqdar.profile.open') }}">
+        @include('dashboard::partials.staff-avatar')
         <div>
             <b>{{ auth()->user()->name }}</b>
-            <span>{{ auth()->user()->email }}</span>
+            <span>{{ auth()->user()->roleName() }}</span>
         </div>
-    </div>
+    </a>
     <form method="POST" action="{{ route('logout') }}">
         @csrf
         <button type="submit" class="btn ghost sm">{{ __('structer.sign_out') }}</button>

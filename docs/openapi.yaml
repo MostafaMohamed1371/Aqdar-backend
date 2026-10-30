@@ -18,6 +18,12 @@ paths:
       responses:
         "200":
           description: OK
+  "/appointments/slots":
+    get:
+      summary: "api.auth:sanctum.marketplace.active.throttle:api"
+      responses:
+        "200":
+          description: OK
   "/auth/forgot-password":
     post:
       summary: "api.throttle:password-reset"
@@ -27,6 +33,12 @@ paths:
   "/auth/login":
     post:
       summary: "api.throttle:login"
+      responses:
+        "200":
+          description: OK
+  "/auth/login/two-factor":
+    post:
+      summary: "api.throttle:otp"
       responses:
         "200":
           description: OK
@@ -129,6 +141,18 @@ paths:
       responses:
         "200":
           description: OK
+  "/content/onboarding":
+    get:
+      summary: "api.throttle:api"
+      responses:
+        "200":
+          description: OK
+  "/content/seller-guide":
+    get:
+      summary: "api.throttle:api"
+      responses:
+        "200":
+          description: OK
   "/content/support":
     get:
       summary: "api.throttle:api"
@@ -144,6 +168,12 @@ paths:
   "/devices":
     post:
       summary: "api.auth:sanctum.marketplace.active"
+      responses:
+        "200":
+          description: OK
+  "/estimates":
+    post:
+      summary: "api.auth:sanctum.marketplace.active.throttle:api"
       responses:
         "200":
           description: OK
@@ -171,6 +201,12 @@ paths:
         "200":
           description: OK
   "/listings":
+    get:
+      summary: "api.optional.sanctum.throttle:search"
+      responses:
+        "200":
+          description: OK
+  "/listings/compare":
     get:
       summary: "api.optional.sanctum.throttle:search"
       responses:
@@ -223,6 +259,12 @@ paths:
       responses:
         "200":
           description: OK
+  "/me/close":
+    post:
+      summary: "api.auth:sanctum.marketplace.active"
+      responses:
+        "200":
+          description: OK
   "/me/notification-preferences":
     get:
       summary: "api.auth:sanctum.marketplace.active.throttle:api"
@@ -231,6 +273,18 @@ paths:
           description: OK
     patch:
       summary: "api.auth:sanctum.marketplace.active.throttle:api"
+      responses:
+        "200":
+          description: OK
+  "/me/password":
+    post:
+      summary: "api.auth:sanctum.marketplace.active.throttle:password-reset"
+      responses:
+        "200":
+          description: OK
+  "/me/two-factor":
+    put:
+      summary: "api.auth:sanctum.marketplace.active.throttle:password-reset"
       responses:
         "200":
           description: OK
@@ -306,6 +360,12 @@ paths:
       responses:
         "200":
           description: OK
+  "/my/interest":
+    get:
+      summary: "api.auth:sanctum.marketplace.active.throttle:api"
+      responses:
+        "200":
+          description: OK
   "/my/listings":
     get:
       summary: "api.auth:sanctum.marketplace.active.throttle:api"
@@ -347,8 +407,20 @@ paths:
       responses:
         "200":
           description: OK
+  "/my/listings/{listing}/media/order":
+    put:
+      summary: "api.auth:sanctum.marketplace.active.throttle:api"
+      responses:
+        "200":
+          description: OK
   "/my/listings/{listing}/media/{media}":
     delete:
+      summary: "api.auth:sanctum.marketplace.active.throttle:api"
+      responses:
+        "200":
+          description: OK
+  "/my/listings/{listing}/preview":
+    get:
       summary: "api.auth:sanctum.marketplace.active.throttle:api"
       responses:
         "200":
@@ -367,6 +439,23 @@ paths:
           description: OK
   "/my/listings/{listing}/submit":
     post:
+      summary: "api.auth:sanctum.marketplace.active.throttle:api"
+      responses:
+        "200":
+          description: OK
+  "/my/support":
+    get:
+      summary: "api.auth:sanctum.marketplace.active.throttle:api"
+      responses:
+        "200":
+          description: OK
+    post:
+      summary: "api.auth:sanctum.marketplace.active.throttle:api"
+      responses:
+        "200":
+          description: OK
+  "/my/support/{supportThread}":
+    get:
       summary: "api.auth:sanctum.marketplace.active.throttle:api"
       responses:
         "200":
@@ -392,6 +481,39 @@ paths:
   "/projects":
     get:
       summary: "api.throttle:api"
+      responses:
+        "200":
+          description: OK
+  "/recently-viewed":
+    get:
+      summary: "api.auth:sanctum.marketplace.active.throttle:api"
+      responses:
+        "200":
+          description: OK
+    delete:
+      summary: "api.auth:sanctum.marketplace.active.throttle:api"
+      responses:
+        "200":
+          description: OK
+  "/saved-searches":
+    get:
+      summary: "api.auth:sanctum.marketplace.active.throttle:api"
+      responses:
+        "200":
+          description: OK
+    post:
+      summary: "api.auth:sanctum.marketplace.active.throttle:api"
+      responses:
+        "200":
+          description: OK
+  "/saved-searches/{savedSearch}":
+    patch:
+      summary: "api.auth:sanctum.marketplace.active.throttle:api"
+      responses:
+        "200":
+          description: OK
+    delete:
+      summary: "api.auth:sanctum.marketplace.active.throttle:api"
       responses:
         "200":
           description: OK

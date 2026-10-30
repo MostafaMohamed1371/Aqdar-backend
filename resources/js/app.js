@@ -118,6 +118,45 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
+    document.querySelectorAll('[data-profile-photo]').forEach((form) => {
+        const input = form.querySelector('input[type="file"][name="photo"]');
+        const nameLabel = form.querySelector('[data-profile-photo-name]');
+        const remove = form.querySelector('input[name="remove_photo"]');
+        const previews = form.querySelectorAll('[data-profile-photo-preview]');
+
+        if (! input) {
+            return;
+        }
+
+        input.addEventListener('change', () => {
+            const file = input.files?.[0];
+
+            if (! file || ! file.type.startsWith('image/')) {
+                return;
+            }
+
+            if (remove) {
+                remove.checked = false;
+            }
+
+            if (nameLabel) {
+                nameLabel.textContent = file.name;
+            }
+
+            const url = URL.createObjectURL(file);
+
+            previews.forEach((preview) => {
+                const img = document.createElement('img');
+                img.className = preview.getAttribute('data-profile-photo-preview') === 'hero' ? 'av xl' : 'av l';
+                img.src = url;
+                img.alt = '';
+                img.width = preview.getAttribute('data-profile-photo-preview') === 'hero' ? 84 : 72;
+                img.height = img.width;
+                preview.replaceChildren(img);
+            });
+        });
+    });
+
     document.querySelectorAll('[data-password-toggle]').forEach((button) => {
         const wrapper = button.closest('.inp, .relative');
         const input = wrapper?.querySelector('[data-password-input]');

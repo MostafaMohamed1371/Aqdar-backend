@@ -16,6 +16,7 @@ use App\Modules\Notification\Services\NotificationService;
 use App\Modules\Setting\Services\SettingService;
 use App\Modules\User\Models\User;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -91,7 +92,7 @@ class InquiryService
         }
         $assignee = $inquiry->lead?->assignee;
         if ($assignee !== null) {
-            $this->notifications->notifySafely($assignee, 'inquiry_created', $context);
+            $this->notifications->notifySafely($assignee, 'staff_inquiry_assigned', $context);
         } else {
             $this->notifications->notifyStaffQueue(
                 'staff_unassigned_lead',
@@ -126,7 +127,7 @@ class InquiryService
     {
         abort_unless((int) $inquiry->user_id === (int) $buyer->id, 404);
 
-        return $inquiry->load(['listing.media', 'lead']);
+        return $inquiry->load(['listing.media', 'lead.assignee']);
     }
 
     public function requestCallback(User $buyer, Inquiry $inquiry): Inquiry
@@ -151,13 +152,36 @@ class InquiryService
     {
         abort_unless((int) $listing->user_id === (int) $seller->id, 404);
 
+        return $this->interestRows(
+            Lead::query()->where('listing_id', $listing->id)->withCount('appointments')->orderBy('id')->get(),
+        );
+    }
+
+    /**
+     * Interest across every listing the seller owns; buyers stay anonymous and are numbered per listing.
+     */
+    public function interestForSeller(User $seller): array
+    {
         $leads = Lead::query()
-            ->where('listing_id', $listing->id)
+            ->whereIn('listing_id', Listing::query()->where('user_id', $seller->id)->select('id'))
+            ->with('listing:id,public_code,title_ar,title_en')
             ->withCount('appointments')
             ->orderBy('id')
             ->get();
 
-        $rows = $leads->values()->map(function (Lead $lead, int $index) {
+        $interest = $this->interestRows($leads);
+        $rows = collect($interest['rows'])->sortByDesc('created_at')->values()->all();
+
+        return ['rows' => $rows, 'counts' => $interest['counts']];
+    }
+
+    /** @param Collection<int, Lead> $leads */
+    private function interestRows(Collection $leads): array
+    {
+        $sequence = [];
+
+        $rows = $leads->values()->map(function (Lead $lead) use (&$sequence) {
+            $sequence[$lead->listing_id] = ($sequence[$lead->listing_id] ?? 0) + 1;
             $clientStatus = match ($lead->status) {
                 LeadStatus::New => 'new',
                 LeadStatus::Lost, LeadStatus::Converted => 'closed',
@@ -165,25 +189,30 @@ class InquiryService
             };
 
             return [
-                'interested_buyer_seq' => $index + 1,
-                'kind' => $lead->appointments_count > 0 ? 'viewing' : 'listing_inquiry',
+                'interested_buyer_seq' => $sequence[$lead->listing_id],
+                'listing' => $lead->relationLoaded('listing') && $lead->listing ? [
+                    'id' => $lead->listing->id,
+                    'public_code' => $lead->listing->public_code,
+                    'title' => $lead->listing->localizedTitle(),
+                ] : null,
+                'kind' => $kind = ($lead->appointments_count > 0 ? 'viewing' : 'listing_inquiry'),
+                'kind_label' => __('aqdar.crm.interest_kinds.'.$kind),
                 'status' => $lead->status?->value,
                 'client_status' => $clientStatus,
+                'status_label' => __('aqdar.crm.interest_status.'.$clientStatus),
                 'created_at' => $lead->created_at,
                 'offer_amount' => $lead->seller_visible_amount !== null ? (float) $lead->seller_visible_amount : null,
             ];
         });
 
-        $counts = [
-            'all' => $rows->count(),
-            'new' => $rows->where('client_status', 'new')->count(),
-            'in_review' => $rows->where('client_status', 'in_review')->count(),
-            'closed' => $rows->where('client_status', 'closed')->count(),
-        ];
-
         return [
             'rows' => $rows->all(),
-            'counts' => $counts,
+            'counts' => [
+                'all' => $rows->count(),
+                'new' => $rows->where('client_status', 'new')->count(),
+                'in_review' => $rows->where('client_status', 'in_review')->count(),
+                'closed' => $rows->where('client_status', 'closed')->count(),
+            ],
         ];
     }
 

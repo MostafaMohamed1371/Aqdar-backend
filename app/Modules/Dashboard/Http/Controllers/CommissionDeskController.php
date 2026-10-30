@@ -3,6 +3,8 @@
 namespace App\Modules\Dashboard\Http\Controllers;
 
 use App\Core\Http\Controllers\BaseController;
+use App\Core\Services\QueueQuery;
+use App\Modules\Dashboard\Http\Requests\ApproveCommissionRequest;
 use App\Modules\Dashboard\Http\Requests\StoreCommissionRequest;
 use App\Modules\Dashboard\Http\Requests\UpdateCommissionRequest;
 use App\Modules\Finance\Models\Commission;
@@ -25,6 +27,7 @@ class CommissionDeskController extends BaseController
             'status' => (string) $request->query('status', 'all'),
             'q' => trim((string) $request->query('q', '')),
             'month' => (string) $request->query('month', ''),
+            ...QueueQuery::filtersFrom($request),
         ];
 
         return view('dashboard::commissions.index', [
@@ -36,9 +39,22 @@ class CommissionDeskController extends BaseController
             'search' => $filters['q'],
             'month' => $filters['month'],
             'defaultRate' => $this->commissions->defaultRate(),
-            'latestChange' => $this->commissions->latestChange(),
-            'closedCases' => $this->commissions->availableCases(),
+            'latestChange' => $this->commissions->latestChange($staff),
+            'closedCases' => $staff->can('edit_commissions') ? $this->commissions->availableCases() : collect(),
+            'canEdit' => $staff->can('edit_commissions'),
+            'canApprove' => $staff->can('approve_commissions'),
+            'canExport' => $staff->can('export_csv'),
         ]);
+    }
+
+    public function approve(ApproveCommissionRequest $request, Commission $commission): RedirectResponse
+    {
+        /** @var StaffUser $staff */
+        $staff = $request->user();
+        $reason = $request->validated('reason') ?: __('aqdar.commissions.approved');
+        $this->commissions->approve($commission, $staff, $reason);
+
+        return back()->with('status', __('aqdar.commissions.approved'));
     }
 
     public function store(StoreCommissionRequest $request): RedirectResponse

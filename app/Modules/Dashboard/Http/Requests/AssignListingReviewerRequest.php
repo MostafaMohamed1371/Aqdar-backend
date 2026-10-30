@@ -15,6 +15,7 @@ class AssignListingReviewerRequest extends BaseFormRequest
     {
         return [
             'assigned_reviewer_id' => ['nullable', 'integer', 'exists:staff_users,id'],
+            'reason' => ['nullable', 'string', 'min:3', 'max:500'],
         ];
     }
 }

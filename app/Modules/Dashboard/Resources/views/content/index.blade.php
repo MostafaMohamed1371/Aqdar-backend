@@ -14,6 +14,8 @@
             'faqs' => __('aqdar.catalog.faqs'),
             'categories' => __('aqdar.notifications.tabs.categories'),
             'support' => __('aqdar.catalog.support'),
+            'onboarding' => __('aqdar.catalog.onboarding'),
+            'seller_guide' => __('aqdar.catalog.seller_guide'),
             'schedule' => __('aqdar.notifications.tabs.schedule'),
             'log' => __('aqdar.notifications.tabs.log'),
         ];
@@ -21,7 +23,9 @@
     <div class="ptitle">
         <h2><x-bilingual key="aqdar.menu.adm_11" /></h2>
         <div class="acts">
-            <a class="btn" href="#add-content">@include('dashboard::partials.icon', ['name' => 'plus']){{ __('aqdar.notifications.create') }}</a>
+            @can('manage_catalog')
+                <a class="btn" href="#add-content">@include('dashboard::partials.icon', ['name' => 'plus']){{ __('aqdar.notifications.create') }}</a>
+            @endcan
         </div>
     </div>
     <p class="tiny">{{ __('aqdar.notifications.copy_note') }}</p>
@@ -32,25 +36,30 @@
         @endforeach
     </div>
 
-    @if (in_array($tab, ['templates', 'push', 'announcements'], true))
+    @if (in_array($tab, ['templates', 'push', 'announcements', 'schedule'], true))
         <div class="cols-side">
-            @if ($tab !== 'announcements')
+            @if ($tab !== 'announcements' && auth()->user()?->can('manage_catalog'))
             <div class="card" style="margin:0">
                 <div class="card-h"><b>{{ __('aqdar.notifications.tabs.templates') }}</b></div>
                 @forelse ($templates as $template)
-                    <form method="POST" action="{{ route('dashboard.notifications.templates.update', $template) }}" style="padding:8px 0;border-bottom:1px dashed var(--line)">
-                        @csrf
-                        @method('PUT')
-                        <div class="dl" style="padding:4px 0;align-items:center">
-                            <span><b>{{ $template->title_ar }}</b> <span class="tiny en">{{ $template->key }}</span></span>
-                            <span class="badge {{ $template->is_operational ? 'ok' : 'gold' }}">{{ $template->is_operational ? __('aqdar.notifications.operational') : __('aqdar.notifications.marketing') }}</span>
-                        </div>
-                        <input name="title_ar" value="{{ $template->title_ar }}" style="width:100%;margin:4px 0">
-                        <input class="en" name="title_en" value="{{ $template->title_en }}" style="width:100%;margin:4px 0">
-                        <textarea name="body_ar" rows="2" style="width:100%;margin:4px 0">{{ $template->body_ar }}</textarea>
-                        <textarea class="en" name="body_en" rows="2" style="width:100%;margin:4px 0">{{ $template->body_en }}</textarea>
-                        <button class="btn ghost sm" type="submit">{{ __('structer.save') }}</button>
-                    </form>
+                    <details style="padding:6px 0;border-bottom:1px dashed var(--line)">
+                        <summary class="dl" style="padding:4px 0;align-items:center;cursor:pointer;list-style:none">
+                            <span><b>{{ app()->getLocale() === 'en' ? $template->title_en : $template->title_ar }}</b> <span class="tiny en">{{ $template->key }}</span></span>
+                            <span style="display:flex;gap:6px;align-items:center">
+                                <span class="badge {{ $template->is_operational ? 'ok' : 'gold' }}">{{ $template->is_operational ? __('aqdar.notifications.operational') : __('aqdar.notifications.marketing') }}</span>
+                                <span class="icon-btn" title="{{ __('structer.edit') }}">@include('dashboard::partials.icon', ['name' => 'edit'])</span>
+                            </span>
+                        </summary>
+                        <form method="POST" action="{{ route('dashboard.notifications.templates.update', $template) }}">
+                            @csrf
+                            @method('PUT')
+                            <input name="title_ar" value="{{ $template->title_ar }}" style="width:100%;margin:4px 0">
+                            <input class="en" name="title_en" value="{{ $template->title_en }}" style="width:100%;margin:4px 0">
+                            <textarea name="body_ar" rows="2" style="width:100%;margin:4px 0">{{ $template->body_ar }}</textarea>
+                            <textarea class="en" name="body_en" rows="2" style="width:100%;margin:4px 0">{{ $template->body_en }}</textarea>
+                            <button class="btn ghost sm" type="submit">{{ __('structer.save') }}</button>
+                        </form>
+                    </details>
                 @empty
                     <p class="tiny">{{ __('aqdar.notifications.empty_templates') }}</p>
                 @endforelse
@@ -90,7 +99,9 @@
                         <div class="inp"><input id="broadcast-scheduled-at" class="en" type="datetime-local" name="scheduled_at" value="{{ old('scheduled_at') }}"></div>
                     </div>
                     <div style="display:flex;gap:8px;margin-top:8px">
-                        <button class="btn ghost" type="submit" formaction="{{ route('dashboard.notifications.test-send') }}" style="flex:1;justify-content:center">{{ __('aqdar.notifications.test_staff') }}</button>
+                        @can('manage_catalog')
+                            <button class="btn ghost" type="submit" formaction="{{ route('dashboard.notifications.test-send') }}" style="flex:1;justify-content:center">{{ __('aqdar.notifications.test_staff') }}</button>
+                        @endcan
                         <button class="btn" type="submit" style="flex:1;justify-content:center">{{ __('aqdar.notifications.schedule') }}</button>
                     </div>
                 </form>
@@ -98,15 +109,17 @@
         </div>
     @endif
 
-    @if (in_array($tab, ['banners', 'faqs', 'support'], true) || $tab === 'templates')
+    @if (auth()->user()?->can('manage_catalog') && (in_array($tab, ['banners', 'faqs', 'support', 'onboarding', 'seller_guide'], true) || $tab === 'templates'))
         @if ($tab !== 'templates' && $tab !== 'push')
             <form id="add-content" method="POST" action="{{ route('dashboard.content.store') }}" class="tw" style="padding:16px;margin-bottom:16px" enctype="multipart/form-data">
                 @csrf
                 <div class="toolbar" style="flex-wrap:wrap">
                     <select name="type" required>
-                        <option value="banner">{{ __('aqdar.catalog.banners') }}</option>
-                        <option value="faq">{{ __('aqdar.catalog.faqs') }}</option>
+                        <option value="banner" @selected($tab === 'banners')>{{ __('aqdar.catalog.banners') }}</option>
+                        <option value="faq" @selected($tab === 'faqs')>{{ __('aqdar.catalog.faqs') }}</option>
                         <option value="support">{{ __('aqdar.catalog.support') }}</option>
+                        <option value="onboarding" @selected($tab === 'onboarding')>{{ __('aqdar.catalog.onboarding') }}</option>
+                        <option value="seller_guide" @selected($tab === 'seller_guide')>{{ __('aqdar.catalog.seller_guide') }}</option>
                     </select>
                     <input class="en" name="key" placeholder="home-hero">
                     <input name="title_ar" placeholder="{{ __('aqdar.catalog.title_ar') }}">
@@ -119,7 +132,7 @@
                 <textarea name="body_en" rows="3" placeholder="{{ __('aqdar.catalog.body_en') }}" class="en" style="width:100%;margin:8px 0"></textarea>
                 <button class="btn" type="submit">{{ __('structer.save') }}</button>
             </form>
-            @foreach (['banners' => $banners, 'faqs' => $faqs, 'support' => $support] as $label => $blocks)
+            @foreach (['banners' => $banners, 'faqs' => $faqs, 'support' => $support, 'onboarding' => $onboarding, 'seller_guide' => $sellerGuide] as $label => $blocks)
                 @if ($tab === $label)
                     <div class="tw" style="margin-bottom:16px">
                         <h3>{{ __('aqdar.catalog.'.$label) }}</h3>
@@ -127,20 +140,27 @@
                             @forelse ($blocks as $block)
                                 <tr>
                                     <td>
-                                        <form method="POST" action="{{ route('dashboard.content.update', $block) }}" enctype="multipart/form-data">
-                                            @csrf @method('PUT')
-                                            <input name="title_ar" value="{{ $block->title_ar }}">
-                                            <input class="en" name="title_en" value="{{ $block->title_en }}">
-                                            <input class="en" name="link_url" value="{{ $block->link_url }}" placeholder="{{ __('aqdar.catalog.link_url') }}">
-                                            <input type="number" name="sort_order" min="0" value="{{ $block->sort_order }}" style="width:6rem">
-                                            @if ($label === 'banners')
-                                                <input type="file" name="image" accept="image/jpeg,image/png,image/webp">
-                                            @endif
-                                            <textarea name="body_ar" rows="2" style="width:100%;margin:8px 0">{{ $block->body_ar }}</textarea>
-                                            <textarea name="body_en" rows="2" class="en" style="width:100%;margin:8px 0">{{ $block->body_en }}</textarea>
-                                            <button class="btn ghost sm" type="submit">{{ __('structer.save') }}</button>
-                                        </form>
+                                        <b>{{ app()->getLocale() === 'en' ? $block->title_en : $block->title_ar }}</b>
                                         <div class="tiny en">{{ $block->key }}</div>
+                                    </td>
+                                    <td class="en">{{ $block->sort_order }}</td>
+                                    <td>
+                                        <details>
+                                            <summary class="icon-btn" title="{{ __('structer.edit') }}" style="list-style:none;cursor:pointer">@include('dashboard::partials.icon', ['name' => 'edit'])</summary>
+                                            <form method="POST" action="{{ route('dashboard.content.update', $block) }}" enctype="multipart/form-data" style="margin-top:6px">
+                                                @csrf @method('PUT')
+                                                <input name="title_ar" value="{{ $block->title_ar }}">
+                                                <input class="en" name="title_en" value="{{ $block->title_en }}">
+                                                <input class="en" name="link_url" value="{{ $block->link_url }}" placeholder="{{ __('aqdar.catalog.link_url') }}">
+                                                <input type="number" name="sort_order" min="0" value="{{ $block->sort_order }}" style="width:6rem">
+                                                @if (in_array($label, ['banners', 'onboarding'], true))
+                                                    <input type="file" name="image" accept="image/jpeg,image/png,image/webp">
+                                                @endif
+                                                <textarea name="body_ar" rows="2" style="width:100%;margin:8px 0">{{ $block->body_ar }}</textarea>
+                                                <textarea name="body_en" rows="2" class="en" style="width:100%;margin:8px 0">{{ $block->body_en }}</textarea>
+                                                <button class="btn ghost sm" type="submit">{{ __('structer.save') }}</button>
+                                            </form>
+                                        </details>
                                     </td>
                                     <td>
                                         @include('dashboard::partials.catalog-toggle', [
@@ -150,7 +170,7 @@
                                     </td>
                                 </tr>
                             @empty
-                                <tr><td colspan="2" class="empty-note">{{ __('aqdar.catalog.empty') }}</td></tr>
+                                <tr><td colspan="4" class="empty-note">{{ __('aqdar.catalog.empty') }}</td></tr>
                             @endforelse
                         </table>
                     </div>
@@ -168,16 +188,36 @@
                     <th>{{ __('aqdar.notifications.audience') }}</th>
                     <th>{{ __('structer.status') }}</th>
                     <th>{{ __('aqdar.notifications.scheduled_at') }}</th>
+                    <th>{{ __('aqdar.notifications.usage') }}</th>
+                    <th>{{ __('aqdar.users.actions') }}</th>
                 </tr>
                 @forelse ($broadcasts as $row)
                     <tr>
                         <td>{{ $row->title_ar }}</td>
                         <td>{{ __('aqdar.notifications.opted_in') }}</td>
-                        <td>{{ $row->status }}</td>
+                        <td>
+                            {{ $row->status }}
+                            @if ($row->approved_at)
+                                <span class="badge ok">{{ __('aqdar.notifications.approved_badge') }}</span>
+                            @else
+                                <span class="badge gold">{{ __('aqdar.notifications.pending_badge') }}</span>
+                            @endif
+                        </td>
                         <td class="en">{{ optional($row->scheduled_at)->format('Y-m-d H:i') }}</td>
+                        <td class="en">{{ optional($row->sent_at)->format('Y-m-d H:i') ?: '—' }}</td>
+                        <td>
+                            @can('approve_broadcasts')
+                                @if (! $row->approved_at && ((int) $row->created_by !== (int) auth()->id() || auth()->user()?->isSuperAdmin()))
+                                    <form method="POST" action="{{ route('dashboard.notifications.broadcasts.approve', $row) }}" style="display:inline">
+                                        @csrf
+                                        <button class="btn sm" type="submit">{{ __('aqdar.notifications.approve_broadcast') }}</button>
+                                    </form>
+                                @endif
+                            @endcan
+                        </td>
                     </tr>
                 @empty
-                    <tr><td colspan="4">{{ __('aqdar.notifications.empty_broadcasts') }}</td></tr>
+                    <tr><td colspan="6">{{ __('aqdar.notifications.empty_broadcasts') }}</td></tr>
                 @endforelse
             </table>
         </div>

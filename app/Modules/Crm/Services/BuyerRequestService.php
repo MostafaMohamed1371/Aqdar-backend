@@ -7,7 +7,9 @@ use App\Core\Enums\BuyerRequestStatus;
 use App\Core\Enums\MatchBuyerResponse;
 use App\Core\Enums\Permission;
 use App\Core\Enums\PublicCodePrefix;
+use App\Core\Enums\SegmentPreference;
 use App\Core\Identity\PublicCodeGenerator;
+use App\Core\Services\QueueQuery;
 use App\Modules\Crm\Models\BuyerRequest;
 use App\Modules\Crm\Models\Lead;
 use App\Modules\Crm\Models\RequestMatch;
@@ -51,11 +53,14 @@ class BuyerRequestService
 
         $request = DB::transaction(function () use ($buyer, $data, $priorities): BuyerRequest {
             $lead = $this->leads->openForCustomRequest($buyer);
+            $duplicateOf = $this->findOpenDuplicate($buyer, $data);
             $request = BuyerRequest::query()->create([
                 'public_code' => $this->codes->next(PublicCodePrefix::BuyerRequest),
                 'user_id' => $buyer->id,
                 'lead_id' => $lead->id,
                 'status' => BuyerRequestStatus::New,
+                'is_duplicate' => $duplicateOf !== null,
+                'duplicate_of_id' => $duplicateOf?->id,
                 'intent' => $data['intent'],
                 'segment_preference' => $data['segment_preference'] ?? 'any',
                 'unit_type_id' => $data['unit_type_id'] ?? null,
@@ -186,8 +191,29 @@ class BuyerRequestService
                     ->orWhere('name_ar', 'ilike', '%'.$this->arabicType($type).'%');
             });
         }
-        if (($filters['assigned_to'] ?? '') !== '') {
-            $query->where('assigned_to', $filters['assigned_to']);
+        $assignedTo = (string) ($filters['assigned_to'] ?? '');
+        if ($assignedTo === 'unassigned') {
+            $query->whereNull('assigned_to');
+        } elseif ($assignedTo !== '') {
+            $query->where('assigned_to', (int) $assignedTo);
+        }
+        if (is_numeric($filters['governorate_id'] ?? null)) {
+            $query->where('governorate_id', (int) $filters['governorate_id']);
+        }
+        if (in_array($filters['segment'] ?? '', array_column(SegmentPreference::cases(), 'value'), true)) {
+            $query->where('segment_preference', $filters['segment']);
+        }
+        if (is_numeric($filters['budget_min'] ?? null)) {
+            $query->where(fn (Builder $inner) => $inner->whereNull('budget_max')->orWhere('budget_max', '>=', (float) $filters['budget_min']));
+        }
+        if (is_numeric($filters['budget_max'] ?? null)) {
+            $query->where(fn (Builder $inner) => $inner->whereNull('budget_min')->orWhere('budget_min', '<=', (float) $filters['budget_max']));
+        }
+        if (! empty($filters['overdue'])) {
+            $query->whereHas('lead', fn (Builder $lead) => $lead->overdueFollowUp());
+        }
+        if (! empty($filters['duplicates'])) {
+            $query->where('is_duplicate', true);
         }
         if (! empty($filters['q'])) {
             $like = '%'.addcslashes((string) $filters['q'], '%_\\').'%';
@@ -196,6 +222,12 @@ class BuyerRequestService
                     ->orWhereHas('buyer', fn ($buyer) => $buyer->where('name', 'ilike', $like)->orWhere('phone', 'ilike', $like));
             });
         }
+        QueueQuery::apply($query, $filters, [
+            'code' => 'public_code',
+            'budget' => 'budget_max',
+            'status' => 'status',
+            'created' => 'created_at',
+        ]);
 
         return $query->paginate(20)->withQueryString();
     }
@@ -231,7 +263,8 @@ class BuyerRequestService
         return $request->load([
             'buyer',
             'assignee',
-            'lead',
+            'lead.activities',
+            'duplicateOf',
             'unitType',
             'governorate',
             'area',
@@ -243,13 +276,14 @@ class BuyerRequestService
         ]);
     }
 
-    public function assign(BuyerRequest $request, StaffUser $actor, int $assigneeId): BuyerRequest
+    public function assign(BuyerRequest $request, StaffUser $actor, int $assigneeId, ?string $reason = null): BuyerRequest
     {
         $this->leads->assertCanManageAll($actor);
+        $this->leads->assertReassignReason($request->assigned_to, $assigneeId, $reason);
         if ($request->lead) {
-            $this->leads->assign($request->lead, $actor, $assigneeId);
+            $this->leads->assign($request->lead, $actor, $assigneeId, $reason ?? 'buyer_request:'.$request->public_code);
         }
-        $this->setStatus($request, $actor, BuyerRequestStatus::Assigned, 'assigned');
+        $this->setStatus($request, $actor, BuyerRequestStatus::Assigned, $reason ?? 'assigned');
         $request->forceFill(['assigned_to' => $assigneeId])->save();
 
         return $request->fresh(['assignee', 'lead']) ?? $request;
@@ -283,6 +317,25 @@ class BuyerRequestService
         }
 
         return $request->fresh(['matches.listing.financials', 'matches.listing.media']) ?? $request;
+    }
+
+    public function attachListing(BuyerRequest $request, StaffUser $actor, string $code): RequestMatch
+    {
+        $this->showForStaff($actor, $request);
+        $listing = Listing::query()->where('public_code', trim($code))->first();
+        if ($listing === null) {
+            throw ValidationException::withMessages([
+                'listing_code' => [__('aqdar.requests.listing_not_found')],
+            ]);
+        }
+
+        $match = $this->matcher->attach($request, $listing);
+        $this->audit->write('buyer_request.match_attached', $actor, $request, [
+            'listing_id' => $listing->id,
+            'score' => $match->score,
+        ]);
+
+        return $match;
     }
 
     public function sendMatch(RequestMatch $match, StaffUser $actor): RequestMatch
@@ -326,11 +379,14 @@ class BuyerRequestService
         return $this->leads->openOrCreateForInquiry($buyer, $listing);
     }
 
-    public function convertToCase(BuyerRequest $request, StaffUser $actor, string $reason): TransferCase
+    public function convertToCase(BuyerRequest $request, StaffUser $actor, string $reason, ?RequestMatch $match = null): TransferCase
     {
         $this->showForStaff($actor, $request);
-        $case = $this->cases->openFromBuyerRequest($request, $actor, $reason);
-        $this->setStatus($request, $actor, BuyerRequestStatus::Converted, $reason);
+        abort_if($match !== null && (int) $match->buyer_request_id !== (int) $request->id, 404);
+        $case = $this->cases->openFromBuyerRequest($request, $actor, $reason, $match);
+        if ($request->status !== BuyerRequestStatus::Converted) {
+            $this->setStatus($request, $actor, BuyerRequestStatus::Converted, $reason);
+        }
         if ($request->lead) {
             $this->leads->convert($request->lead, $actor, $reason, createCase: false);
         }
@@ -346,6 +402,28 @@ class BuyerRequestService
     public function assignableStaff()
     {
         return $this->leads->assignableStaff();
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     */
+    private function findOpenDuplicate(User $buyer, array $data): ?BuyerRequest
+    {
+        $query = BuyerRequest::query()
+            ->where('user_id', $buyer->id)
+            ->where('intent', $data['intent'])
+            ->whereNotIn('status', [BuyerRequestStatus::Converted->value, BuyerRequestStatus::ClosedNoMatch->value])
+            ->where('created_at', '>=', now()->subDays(30));
+        foreach (['unit_type_id', 'governorate_id'] as $column) {
+            $value = $data[$column] ?? null;
+            if ($value === null) {
+                $query->whereNull($column);
+            } else {
+                $query->where($column, $value);
+            }
+        }
+
+        return $query->oldest('id')->first();
     }
 
     private function recordHistory(

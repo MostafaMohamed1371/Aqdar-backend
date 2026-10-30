@@ -3,8 +3,10 @@
 namespace App\Modules\Dashboard\Http\Controllers;
 
 use App\Core\Http\Controllers\BaseController;
+use App\Modules\Dashboard\Http\Requests\ApproveBroadcastRequest;
 use App\Modules\Dashboard\Http\Requests\ScheduleBroadcastRequest;
 use App\Modules\Dashboard\Http\Requests\UpdateNotificationTemplateRequest;
+use App\Modules\Notification\Models\NotificationBroadcast;
 use App\Modules\Notification\Models\NotificationTemplate;
 use App\Modules\Notification\Services\NotificationService;
 use App\Modules\Staff\Models\StaffUser;
@@ -27,6 +29,8 @@ class NotificationDeskController extends BaseController
 
     public function testSend(ScheduleBroadcastRequest $request): RedirectResponse
     {
+        abort_unless($request->user()?->can('manage_catalog'), 403);
+
         /** @var StaffUser $staff */
         $staff = $request->user();
         $count = $this->notifications->testSendToStaff($staff, $request->validated());
@@ -45,5 +49,16 @@ class NotificationDeskController extends BaseController
         return redirect()
             ->route('dashboard.content.index', ['tab' => 'schedule'])
             ->with('status', __('aqdar.notifications.broadcast_saved'));
+    }
+
+    public function approveBroadcast(ApproveBroadcastRequest $request, NotificationBroadcast $broadcast): RedirectResponse
+    {
+        /** @var StaffUser $staff */
+        $staff = $request->user();
+        $this->notifications->approveBroadcast($broadcast, $staff);
+
+        return redirect()
+            ->route('dashboard.content.index', ['tab' => 'schedule'])
+            ->with('status', __('aqdar.notifications.broadcast_approved'));
     }
 }

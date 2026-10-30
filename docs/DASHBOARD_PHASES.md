@@ -71,7 +71,7 @@ Show a menu item only when that phase has shipped. Other items can appear disabl
 | **4** | Private docs, media, moderation APIs | **ADM-02** listing moderation (approve ≠ publish, declared vs verified money) + **ADM-03** private documents (signed URL, checklist, access log) | CRM |
 | **5** | Inquiries, leads, appointments | **ADM-07** Sales CRM | Requests, cases |
 | **6** | Buyer requests, transfer cases | **ADM-08** buyer requests + **ADM-09** cases (internal stage vs client-safe label) | Finance |
-| **7** | Estimate, commissions | **ADM-10** commissions (Finance only) | Notifications UI (Phase 8) |
+| **7** | Estimate, commissions | **ADM-10** commissions (Finance edit, Operations approve, Sales view own) | Notifications UI (Phase 8) |
 | **8** | Notifications, templates, push log | **ADM-11** remaining: templates, broadcast, send log | Reports |
 | **9** | Dashboard KPIs, reports, settings, audit | **ADM-01** executive KPIs + **ADM-12** reports/CSV + **ADM-13** settings/Sales number + **ADM-14** activity log | — |
 

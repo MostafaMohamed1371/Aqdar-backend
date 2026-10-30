@@ -9,6 +9,7 @@ use App\Core\Enums\StaffRole;
 use App\Modules\Catalog\Models\UnitType;
 use App\Modules\Crm\Models\TransferCase;
 use App\Modules\Finance\Models\Commission;
+use App\Modules\Finance\Services\CommissionService;
 use App\Modules\Listing\Models\Listing;
 use App\Modules\Setting\Models\Setting;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -54,11 +55,14 @@ class DashboardCommissionTest extends TestCase
             ->assertSee('<rect', false);
     }
 
-    public function test_sales_cannot_open_commission_desk(): void
+    public function test_sales_can_open_own_commission_desk_without_edit(): void
     {
         $this->actingAsStaff(StaffRole::Sales);
-        $this->get('/dashboard/commissions')->assertForbidden();
-        $this->assertDatabaseHas('audit_logs', ['action' => 'permission_denied']);
+        $this->get('/dashboard/commissions')
+            ->assertOk()
+            ->assertSee(__('aqdar.menu.adm_10'))
+            ->assertDontSee('#add-commission', false)
+            ->assertDontSee(__('aqdar.commissions.csv'), false);
     }
 
     public function test_reviewer_cannot_open_or_patch_commissions(): void
@@ -85,10 +89,14 @@ class DashboardCommissionTest extends TestCase
         $this->assertDatabaseHas('audit_logs', ['action' => 'permission_denied']);
     }
 
-    public function test_operations_cannot_open_commission_desk(): void
+    public function test_operations_can_open_commission_desk_to_approve(): void
     {
         $this->actingAsStaff(StaffRole::Operations);
-        $this->get('/dashboard/commissions')->assertForbidden();
+        $this->get('/dashboard/commissions')
+            ->assertOk()
+            ->assertSee(__('aqdar.menu.adm_10'))
+            ->assertSee(__('aqdar.commissions.approval_note'))
+            ->assertDontSee('#add-commission', false);
     }
 
     public function test_finance_records_commission_on_completed_case_and_audit_exists(): void
@@ -111,6 +119,7 @@ class DashboardCommissionTest extends TestCase
         $this->assertNotNull($row);
         $this->assertEquals(80000, (float) $row->amount);
         $this->assertSame(CommissionStatus::Earned, $row->status);
+        $this->assertNull($row->approved_at);
         $this->assertTrue(AuditLog::query()->where('action', 'commission.created')->exists());
         $this->assertDatabaseHas('commission_history', [
             'commission_id' => $row->id,
@@ -157,6 +166,28 @@ class DashboardCommissionTest extends TestCase
             'actor_id' => $staff->id,
         ]);
         $this->assertTrue(AuditLog::query()->where('action', 'commission.updated')->exists());
+    }
+
+    public function test_finance_can_reverse_paid_commission_and_it_leaves_the_total(): void
+    {
+        $staff = $this->actingAsStaff(StaffRole::Finance);
+        $commission = Commission::factory()->create(['status' => CommissionStatus::Paid, 'amount' => 80000]);
+
+        $this->from('/dashboard/commissions')
+            ->patch('/dashboard/commissions/'.$commission->id, [
+                'status' => 'reversed',
+                'reason' => 'الصفقة أُلغيت بعد التحصيل',
+            ])->assertRedirect();
+
+        $this->assertSame(CommissionStatus::Reversed, $commission->fresh()->status);
+        $this->assertDatabaseHas('commission_history', [
+            'commission_id' => $commission->id,
+            'old_status' => 'paid',
+            'new_status' => 'reversed',
+            'actor_id' => $staff->id,
+        ]);
+        $counts = app(CommissionService::class)->counts($staff);
+        $this->assertSame(0.0, $counts['total_amount']);
     }
 
     public function test_csv_export_has_no_phone_columns(): void

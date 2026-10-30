@@ -12,7 +12,9 @@
     <div class="ptitle">
         <h2><x-bilingual key="aqdar.menu.adm_10" /></h2>
         <div class="acts">
-            <a class="btn ghost" href="{{ route('dashboard.commissions.export', array_filter(['status' => $status !== 'all' ? $status : null, 'q' => $search ?: null, 'month' => $month ?: null])) }}">@include('dashboard::partials.icon', ['name' => 'download']){{ __('aqdar.commissions.csv') }}</a>
+            @if ($canExport ?? false)
+                <a class="btn ghost" href="{{ route('dashboard.commissions.export', array_filter(['status' => $status !== 'all' ? $status : null, 'q' => $search ?: null, 'month' => $month ?: null])) }}">@include('dashboard::partials.icon', ['name' => 'download']){{ __('aqdar.commissions.csv') }}</a>
+            @endif
             <form method="GET" action="{{ route('dashboard.commissions.index') }}" style="display:inline">
                 @if ($status !== 'all')
                     <input type="hidden" name="status" value="{{ $status }}">
@@ -27,10 +29,12 @@
                     @endforeach
                 </select>
             </form>
-            <a class="btn" href="#add-commission">@include('dashboard::partials.icon', ['name' => 'plus']){{ __('aqdar.commissions.add') }}</a>
+            @if ($canEdit ?? false)
+                <a class="btn" href="#add-commission">@include('dashboard::partials.icon', ['name' => 'plus']){{ __('aqdar.commissions.add') }}</a>
+            @endif
         </div>
     </div>
-    <p class="tiny">{{ __('aqdar.commissions.manual_note') }}</p>
+    <p class="tiny">{{ ($canEdit ?? false) ? __('aqdar.commissions.manual_note') : (($canApprove ?? false) ? __('aqdar.commissions.approval_note') : __('aqdar.commissions.own_only_note')) }}</p>
 
     <div class="kpis">
         @foreach ([
@@ -84,7 +88,7 @@
                     @endphp
                     <rect x="{{ $gx }}" y="{{ $chartH - 26 - $hRev }}" width="{{ $chartBw }}" height="{{ $hRev }}" rx="5" fill="#087e82"/>
                     <rect x="{{ $gx + $chartBw + 4 }}" y="{{ $chartH - 26 - $hCom }}" width="{{ $chartBw }}" height="{{ $hCom }}" rx="5" fill="#c5985f"/>
-                    <text x="{{ $chartPad + $chartGw * $i + $chartGw / 2 }}" y="{{ $chartH - 8 }}" text-anchor="middle" font-size="10.5" fill="#6b7280">{{ $row['label'] }}</text>
+                    <text class="chart-muted" x="{{ $chartPad + $chartGw * $i + $chartGw / 2 }}" y="{{ $chartH - 8 }}" text-anchor="middle" font-size="10.5">{{ $row['label'] }}</text>
                 @endforeach
             </svg>
         </div>
@@ -96,8 +100,8 @@
                         <circle r="15.915" cx="21" cy="21" fill="none" stroke="{{ $seg['color'] }}" stroke-width="6" stroke-dasharray="{{ $seg['percent'] }} {{ 100 - $seg['percent'] }}" stroke-dashoffset="{{ $donutOff }}"/>
                         @php $donutOff -= $seg['percent']; @endphp
                     @endforeach
-                    <text x="21" y="21.5" text-anchor="middle" font-size="6.2" font-weight="800" fill="#14283f">{{ $charts['revenue_label'] ?? '0' }}</text>
-                    <text x="21" y="27" text-anchor="middle" font-size="3.2" fill="#6b7280">{{ __('aqdar.commissions.charts.revenue') }}</text>
+                    <text class="chart-fg" x="21" y="21.5" text-anchor="middle" font-size="6.2" font-weight="800">{{ $charts['revenue_label'] ?? '0' }}</text>
+                    <text class="chart-muted" x="21" y="27" text-anchor="middle" font-size="3.2">{{ __('aqdar.commissions.charts.revenue') }}</text>
                 </svg>
                 <div style="flex:1;min-width:130px">
                     @foreach (($charts['types'] ?? []) as $seg)
@@ -125,6 +129,7 @@
                 <option value="{{ $st->value }}" @selected($status === $st->value)>{{ __('aqdar.commissions.status.'.$st->value) }}</option>
             @endforeach
         </select>
+        @include('dashboard::partials.date-range')
         <button class="btn ghost" type="submit">{{ __('aqdar.search') }}</button>
     </form>
 
@@ -132,22 +137,22 @@
     <div class="tw">
         <table class="t">
             <tr>
-                <th>{{ __('aqdar.commissions.date') }}</th>
+                @include('dashboard::partials.sort-th', ['key' => 'date', 'label' => __('aqdar.commissions.date')])
                 <th>{{ __('aqdar.crm.code') }}</th>
                 <th>{{ __('aqdar.commissions.payer') }}</th>
                 <th>{{ __('aqdar.crm.listing') }}</th>
-                <th>{{ __('aqdar.commissions.sale_value') }}</th>
+                @include('dashboard::partials.sort-th', ['key' => 'sale_value', 'label' => __('aqdar.commissions.sale_value')])
                 <th>{{ __('aqdar.commissions.basis') }}</th>
-                <th>{{ __('aqdar.commissions.amount') }}</th>
+                @include('dashboard::partials.sort-th', ['key' => 'amount', 'label' => __('aqdar.commissions.amount')])
                 <th>{{ __('aqdar.commissions.invoice') }}</th>
-                <th>{{ __('structer.status') }}</th>
+                @include('dashboard::partials.sort-th', ['key' => 'status', 'label' => __('structer.status')])
                 <th></th>
             </tr>
             @forelse ($commissions as $item)
                 <tr>
                     <td class="en">{{ $item->created_at?->format('Y/m/d') }}</td>
                     <td>
-                        @if ($item->transferCase && auth()->user()?->can('manage_crm'))
+                        @if ($item->transferCase && (auth()->user()?->can('manage_crm') || auth()->user()?->can('advance_finance_stages')))
                             <a class="en" href="{{ route('dashboard.cases.show', $item->transferCase) }}"><b>{{ $item->transferCase->public_code }}</b></a>
                         @elseif ($item->transferCase)
                             <b class="en">{{ $item->transferCase->public_code }}</b>
@@ -161,20 +166,36 @@
                     <td>{{ $item->basis === CommissionBasis::Percent ? __('aqdar.commissions.percent_of', ['rate' => $item->rate]) : __('aqdar.commissions.fixed') }}</td>
                     <td><b class="en">{{ number_format((float) $item->amount) }}</b></td>
                     <td class="en">{{ $item->invoice_reference ?? '—' }}</td>
-                    <td><span class="badge {{ $item->status === CommissionStatus::Paid ? 'ok' : ($item->status === CommissionStatus::Due ? 'warn' : ($item->status === CommissionStatus::Waived ? 'grey' : 'gold')) }}">{{ __('aqdar.commissions.status.'.$item->status?->value) }}</span></td>
                     <td>
-                        <form method="POST" action="{{ route('dashboard.commissions.update', $item) }}" class="toolbar" style="flex-wrap:wrap">
-                            @csrf
-                            @method('PUT')
-                            <select name="status">
-                                @foreach (CommissionStatus::cases() as $st)
-                                    <option value="{{ $st->value }}" @selected($item->status === $st)>{{ __('aqdar.commissions.status.'.$st->value) }}</option>
-                                @endforeach
-                            </select>
-                            <input class="en" name="invoice_reference" value="{{ $item->invoice_reference }}" placeholder="{{ __('aqdar.commissions.invoice') }}">
-                            <input name="reason" required minlength="3" placeholder="{{ __('aqdar.commissions.reason') }}">
-                            <button class="btn ghost sm" type="submit">{{ __('structer.save') }}</button>
-                        </form>
+                        <span class="badge {{ $item->status === CommissionStatus::Paid ? 'ok' : ($item->status === CommissionStatus::Due ? 'warn' : (in_array($item->status, [CommissionStatus::Waived, CommissionStatus::Reversed], true) ? 'grey' : 'gold')) }}">{{ __('aqdar.commissions.status.'.$item->status?->value) }}</span>
+                        @unless ($item->isApproved())
+                            <span class="badge warn">{{ __('aqdar.commissions.pending') }}</span>
+                        @endunless
+                    </td>
+                    <td>
+                        @if ($canEdit ?? false)
+                            <details>
+                                <summary class="icon-btn" title="{{ __('structer.edit') }}" style="list-style:none;cursor:pointer">@include('dashboard::partials.icon', ['name' => 'edit'])</summary>
+                                <form method="POST" action="{{ route('dashboard.commissions.update', $item) }}" class="toolbar" style="flex-wrap:wrap;margin-top:6px">
+                                    @csrf
+                                    @method('PUT')
+                                    <select name="status">
+                                        @foreach (CommissionStatus::cases() as $st)
+                                            <option value="{{ $st->value }}" @selected($item->status === $st)>{{ __('aqdar.commissions.status.'.$st->value) }}</option>
+                                        @endforeach
+                                    </select>
+                                    <input class="en" name="invoice_reference" value="{{ $item->invoice_reference }}" placeholder="{{ __('aqdar.commissions.invoice') }}">
+                                    <input name="reason" required minlength="3" placeholder="{{ __('aqdar.commissions.reason') }}">
+                                    <button class="btn ghost sm" type="submit">{{ __('structer.save') }}</button>
+                                </form>
+                            </details>
+                        @elseif (($canApprove ?? false) && ! $item->isApproved())
+                            <form method="POST" action="{{ route('dashboard.commissions.approve', $item) }}" class="toolbar">
+                                @csrf
+                                <input name="reason" minlength="3" placeholder="{{ __('aqdar.commissions.reason') }}">
+                                <button class="btn sm" type="submit">{{ __('aqdar.commissions.approve') }}</button>
+                            </form>
+                        @endif
                     </td>
                 </tr>
             @empty
@@ -206,6 +227,7 @@
         </p>
     @endif
 
+    @if ($canEdit ?? false)
     <div id="add-commission" class="card" style="margin-top:16px">
         <div class="card-h"><b>{{ __('aqdar.commissions.add') }}</b><span class="tiny">{{ __('aqdar.commissions.default_rate', ['rate' => $defaultRate]) }}</span></div>
         @if ($closedCases->isEmpty())
@@ -263,4 +285,5 @@
             </form>
         @endif
     </div>
+    @endif
 @endsection

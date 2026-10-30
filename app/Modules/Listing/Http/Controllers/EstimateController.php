@@ -3,6 +3,7 @@
 namespace App\Modules\Listing\Http\Controllers;
 
 use App\Core\Http\Controllers\BaseController;
+use App\Modules\Listing\Http\Requests\ManualEstimateRequest;
 use App\Modules\Listing\Models\Listing;
 use App\Modules\Listing\Services\EstimateService;
 use App\Modules\User\Models\User;
@@ -20,6 +21,16 @@ class EstimateController extends BaseController
 
         return response()->json([
             'data' => $this->estimates->forListing($listing, $user),
+        ]);
+    }
+
+    public function store(ManualEstimateRequest $request): JsonResponse
+    {
+        /** @var User $user */
+        $user = $request->user();
+
+        return response()->json([
+            'data' => $this->estimates->fromManual($user, $request->validated()),
         ]);
     }
 }

@@ -17,6 +17,7 @@
             @include('dashboard::partials.icon', ['name' => 'search'])
             <input type="search" name="q" value="{{ $search }}" placeholder="{{ __('aqdar.listings.docs.search') }}">
         </div>
+        @include('dashboard::partials.date-range')
         <button type="submit" class="btn ghost">{{ __('aqdar.search') }}</button>
     </form>
 
@@ -33,11 +34,11 @@
         <table class="t">
             <tr>
                 <th>{{ __('aqdar.listings.docs.owner') }}</th>
-                <th>{{ __('aqdar.listings.docs.type') }}</th>
+                @include('dashboard::partials.sort-th', ['key' => 'type', 'label' => __('aqdar.listings.docs.type')])
                 <th>{{ __('aqdar.listings.docs.file') }}</th>
                 <th>{{ __('aqdar.listings.desk.code') }}</th>
-                <th>{{ __('aqdar.listings.desk.added') }}</th>
-                <th>{{ __('structer.status') }}</th>
+                @include('dashboard::partials.sort-th', ['key' => 'added', 'label' => __('aqdar.listings.desk.added')])
+                @include('dashboard::partials.sort-th', ['key' => 'status', 'label' => __('structer.status')])
                 <th>{{ __('structer.actions') }}</th>
             </tr>
             @forelse ($documents as $document)

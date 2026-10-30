@@ -73,7 +73,8 @@ class DashboardCaseTest extends TestCase
 
         $this->actingAsStaff(StaffRole::Finance);
         $this->get('/dashboard/requests')->assertForbidden();
-        $this->get('/dashboard/cases')->assertForbidden();
+        $this->get('/dashboard/cases')->assertOk()->assertSee($case->public_code, false);
+        $this->get('/dashboard/cases/'.$case->id)->assertOk();
         $this->assertDatabaseHas('audit_logs', ['action' => 'permission_denied']);
     }
 
@@ -165,6 +166,42 @@ class DashboardCaseTest extends TestCase
         $case = TransferCase::query()->where('buyer_request_id', $request->id)->first();
         $this->assertNotNull($case);
         $this->assertStringStartsWith('TR-', (string) $case->public_code);
+    }
+
+    public function test_each_confirmed_listing_from_one_request_gets_its_own_case(): void
+    {
+        $this->actingAsStaff(StaffRole::Operations);
+        $request = BuyerRequest::factory()->create(['status' => BuyerRequestStatus::OptionsShared]);
+        $first = RequestMatch::factory()->create(['buyer_request_id' => $request->id, 'sent_at' => now()]);
+        $second = RequestMatch::factory()->create(['buyer_request_id' => $request->id, 'sent_at' => now()]);
+
+        foreach ([$first, $second, $first] as $match) {
+            $this->from('/dashboard/requests/'.$request->id)
+                ->post('/dashboard/requests/'.$request->id.'/convert', [
+                    'reason' => 'صفقة مؤكدة',
+                    'match_id' => $match->id,
+                ])->assertRedirect();
+        }
+
+        $cases = TransferCase::query()->where('buyer_request_id', $request->id)->get();
+        $this->assertCount(2, $cases);
+        $this->assertEqualsCanonicalizing(
+            [$first->listing_id, $second->listing_id],
+            $cases->pluck('listing_id')->all(),
+        );
+        $this->assertSame(BuyerRequestStatus::Converted, $request->fresh()->status);
+    }
+
+    public function test_match_from_another_request_cannot_be_converted(): void
+    {
+        $this->actingAsStaff(StaffRole::Operations);
+        $request = BuyerRequest::factory()->create();
+        $foreign = RequestMatch::factory()->create(['sent_at' => now()]);
+
+        $this->post('/dashboard/requests/'.$request->id.'/convert', [
+            'reason' => 'محاولة خاطئة',
+            'match_id' => $foreign->id,
+        ])->assertNotFound();
     }
 
     public function test_sales_cannot_assign_requests(): void

@@ -9,7 +9,9 @@ use App\Modules\Staff\Models\Permission;
 use App\Modules\Staff\Models\Role;
 use App\Modules\Staff\Models\StaffUser;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
@@ -24,7 +26,8 @@ class StaffService
             ->when($search !== '', function ($query) use ($search): void {
                 $query->where(function ($inner) use ($search): void {
                     $inner->where('name', 'ilike', '%'.$search.'%')
-                        ->orWhere('email', 'ilike', '%'.$search.'%');
+                        ->orWhere('email', 'ilike', '%'.$search.'%')
+                        ->orWhere('branch', 'ilike', '%'.$search.'%');
                 });
             })
             ->latest()
@@ -72,6 +75,7 @@ class StaffService
             'email' => $data['email'],
             'password' => $data['password'],
             'role_id' => $data['role_id'],
+            'branch' => $this->normalizeBranch($data['branch'] ?? null),
             'is_active' => true,
         ]);
 
@@ -82,13 +86,17 @@ class StaffService
         return $staff;
     }
 
-    /** @param array{name: string, email: string, password?: string|null, role_id: int} $data */
+    /** @param array{name: string, email: string, password?: string|null, role_id: int, branch?: string|null} $data */
     public function update(StaffUser $staff, array $data, StaffUser $actor): StaffUser
     {
         $this->assertNotLastSuperAdminRoleChange($staff, (int) $data['role_id']);
 
         if (! filled($data['password'] ?? null)) {
             unset($data['password']);
+        }
+
+        if (array_key_exists('branch', $data)) {
+            $data['branch'] = $this->normalizeBranch($data['branch']);
         }
 
         $roleChanged = array_key_exists('role_id', $data) && (int) $data['role_id'] !== (int) $staff->role_id;
@@ -108,6 +116,58 @@ class StaffService
         return $staff;
     }
 
+    /**
+     * @param  array{name: string, email: string, password?: string|null, role_id?: int|null}  $data
+     */
+    public function updateOwnProfile(StaffUser $staff, array $data, ?UploadedFile $photo = null, bool $removePhoto = false): StaffUser
+    {
+        $payload = [
+            'name' => $data['name'],
+            'email' => $data['email'],
+        ];
+
+        $passwordChanged = filled($data['password'] ?? null);
+        $roleChanged = false;
+
+        if ($passwordChanged) {
+            $payload['password'] = $data['password'];
+        }
+
+        if ($staff->hasPermission(PermissionEnum::ManageStaff) && array_key_exists('role_id', $data) && $data['role_id'] !== null) {
+            $roleId = (int) $data['role_id'];
+            $this->assertNotLastSuperAdminRoleChange($staff, $roleId);
+            $roleChanged = $roleId !== (int) $staff->role_id;
+            $payload['role_id'] = $roleId;
+        }
+
+        $photoChanged = false;
+
+        if ($photo !== null) {
+            $this->deleteAvatar($staff->avatar_path);
+            $payload['avatar_path'] = $photo->store('staff-avatars', 'public_media');
+            $photoChanged = true;
+        } elseif ($removePhoto) {
+            $this->deleteAvatar($staff->avatar_path);
+            $payload['avatar_path'] = null;
+            $photoChanged = true;
+        }
+
+        $staff->fill($payload);
+        $staff->save();
+
+        if ($passwordChanged || $roleChanged) {
+            $this->invalidateSessions($staff);
+        }
+
+        $this->auditLogger->write('staff.profile_updated', $staff, $staff, [
+            'password_changed' => $passwordChanged,
+            'photo_changed' => $photoChanged,
+            'role_changed' => $roleChanged,
+        ]);
+
+        return $staff;
+    }
+
     public function delete(StaffUser $staff, StaffUser $actor): void
     {
         if ($staff->is($actor)) {
@@ -122,10 +182,11 @@ class StaffService
             'email' => $staff->email,
         ]);
 
+        $this->deleteAvatar($staff->avatar_path);
         $staff->delete();
     }
 
-    public function deactivate(StaffUser $staff, StaffUser $actor): void
+    public function deactivate(StaffUser $staff, StaffUser $actor, ?string $reason = null): void
     {
         if ($staff->is($actor)) {
             throw ValidationException::withMessages([
@@ -136,7 +197,14 @@ class StaffService
         $staff->update(['is_active' => false]);
         $this->invalidateSessions($staff);
 
-        $this->auditLogger->write('staff.deactivated', $actor, $staff);
+        $this->auditLogger->write('staff.deactivated', $actor, $staff, array_filter(['reason' => $reason]));
+    }
+
+    public function signOutEverywhere(StaffUser $staff, StaffUser $actor, string $reason): void
+    {
+        $this->invalidateSessions($staff);
+
+        $this->auditLogger->write('staff.sessions_revoked', $actor, $staff, ['reason' => $reason]);
     }
 
     public function activate(StaffUser $staff, StaffUser $actor): void
@@ -156,7 +224,28 @@ class StaffService
                 StaffRole::Operations->value,
             ]))->count(),
             'active' => StaffUser::query()->where('is_active', true)->count(),
+            'branches' => StaffUser::query()->whereNotNull('branch')->distinct()->count('branch'),
         ];
+    }
+
+    /** @return list<string> */
+    public function branches(): array
+    {
+        return StaffUser::query()->whereNotNull('branch')->distinct()->orderBy('branch')->pluck('branch')->all();
+    }
+
+    private function deleteAvatar(?string $path): void
+    {
+        if ($path) {
+            Storage::disk('public_media')->delete($path);
+        }
+    }
+
+    private function normalizeBranch(mixed $branch): ?string
+    {
+        $branch = trim((string) $branch);
+
+        return $branch === '' ? null : $branch;
     }
 
     private function assertNotLastSuperAdmin(StaffUser $staff): void

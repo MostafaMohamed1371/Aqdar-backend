@@ -61,6 +61,8 @@ class DashboardPhase9Test extends TestCase
             ->assertSee(__('aqdar.needs.title'))
             ->assertSee(__('aqdar.funnel.title'))
             ->assertSee('data-chart="listing-performance"', false)
+            ->assertSee('<polyline data-series="approved"', false)
+            ->assertSee('<polyline data-series="rejected"', false)
             ->assertSee('data-chart="listing-status"', false)
             ->assertSee('data-chart="egypt-map"', false)
             ->assertSee(__('aqdar.presets.days_30'))
@@ -74,7 +76,23 @@ class DashboardPhase9Test extends TestCase
             ->assertSee('cols3-dash', false)
             ->assertDontSee('grid-template-columns:1.5fr', false)
             ->assertSee('name="q"', false)
-            ->assertSee('action="'.route('dashboard.listings.index').'"', false);
+            ->assertSee('action="'.route('dashboard.listings.index').'"', false)
+            ->assertSee(route('dashboard.listings.index', [
+                'status' => 'in_review',
+                'from' => now()->startOfYear()->toDateString(),
+                'to' => now()->toDateString(),
+            ]));
+    }
+
+    public function test_sidebar_shows_pending_review_badge(): void
+    {
+        $this->actingAsStaff();
+        Listing::factory()->count(2)->create(['status' => ListingStatus::InReview]);
+        Listing::factory()->published()->create();
+
+        $this->get(route('dashboard'))
+            ->assertOk()
+            ->assertSee('<span class="cnt">2</span>', false);
     }
 
     public function test_header_search_on_listings_uses_listing_query(): void

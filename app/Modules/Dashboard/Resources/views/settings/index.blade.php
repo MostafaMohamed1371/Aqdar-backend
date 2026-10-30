@@ -133,6 +133,9 @@
                 <div class="dl"><span>{{ __('aqdar.settings.provider_sms') }}</span><b>{{ $providerStatuses['sms'] }}</b></div>
                 <div class="dl"><span>{{ __('aqdar.settings.provider_push') }}</span><b>{{ $providerStatuses['push'] }}</b></div>
                 <div class="dl"><span>{{ __('aqdar.settings.provider_storage') }}</span><b>{{ $providerStatuses['storage'] }}</b></div>
+                <div class="dl"><span>{{ __('aqdar.settings.diag_failed_jobs') }}</span><b class="en" @style(['color:var(--bad)' => $diagnostics['failed_jobs'] > 0])>{{ number_format($diagnostics['failed_jobs']) }}@if ($diagnostics['last_failed_at']) · {{ \Illuminate\Support\Carbon::parse($diagnostics['last_failed_at'])->format('Y/m/d H:i') }}@endif</b></div>
+                <div class="dl"><span>{{ __('aqdar.settings.diag_push_failed') }}</span><b class="en">{{ number_format($diagnostics['push_failed']) }}</b></div>
+                <div class="dl"><span>{{ __('aqdar.settings.diag_push_pending') }}</span><b class="en">{{ number_format($diagnostics['push_pending']) }}</b></div>
             </div>
         </div>
 

@@ -7,8 +7,10 @@ use App\Core\Enums\CaseStatus;
 use App\Core\Enums\CommissionBasis;
 use App\Core\Enums\CommissionPayer;
 use App\Core\Enums\CommissionStatus;
+use App\Core\Services\QueueQuery;
 use App\Modules\Crm\Models\TransferCase;
 use App\Modules\Finance\Models\Commission;
+use App\Modules\Finance\Models\CommissionHistory;
 use App\Modules\Setting\Services\SettingService;
 use App\Modules\Staff\Models\StaffUser;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
@@ -27,13 +29,19 @@ class CommissionService
 
     public function paginate(StaffUser $staff, array $filters): LengthAwarePaginator
     {
-        $this->assertCanEdit($staff);
+        $this->assertCanView($staff);
 
-        return $this->filtered($filters)
-            ->with(['transferCase.buyer', 'listing.unitType', 'listing.area', 'creator', 'history.actor'])
-            ->latest('id')
-            ->paginate(20)
-            ->withQueryString();
+        $query = $this->filtered($staff, $filters)
+            ->with(['transferCase.buyer', 'listing.unitType', 'listing.area', 'creator', 'approver', 'history.actor'])
+            ->latest('id');
+        QueueQuery::apply($query, $filters, [
+            'date' => 'created_at',
+            'sale_value' => 'sale_value',
+            'amount' => 'amount',
+            'status' => 'status',
+        ]);
+
+        return $query->paginate(20)->withQueryString();
     }
 
     /** @return Collection<int, TransferCase> */
@@ -51,11 +59,11 @@ class CommissionService
     /** @return array<string, mixed> */
     public function counts(StaffUser $staff, array $filters = []): array
     {
-        $this->assertCanEdit($staff);
-        $base = $this->filtered($filters);
+        $this->assertCanView($staff);
+        $base = $this->filtered($staff, $filters);
 
         return [
-            'total_amount' => (float) (clone $base)->where('status', '!=', CommissionStatus::Waived->value)->sum('amount'),
+            'total_amount' => (float) (clone $base)->whereNotIn('status', CommissionStatus::excludedFromRevenue())->sum('amount'),
             'due_amount' => (float) (clone $base)->where('status', CommissionStatus::Due->value)->sum('amount'),
             'deal_count' => (clone $base)->count(),
             'average_rate' => (float) (clone $base)->where('basis', CommissionBasis::Percent->value)->avg('rate'),
@@ -65,15 +73,16 @@ class CommissionService
     /** @return array<string, mixed> */
     public function charts(StaffUser $staff, array $filters = []): array
     {
-        $this->assertCanEdit($staff);
+        $this->assertCanView($staff);
         $anchor = $this->monthStart((string) ($filters['month'] ?? '')) ?? now()->startOfMonth();
         $months = [];
         for ($i = 5; $i >= 0; $i--) {
             $start = $anchor->copy()->subMonths($i)->startOfMonth();
             $end = $start->copy()->endOfMonth();
             $query = Commission::query()
-                ->where('status', '!=', CommissionStatus::Waived->value)
+                ->whereNotIn('status', CommissionStatus::excludedFromRevenue())
                 ->whereBetween('created_at', [$start, $end]);
+            $this->restrictViewer($query, $staff);
             $months[] = [
                 'key' => $start->format('Y-m'),
                 'label' => __('aqdar.commissions.month_name.'.(int) $start->format('n')),
@@ -82,11 +91,11 @@ class CommissionService
             ];
         }
 
-        $typeQuery = $this->filtered([
+        $typeQuery = $this->filtered($staff, [
             'month' => (string) ($filters['month'] ?? ''),
             'status' => 'all',
             'q' => '',
-        ])->where('status', '!=', CommissionStatus::Waived->value)->with('listing.unitType');
+        ])->whereNotIn('status', CommissionStatus::excludedFromRevenue())->with('listing.unitType');
 
         $buckets = ['apartment' => 0.0, 'villa' => 0.0, 'land' => 0.0, 'investment' => 0.0];
         foreach ($typeQuery->get() as $row) {
@@ -155,10 +164,13 @@ class CommissionService
         }
 
         $payload = $this->normalize($data, $case);
+        $autoApprove = $staff->isSuperAdmin();
         $commission = Commission::query()->create($payload + [
             'case_id' => $case->id,
             'listing_id' => $case->listing_id,
             'created_by' => $staff->id,
+            'approved_at' => $autoApprove ? now() : null,
+            'approved_by' => $autoApprove ? $staff->id : null,
         ]);
         $this->recordHistory($commission, $staff, null, $commission->status, $data['reason'] ?? __('aqdar.commissions.opened'), [], $commission->snapshot());
         $this->audit->write('commission.created', $staff, $commission, $commission->snapshot());
@@ -171,6 +183,10 @@ class CommissionService
         $this->assertCanEdit($staff);
         $before = $commission->snapshot();
         $payload = $this->normalize($data, $commission->transferCase, $commission);
+        if (! $staff->isSuperAdmin()) {
+            $payload['approved_at'] = null;
+            $payload['approved_by'] = null;
+        }
         $old = $commission->status;
         $commission->forceFill($payload)->save();
         $fresh = $commission->fresh() ?? $commission;
@@ -192,12 +208,37 @@ class CommissionService
         return $fresh;
     }
 
+    public function approve(Commission $commission, StaffUser $staff, string $reason): Commission
+    {
+        $this->assertCanApprove($staff);
+        $before = $commission->snapshot();
+        $commission->forceFill([
+            'approved_at' => now(),
+            'approved_by' => $staff->id,
+        ])->save();
+        $fresh = $commission->fresh() ?? $commission;
+        $this->recordHistory(
+            $fresh,
+            $staff,
+            $fresh->status,
+            $fresh->status,
+            $reason,
+            $before,
+            $fresh->snapshot(),
+        );
+        $this->audit->write('commission.approved', $staff, $fresh, [
+            'reason' => $reason,
+        ]);
+
+        return $fresh;
+    }
+
     public function exportCsv(StaffUser $staff, array $filters): StreamedResponse
     {
-        $this->assertCanEdit($staff);
+        $this->assertCanView($staff);
         abort_unless($staff->can('export_csv'), 403, __('aqdar.http.forbidden'));
 
-        $rows = $this->filtered($filters)
+        $rows = $this->filtered($staff, $filters)
             ->with(['transferCase', 'listing'])
             ->orderBy('id')
             ->get();
@@ -227,12 +268,17 @@ class CommissionService
         ]);
     }
 
-    public function latestChange(): ?object
+    public function latestChange(StaffUser $staff): ?object
     {
-        return \App\Modules\Finance\Models\CommissionHistory::query()
+        $this->assertCanView($staff);
+        $query = CommissionHistory::query()
             ->with(['actor', 'commission.transferCase'])
-            ->latest('id')
-            ->first();
+            ->latest('id');
+        if ($this->isViewerOnly($staff)) {
+            $query->whereHas('commission.transferCase', fn ($case) => $case->where('assigned_to', $staff->id));
+        }
+
+        return $query->first();
     }
 
     public function defaultRate(): float
@@ -259,17 +305,53 @@ class CommissionService
         if ($staff->can('edit_commissions')) {
             return;
         }
+        $this->deny($staff, 'edit_commissions');
+    }
+
+    public function assertCanView(StaffUser $staff): void
+    {
+        if ($staff->can('edit_commissions') || $staff->can('approve_commissions') || $staff->can('view_commissions')) {
+            return;
+        }
+        $this->deny($staff, 'view_commissions');
+    }
+
+    public function assertCanApprove(StaffUser $staff): void
+    {
+        if ($staff->can('approve_commissions')) {
+            return;
+        }
+        $this->deny($staff, 'approve_commissions');
+    }
+
+    public function isViewerOnly(StaffUser $staff): bool
+    {
+        return $staff->can('view_commissions')
+            && ! $staff->can('edit_commissions')
+            && ! $staff->can('approve_commissions');
+    }
+
+    private function deny(StaffUser $staff, string $permission): never
+    {
         $this->audit->write('permission_denied', $staff, null, [
-            'permission' => 'edit_commissions',
+            'permission' => $permission,
             'path' => request()->path(),
         ]);
         abort(403, __('aqdar.http.forbidden'));
     }
 
+    private function restrictViewer(Builder $query, StaffUser $staff): void
+    {
+        if ($this->isViewerOnly($staff)) {
+            $query->whereHas('transferCase', fn ($case) => $case->where('assigned_to', $staff->id));
+        }
+    }
+
     /** @param array<string, mixed> $filters */
-    private function filtered(array $filters): Builder
+    private function filtered(StaffUser $staff, array $filters): Builder
     {
         $query = Commission::query();
+        $this->restrictViewer($query, $staff);
         $status = (string) ($filters['status'] ?? '');
         if ($status !== '' && $status !== 'all') {
             $query->where('status', $status);

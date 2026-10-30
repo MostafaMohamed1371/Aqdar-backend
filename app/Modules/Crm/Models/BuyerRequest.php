@@ -26,6 +26,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
     'lead_id',
     'assigned_to',
     'status',
+    'is_duplicate',
+    'duplicate_of_id',
     'intent',
     'segment_preference',
     'unit_type_id',
@@ -67,6 +69,7 @@ class BuyerRequest extends Model
             'contact_method' => ContactMethod::class,
             'consent_at' => 'datetime',
             'criteria' => 'array',
+            'is_duplicate' => 'boolean',
             'area_sqm_min' => 'decimal:2',
             'area_sqm_max' => 'decimal:2',
             'budget_min' => 'decimal:2',
@@ -91,6 +94,11 @@ class BuyerRequest extends Model
     public function assignee(): BelongsTo
     {
         return $this->belongsTo(StaffUser::class, 'assigned_to');
+    }
+
+    public function duplicateOf(): BelongsTo
+    {
+        return $this->belongsTo(self::class, 'duplicate_of_id');
     }
 
     public function unitType(): BelongsTo

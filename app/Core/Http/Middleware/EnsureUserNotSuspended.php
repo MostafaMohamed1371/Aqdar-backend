@@ -13,10 +13,23 @@ class EnsureUserNotSuspended
     {
         $user = $request->user();
 
-        if ($user instanceof User && $user->isSuspended()) {
-            abort(Response::HTTP_FORBIDDEN, __('aqdar.auth.account_suspended'));
+        if ($user instanceof User && $user->isMarketplaceBlocked()) {
+            abort(Response::HTTP_FORBIDDEN, $this->blockedMessage($user));
         }
 
         return $next($request);
+    }
+
+    private function blockedMessage(User $user): string
+    {
+        if ($user->isClosed()) {
+            return __('aqdar.auth.account_closed');
+        }
+
+        if ($user->isClosePending()) {
+            return __('aqdar.auth.account_close_pending');
+        }
+
+        return __('aqdar.auth.account_suspended');
     }
 }

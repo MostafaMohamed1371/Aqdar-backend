@@ -26,6 +26,7 @@ class UpdateStaffRequest extends StoreStaffRequest
                 ? ValidationRules::password()
                 : ['nullable'],
             'role_id' => ['required', 'integer', Rule::exists('roles', 'id')],
+            'branch' => ['nullable', 'string', 'max:80'],
         ];
     }
 

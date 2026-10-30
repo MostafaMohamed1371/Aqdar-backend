@@ -9,11 +9,12 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-#[Fillable(['slug', 'name_ar', 'name_en', 'is_active', 'sort_order'])]
+#[Fillable(['slug', 'code', 'name_ar', 'name_en', 'is_active', 'sort_order'])]
 class Governorate extends Model
 {
     /** @use HasFactory<GovernorateFactory> */
     use HasFactory;
+
     use HasLocalizedName;
 
     protected static function newFactory(): GovernorateFactory

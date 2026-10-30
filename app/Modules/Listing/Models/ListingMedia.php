@@ -62,6 +62,18 @@ class ListingMedia extends Model
         return $this->belongsTo(StaffUser::class, 'reviewed_by');
     }
 
+    public function isVideo(): bool
+    {
+        $mime = strtolower((string) $this->mime);
+        if (str_starts_with($mime, 'video/')) {
+            return true;
+        }
+
+        $extension = strtolower(pathinfo((string) $this->original_path, PATHINFO_EXTENSION));
+
+        return in_array($extension, ['mp4', 'webm'], true);
+    }
+
     public function isApproved(): bool
     {
         return $this->moderation_status === MediaModerationStatus::Approved && filled($this->public_path);

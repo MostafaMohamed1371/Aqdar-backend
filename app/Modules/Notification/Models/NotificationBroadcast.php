@@ -17,6 +17,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
     'scheduled_at',
     'sent_at',
     'created_by',
+    'approved_at',
+    'approved_by',
 ])]
 class NotificationBroadcast extends Model
 {
@@ -25,11 +27,22 @@ class NotificationBroadcast extends Model
         return [
             'scheduled_at' => 'datetime',
             'sent_at' => 'datetime',
+            'approved_at' => 'datetime',
         ];
     }
 
     public function creator(): BelongsTo
     {
         return $this->belongsTo(StaffUser::class, 'created_by');
+    }
+
+    public function approver(): BelongsTo
+    {
+        return $this->belongsTo(StaffUser::class, 'approved_by');
+    }
+
+    public function isApproved(): bool
+    {
+        return $this->approved_at !== null;
     }
 }

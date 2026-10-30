@@ -12,6 +12,7 @@ use App\Modules\Dashboard\Http\Controllers\DocumentDeskController;
 use App\Modules\Dashboard\Http\Controllers\LeadDeskController;
 use App\Modules\Dashboard\Http\Controllers\ListingDeskController;
 use App\Modules\Dashboard\Http\Controllers\NotificationDeskController;
+use App\Modules\Dashboard\Http\Controllers\ProfileController;
 use App\Modules\Dashboard\Http\Controllers\ReferenceController;
 use App\Modules\Dashboard\Http\Controllers\ReportDeskController;
 use App\Modules\Dashboard\Http\Controllers\SettingController;
@@ -30,9 +31,12 @@ Route::post('/dashboard/login', [AuthWebController::class, 'login'])
 Route::middleware('auth')->prefix('dashboard')->name('dashboard.')->group(function (): void {
     Route::get('inbox', [StaffInboxController::class, 'index'])->name('inbox');
     Route::post('inbox/{notification}/read', [StaffInboxController::class, 'read'])->whereNumber('notification')->name('inbox.read');
+    Route::get('profile', [ProfileController::class, 'show'])->name('profile.show');
+    Route::put('profile', [ProfileController::class, 'update'])->name('profile.update');
 
     Route::middleware('staff.can:approve_listing')->group(function (): void {
         Route::get('listings', [ListingDeskController::class, 'index'])->name('listings.index');
+        Route::post('listings/bulk', [ListingDeskController::class, 'bulk'])->name('listings.bulk');
         Route::get('listings/{listing}', [ListingDeskController::class, 'show'])->name('listings.show');
         Route::post('listings/{listing}/approve', [ListingDeskController::class, 'approve'])->name('listings.approve');
         Route::post('listings/{listing}/request-changes', [ListingDeskController::class, 'requestChanges'])->name('listings.request-changes');
@@ -105,13 +109,19 @@ Route::middleware('auth')->prefix('dashboard')->name('dashboard.')->group(functi
         Route::put('tags/{tag}', [ReferenceController::class, 'updateTag'])->name('tags.update');
         Route::delete('tags/{tag}', [ReferenceController::class, 'destroyTag'])->name('tags.destroy');
 
-        Route::get('content', [ContentController::class, 'index'])->name('content.index');
         Route::post('content', [ContentController::class, 'store'])->name('content.store');
         Route::put('content/{contentBlock}', [ContentController::class, 'update'])->name('content.update');
         Route::delete('content/{contentBlock}', [ContentController::class, 'destroy'])->name('content.destroy');
         Route::put('notifications/templates/{template}', [NotificationDeskController::class, 'updateTemplate'])->whereNumber('template')->name('notifications.templates.update');
         Route::post('notifications/test-send', [NotificationDeskController::class, 'testSend'])->name('notifications.test-send');
+    });
+
+    Route::middleware('staff.can:manage_catalog,approve_broadcasts')->group(function (): void {
+        Route::get('content', [ContentController::class, 'index'])->name('content.index');
         Route::post('notifications/broadcasts', [NotificationDeskController::class, 'broadcast'])->name('notifications.broadcasts');
+        Route::post('notifications/broadcasts/{broadcast}/approve', [NotificationDeskController::class, 'approveBroadcast'])
+            ->whereNumber('broadcast')
+            ->name('notifications.broadcasts.approve');
     });
 
     Route::middleware('staff.can:manage_crm')->group(function (): void {
@@ -130,19 +140,17 @@ Route::middleware('auth')->prefix('dashboard')->name('dashboard.')->group(functi
         Route::post('requests/{buyerRequest}/assign', [BuyerRequestDeskController::class, 'assign'])->name('requests.assign');
         Route::post('requests/{buyerRequest}/status', [BuyerRequestDeskController::class, 'status'])->name('requests.status');
         Route::post('requests/{buyerRequest}/refresh', [BuyerRequestDeskController::class, 'refresh'])->name('requests.refresh');
+        Route::post('requests/{buyerRequest}/matches/attach', [BuyerRequestDeskController::class, 'attachMatch'])->name('requests.matches.attach');
         Route::post('requests/{buyerRequest}/matches/{match}/send', [BuyerRequestDeskController::class, 'sendMatch'])->name('requests.matches.send');
         Route::post('requests/{buyerRequest}/matches/{match}/response', [BuyerRequestDeskController::class, 'matchResponse'])->name('requests.matches.response');
         Route::post('requests/{buyerRequest}/matches/{match}/open-lead', [BuyerRequestDeskController::class, 'openLead'])->name('requests.matches.open-lead');
         Route::post('requests/{buyerRequest}/convert', [BuyerRequestDeskController::class, 'convert'])->name('requests.convert');
 
-        Route::get('cases', [TransferCaseDeskController::class, 'index'])->name('cases.index');
         Route::post('cases', [TransferCaseDeskController::class, 'store'])->name('cases.store');
         Route::get('cases/documents/{caseDocument}/download', [TransferCaseDeskController::class, 'download'])
             ->middleware('signed')
             ->name('cases.documents.download');
-        Route::get('cases/{transferCase}', [TransferCaseDeskController::class, 'show'])->whereNumber('transferCase')->name('cases.show');
         Route::post('cases/{transferCase}/assign', [TransferCaseDeskController::class, 'assign'])->whereNumber('transferCase')->name('cases.assign');
-        Route::post('cases/{transferCase}/stage', [TransferCaseDeskController::class, 'stage'])->whereNumber('transferCase')->name('cases.stage');
         Route::post('cases/{transferCase}/lifecycle', [TransferCaseDeskController::class, 'lifecycle'])->whereNumber('transferCase')->name('cases.lifecycle');
         Route::post('cases/{transferCase}/documents', [TransferCaseDeskController::class, 'storeDocument'])->whereNumber('transferCase')->name('cases.documents.store');
 
@@ -150,6 +158,12 @@ Route::middleware('auth')->prefix('dashboard')->name('dashboard.')->group(functi
         Route::get('support/{supportThread}', [SupportDeskController::class, 'show'])->whereNumber('supportThread')->name('support.show');
         Route::post('support/{supportThread}/reply', [SupportDeskController::class, 'reply'])->whereNumber('supportThread')->name('support.reply');
         Route::post('support/{supportThread}/close', [SupportDeskController::class, 'close'])->whereNumber('supportThread')->name('support.close');
+    });
+
+    Route::middleware('staff.can:manage_crm,advance_finance_stages')->group(function (): void {
+        Route::get('cases', [TransferCaseDeskController::class, 'index'])->name('cases.index');
+        Route::get('cases/{transferCase}', [TransferCaseDeskController::class, 'show'])->whereNumber('transferCase')->name('cases.show');
+        Route::post('cases/{transferCase}/stage', [TransferCaseDeskController::class, 'stage'])->whereNumber('transferCase')->name('cases.stage');
     });
 
     Route::middleware('staff.can:view_users')->group(function (): void {
@@ -166,14 +180,21 @@ Route::middleware('auth')->prefix('dashboard')->name('dashboard.')->group(functi
             Route::delete('users/{user}', [UserController::class, 'destroy'])->name('users.destroy');
             Route::post('users/{user}/suspend', [UserController::class, 'suspend'])->name('users.suspend');
             Route::post('users/{user}/reactivate', [UserController::class, 'reactivate'])->name('users.reactivate');
+            Route::post('users/{user}/close/complete', [UserController::class, 'completeClose'])->name('users.close.complete');
+            Route::post('users/{user}/close/decline', [UserController::class, 'declineClose'])->name('users.close.decline');
         });
     });
 
-    Route::middleware('staff.can:edit_commissions')->group(function (): void {
+    Route::middleware('staff.can:edit_commissions,approve_commissions,view_commissions')->group(function (): void {
         Route::get('commissions', [CommissionDeskController::class, 'index'])->name('commissions.index');
+        Route::get('commissions/export', [CommissionDeskController::class, 'export'])->name('commissions.export');
+    });
+    Route::middleware('staff.can:edit_commissions')->group(function (): void {
         Route::post('commissions', [CommissionDeskController::class, 'store'])->name('commissions.store');
         Route::match(['put', 'patch'], 'commissions/{commission}', [CommissionDeskController::class, 'update'])->whereNumber('commission')->name('commissions.update');
-        Route::get('commissions/export', [CommissionDeskController::class, 'export'])->name('commissions.export');
+    });
+    Route::middleware('staff.can:approve_commissions')->group(function (): void {
+        Route::post('commissions/{commission}/approve', [CommissionDeskController::class, 'approve'])->whereNumber('commission')->name('commissions.approve');
     });
 
     Route::middleware('staff.can:manage_staff')->group(function (): void {
@@ -185,6 +206,7 @@ Route::middleware('auth')->prefix('dashboard')->name('dashboard.')->group(functi
         Route::delete('staff/{staffUser}', [StaffController::class, 'destroy'])->name('staff.destroy');
         Route::post('staff/{staffUser}/deactivate', [StaffController::class, 'deactivate'])->name('staff.deactivate');
         Route::post('staff/{staffUser}/activate', [StaffController::class, 'activate'])->name('staff.activate');
+        Route::post('staff/{staffUser}/sign-out', [StaffController::class, 'signOutEverywhere'])->name('staff.sign-out');
 
         Route::get('audit', [AuditDeskController::class, 'index'])->name('audit.index');
         Route::get('audit/export', [AuditDeskController::class, 'export'])->name('audit.export');

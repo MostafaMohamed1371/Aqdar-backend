@@ -68,7 +68,21 @@
             @endif
             @if ($canReview)
                 @include('dashboard::partials.reason-form', ['action' => route('dashboard.listings.approve', $listing), 'label' => __('aqdar.listings.desk.approve'), 'tone' => ''])
-                @include('dashboard::partials.reason-form', ['action' => route('dashboard.listings.request-changes', $listing), 'label' => __('aqdar.listings.desk.request_changes'), 'tone' => 'ghost'])
+                <form method="POST" action="{{ route('dashboard.listings.request-changes', $listing) }}" style="margin:6px 0">
+                    @csrf
+                    <div style="display:flex;gap:8px;align-items:flex-start;flex-wrap:wrap">
+                        <input type="text" name="reason" required minlength="3" maxlength="500" placeholder="{{ __('aqdar.listings.desk.reason') }}" style="flex:1;min-width:180px">
+                        <button type="submit" class="btn sm ghost">{{ __('aqdar.listings.desk.request_changes') }}</button>
+                    </div>
+                    <details style="margin-top:6px">
+                        <summary class="tiny">{{ __('aqdar.listings.desk.field_notes') }}</summary>
+                        @foreach (\App\Modules\Listing\Models\ListingStatusHistory::NOTE_SECTIONS as $section)
+                            <label class="tiny" style="display:block;margin-top:6px">{{ __('aqdar.listings.desk.note_sections.'.$section) }}
+                                <input type="text" name="field_notes[{{ $section }}]" maxlength="300" value="{{ old('field_notes.'.$section) }}" style="width:100%">
+                            </label>
+                        @endforeach
+                    </details>
+                </form>
                 @include('dashboard::partials.reason-form', ['action' => route('dashboard.listings.reject', $listing), 'label' => __('aqdar.listings.desk.reject'), 'tone' => 'ghost'])
             @endif
             @if ($status === 'approved')
@@ -132,6 +146,9 @@
                         <option value="{{ $reviewer->id }}" @selected((int) $listing->assigned_reviewer_id === (int) $reviewer->id)>{{ $reviewer->name }}</option>
                     @endforeach
                 </select>
+                @if ($listing->assigned_reviewer_id)
+                    <input type="text" name="reason" minlength="3" maxlength="500" placeholder="{{ __('aqdar.crm.reassign_reason_placeholder') }}" style="min-width:220px">
+                @endif
                 <button class="btn sm" type="submit">{{ __('aqdar.listings.desk.assign_reviewer') }}</button>
             </div>
         </form>
@@ -206,7 +223,8 @@
                     @endforeach
                 </table>
             </div>
-            <div style="padding:12px 14px">
+            <div style="padding:12px 14px;display:flex;gap:8px;flex-wrap:wrap">
+                <input type="text" name="reason" required minlength="3" maxlength="500" placeholder="{{ __('aqdar.listings.desk.verify_reason') }}" style="flex:1;min-width:220px">
                 <button class="btn sm" type="submit">{{ __('aqdar.listings.desk.save_verified') }}</button>
             </div>
         </form>
@@ -242,6 +260,32 @@
             </div>
         </div>
     @endif
+
+    <div class="card">
+        <div class="card-h"><b>{{ __('aqdar.listings.desk.decision_timeline') }}</b></div>
+        <div class="tw">
+            <table class="t">
+                @forelse ($listing->statusHistory->sortByDesc('id') as $entry)
+                    <tr>
+                        <td class="en tiny" style="white-space:nowrap">{{ $entry->created_at?->format('Y/m/d H:i') }}</td>
+                        <td style="white-space:nowrap">
+                            @if ($entry->from_status){{ __('aqdar.listings.status.'.$entry->from_status->value) }} {{ app()->getLocale() === 'ar' ? '←' : '→' }} @endif
+                            <b>{{ __('aqdar.listings.status.'.$entry->to_status?->value) }}</b>
+                        </td>
+                        <td>
+                            {{ $entry->reason }}
+                            @foreach ((array) $entry->field_notes as $section => $note)
+                                @if ($note)<div class="tiny">{{ __('aqdar.listings.desk.note_sections.'.$section) }}: {{ $note }}</div>@endif
+                            @endforeach
+                        </td>
+                        <td>{{ $entry->actor?->name ?? '—' }}</td>
+                    </tr>
+                @empty
+                    <tr><td>{{ __('aqdar.listings.desk.timeline_empty') }}</td></tr>
+                @endforelse
+            </table>
+        </div>
+    </div>
 
     @if ($listing->contact_flagged)
         <div class="alert">

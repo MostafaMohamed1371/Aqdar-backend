@@ -10,6 +10,7 @@ use App\Modules\Listing\Models\Listing;
 use App\Modules\Staff\Models\StaffUser;
 use App\Modules\User\Models\User;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -105,6 +106,29 @@ class Lead extends Model
     public function transferCases(): HasMany
     {
         return $this->hasMany(TransferCase::class);
+    }
+
+    /**
+     * Open leads past their first-contact SLA, or with a scheduled follow-up whose due time
+     * passed without any newer activity being logged.
+     */
+    public function scopeOverdueFollowUp(Builder $query): Builder
+    {
+        return $query->where(function (Builder $overdue): void {
+            $overdue->where(function (Builder $sla): void {
+                $sla->where('status', LeadStatus::New->value)
+                    ->whereNotNull('sla_due_at')
+                    ->where('sla_due_at', '<', now());
+            })->orWhere(function (Builder $scheduled): void {
+                $scheduled->whereNotIn('status', [LeadStatus::Converted->value, LeadStatus::Lost->value])
+                    ->whereHas('activities', fn (Builder $activity) => $activity->overdueFollowUp());
+            });
+        });
+    }
+
+    public function hasOverdueFollowUp(): bool
+    {
+        return static::query()->whereKey($this->getKey())->overdueFollowUp()->exists();
     }
 
     public function slaBreached(): bool

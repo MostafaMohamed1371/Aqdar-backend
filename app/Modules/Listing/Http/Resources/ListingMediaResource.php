@@ -19,6 +19,7 @@ class ListingMediaResource extends JsonResource
             'id' => $this->id,
             'sort_order' => $this->sort_order,
             'caption' => $this->caption,
+            'kind' => $this->isVideo() ? 'video' : 'photo',
             'mime' => $this->mime,
             'width' => $this->width,
             'height' => $this->height,

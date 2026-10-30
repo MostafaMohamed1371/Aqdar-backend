@@ -5,13 +5,18 @@ namespace App\Modules\User\Services;
 use App\Core\Audit\AuditLogger;
 use App\Core\Enums\AccountType;
 use App\Core\Enums\IdentityStatus;
+use App\Core\Enums\ListingStatus;
 use App\Core\Identity\EgyptianPhone;
 use App\Core\Services\AbstractService;
+use App\Modules\Listing\Models\Listing;
+use App\Modules\Listing\Models\ListingStatusHistory;
+use App\Modules\Listing\Services\ListingStateMachine;
 use App\Modules\Staff\Models\StaffUser;
 use App\Modules\User\Models\User;
 use App\Modules\User\Models\UserDevice;
 use App\Modules\User\Repositories\UserRepository;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 class UserService extends AbstractService
@@ -238,12 +243,192 @@ class UserService extends AbstractService
         return $user->phone ?? '';
     }
 
+    public function revealEmail(User $user, StaffUser $actor): string
+    {
+        $this->auditLogger->access('user.email_revealed', $actor, $user, [
+            'email_masked' => true,
+        ]);
+
+        return $user->email ?? '';
+    }
+
+    /**
+     * Flags accounts that share a device with another account or whose email differs from another only by case.
+     *
+     * @param  iterable<User>  $users
+     * @return array<int, list<string>> user id => reasons ("device", "email")
+     */
+    public function possibleDuplicates(iterable $users): array
+    {
+        $users = collect($users);
+        if ($users->isEmpty()) {
+            return [];
+        }
+
+        $flags = [];
+
+        $pageDevices = UserDevice::query()->whereIn('user_id', $users->pluck('id'))->get(['user_id', 'device_uuid']);
+        $sharedUuids = UserDevice::query()
+            ->whereIn('device_uuid', $pageDevices->pluck('device_uuid')->unique())
+            ->get(['user_id', 'device_uuid'])
+            ->groupBy('device_uuid')
+            ->filter(fn ($rows) => $rows->pluck('user_id')->unique()->count() > 1)
+            ->keys();
+        foreach ($pageDevices->whereIn('device_uuid', $sharedUuids)->pluck('user_id')->unique() as $userId) {
+            $flags[(int) $userId][] = 'device';
+        }
+
+        $emails = $users->pluck('email')->filter()->map(fn (string $email) => mb_strtolower($email))->unique();
+        if ($emails->isNotEmpty()) {
+            $emailCounts = User::query()
+                ->where(function ($query) use ($emails): void {
+                    foreach ($emails as $email) {
+                        $query->orWhere('email', 'ilike', addcslashes($email, '%_\\'));
+                    }
+                })
+                ->pluck('email')
+                ->countBy(fn (string $email) => mb_strtolower($email));
+
+            foreach ($users as $user) {
+                if ($user->email && ($emailCounts[mb_strtolower($user->email)] ?? 0) > 1) {
+                    $flags[$user->id][] = 'email';
+                }
+            }
+        }
+
+        return $flags;
+    }
+
+    public function requestClose(User $user, string $reason): User
+    {
+        if ($user->isClosed()) {
+            throw ValidationException::withMessages([
+                'reason' => [__('aqdar.users.already_closed')],
+            ]);
+        }
+
+        if (! $user->isClosePending()) {
+            $user->forceFill([
+                'close_requested_at' => now(),
+                'close_reason' => $reason,
+            ])->save();
+            $this->archivePublicListings($user);
+            $this->auditLogger->write('user.closure_requested', $user, $user, [
+                'reason' => $reason,
+            ]);
+        }
+
+        $user->tokens()->delete();
+        $user->devices()->delete();
+
+        return $user->fresh() ?? $user;
+    }
+
+    public function completeClose(User $user, StaffUser $actor): User
+    {
+        if ($user->isClosed()) {
+            throw ValidationException::withMessages([
+                'user' => [__('aqdar.users.already_closed')],
+            ]);
+        }
+
+        if (! $user->isClosePending()) {
+            throw ValidationException::withMessages([
+                'user' => [__('aqdar.users.no_pending_close')],
+            ]);
+        }
+
+        $this->archivePublicListings($user);
+        $user->savedSearches()->delete();
+        $user->tokens()->delete();
+        $user->devices()->delete();
+
+        $user->forceFill([
+            'name' => 'حساب مغلق',
+            'email' => 'closed.'.$user->id.'@invalid.local',
+            'phone' => null,
+            'phone_verified_at' => null,
+            'email_verified_at' => null,
+            'password' => Str::password(32),
+            'closed_at' => now(),
+            'closed_by' => $actor->id,
+        ])->save();
+
+        $this->auditLogger->write('user.closure_completed', $actor, $user, [
+            'anonymized' => true,
+        ]);
+
+        return $user->fresh() ?? $user;
+    }
+
+    public function declineClose(User $user, StaffUser $actor): User
+    {
+        if ($user->isClosed()) {
+            throw ValidationException::withMessages([
+                'user' => [__('aqdar.users.already_closed')],
+            ]);
+        }
+
+        if (! $user->isClosePending()) {
+            throw ValidationException::withMessages([
+                'user' => [__('aqdar.users.no_pending_close')],
+            ]);
+        }
+
+        $user->forceFill([
+            'close_requested_at' => null,
+            'close_reason' => null,
+        ])->save();
+
+        $this->auditLogger->write('user.closure_declined', $actor, $user);
+
+        return $user->fresh() ?? $user;
+    }
+
     public function assertNotSuspended(User $user, string $field = 'email'): void
     {
+        if ($user->isClosed()) {
+            throw ValidationException::withMessages([
+                $field => [__('aqdar.auth.account_closed')],
+            ]);
+        }
+
+        if ($user->isClosePending()) {
+            throw ValidationException::withMessages([
+                $field => [__('aqdar.auth.account_close_pending')],
+            ]);
+        }
+
         if ($user->isSuspended()) {
             throw ValidationException::withMessages([
                 $field => [__('aqdar.auth.account_suspended')],
             ]);
         }
+    }
+
+    private function archivePublicListings(User $user): void
+    {
+        $machine = app(ListingStateMachine::class);
+
+        Listing::query()
+            ->where('user_id', $user->id)
+            ->whereIn('status', ListingStatus::publicCases())
+            ->get()
+            ->each(function (Listing $listing) use ($user, $machine): void {
+                if (! $machine->canTransition($listing->status, ListingStatus::Archived)) {
+                    return;
+                }
+
+                $from = $listing->status;
+                $listing->forceFill(['status' => ListingStatus::Archived])->save();
+                ListingStatusHistory::query()->create([
+                    'listing_id' => $listing->id,
+                    'from_status' => $from,
+                    'to_status' => ListingStatus::Archived,
+                    'actor_type' => $user->getMorphClass(),
+                    'actor_id' => $user->id,
+                    'reason' => 'account_closure',
+                ]);
+            });
     }
 }

@@ -65,6 +65,12 @@
                 <option value="{{ $src->value }}" @selected($source === $src->value)>{{ __('aqdar.crm.source.'.$src->value) }}</option>
             @endforeach
         </select>
+        <select name="priority" aria-label="{{ __('aqdar.crm.priority_label') }}">
+            <option value="">{{ __('aqdar.crm.priority_label') }}: {{ __('aqdar.crm.all_priorities') }}</option>
+            @foreach (LeadPriority::cases() as $prio)
+                <option value="{{ $prio->value }}" @selected(($priority ?? '') === $prio->value)>{{ __('aqdar.crm.priority.'.$prio->value) }}</option>
+            @endforeach
+        </select>
         <select name="status">
             <option value="all">{{ __('aqdar.crm.all_stages') }}</option>
             @foreach (LeadStatus::cases() as $st)
@@ -81,6 +87,7 @@
                 @endforeach
             </select>
         @endif
+        @include('dashboard::partials.date-range')
         <button type="submit" class="btn ghost">{{ __('aqdar.search') }}</button>
     </form>
 
@@ -96,16 +103,16 @@
     <div class="tw">
         <table class="t">
             <tr>
-                <th>{{ __('aqdar.crm.code') }}</th>
+                @include('dashboard::partials.sort-th', ['key' => 'code', 'label' => __('aqdar.crm.code')])
                 <th>{{ __('aqdar.crm.buyer') }}</th>
                 <th>{{ __('aqdar.users.phone') }}</th>
                 <th>{{ __('aqdar.crm.source_label') }}</th>
                 <th>{{ __('aqdar.crm.listing') }}</th>
-                <th>{{ __('structer.status') }}</th>
+                @include('dashboard::partials.sort-th', ['key' => 'status', 'label' => __('structer.status')])
                 <th>{{ __('aqdar.crm.owner') }}</th>
-                <th>{{ __('aqdar.crm.priority_label') }}</th>
+                @include('dashboard::partials.sort-th', ['key' => 'priority', 'label' => __('aqdar.crm.priority_label')])
                 <th>{{ __('aqdar.crm.next_action') }}</th>
-                <th>SLA</th>
+                @include('dashboard::partials.sort-th', ['key' => 'sla', 'label' => 'SLA'])
                 <th>{{ __('structer.actions') }}</th>
             </tr>
             @forelse ($leads as $lead)
@@ -138,21 +145,13 @@
                     <td><span class="badge {{ $lead->statusBadgeTone() }}">{{ __('aqdar.crm.status.'.$lead->status?->value) }}</span></td>
                     <td>
                         @if ($canAssign)
-                            <form method="POST" action="{{ route('dashboard.leads.assign', $lead) }}">
-                                @csrf
-                                <select name="assigned_to" onchange="this.form.submit()">
-                                    <option value="">{{ __('aqdar.crm.unassigned') }}</option>
-                                    @foreach ($assignable as $staff)
-                                        <option value="{{ $staff->id }}" @selected((int) $lead->assigned_to === (int) $staff->id)>{{ $staff->name }}</option>
-                                    @endforeach
-                                </select>
-                            </form>
+                            @include('dashboard::partials.assign-select', ['action' => route('dashboard.leads.assign', $lead), 'current' => $lead->assigned_to, 'assignable' => $assignable, 'style' => 'min-width:130px'])
                         @else
                             {{ $lead->assignee?->name ?? __('aqdar.crm.unassigned') }}
                         @endif
                     </td>
                     <td><span class="badge {{ $lead->priorityBadgeTone() }}">{{ __('aqdar.crm.priority.'.$lead->priority?->value) }}</span></td>
-                    <td>{{ $lead->next_action ?: '—' }}</td>
+                    <td>{{ $lead->next_action ? (Lang::has('aqdar.crm.next_actions.'.$lead->next_action) ? __('aqdar.crm.next_actions.'.$lead->next_action) : $lead->next_action) : '—' }}</td>
                     <td>
                         @if ($lead->slaBreached())
                             <span class="badge bad">{{ __('aqdar.crm.sla_overdue_hours', ['hours' => $lead->slaOverdueHours()]) }}</span>

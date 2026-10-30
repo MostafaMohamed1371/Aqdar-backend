@@ -8,7 +8,8 @@ class ScheduleBroadcastRequest extends BaseFormRequest
 {
     public function authorize(): bool
     {
-        return $this->user()?->can('manage_catalog') ?? false;
+        return ($this->user()?->can('manage_catalog') ?? false)
+            || ($this->user()?->can('approve_broadcasts') ?? false);
     }
 
     public function rules(): array

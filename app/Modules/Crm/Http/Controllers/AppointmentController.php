@@ -11,6 +11,7 @@ use App\Modules\User\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Support\Carbon;
 
 class AppointmentController extends BaseController
 {
@@ -25,6 +26,13 @@ class AppointmentController extends BaseController
         return (new AppointmentResource($appointment))
             ->response()
             ->setStatusCode(201);
+    }
+
+    public function slots(Request $request): JsonResponse
+    {
+        $validated = $request->validate(['date' => ['required', 'date_format:Y-m-d']]);
+
+        return response()->json(['data' => $this->appointments->slotsFor(Carbon::parse($validated['date']))]);
     }
 
     public function index(Request $request): AnonymousResourceCollection

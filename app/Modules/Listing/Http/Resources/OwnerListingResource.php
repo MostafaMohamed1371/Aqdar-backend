@@ -80,6 +80,28 @@ class OwnerListingResource extends JsonResource
                 'declared_asking_price' => $this->money($financials->declared_asking_price),
                 'declared_cancellation_percent' => $this->money($financials->declared_cancellation_percent),
                 'declared_assignment_restrictions' => $financials->declared_assignment_restrictions,
+                'verified_contract_price' => $this->money($financials->verified_contract_price),
+                'contract_price_verified' => (bool) $financials->contract_price_verified,
+                'verified_total_paid' => $this->money($financials->verified_total_paid),
+                'total_paid_verified' => (bool) $financials->total_paid_verified,
+                'verified_remaining' => $this->money($financials->verified_remaining),
+                'remaining_verified' => (bool) $financials->remaining_verified,
+                'verified_overdue_count' => $financials->verified_overdue_count,
+                'overdue_count_verified' => (bool) $financials->overdue_count_verified,
+                'verified_overdue_amount' => $this->money($financials->verified_overdue_amount),
+                'overdue_amount_verified' => (bool) $financials->overdue_amount_verified,
+                'verified_next_due_date' => $financials->verified_next_due_date?->toDateString(),
+                'next_due_date_verified' => (bool) $financials->next_due_date_verified,
+                'verified_installment_amount' => $this->money($financials->verified_installment_amount),
+                'installment_amount_verified' => (bool) $financials->installment_amount_verified,
+                'verified_remaining_installments' => $financials->verified_remaining_installments,
+                'remaining_installments_verified' => (bool) $financials->remaining_installments_verified,
+                'verified_seller_recovery_amount' => $this->money($financials->verified_seller_recovery_amount),
+                'seller_recovery_verified' => (bool) $financials->seller_recovery_verified,
+                'verified_asking_price' => $this->money($financials->verified_asking_price),
+                'asking_price_verified' => (bool) $financials->asking_price_verified,
+                'verified_cancellation_percent' => $this->money($financials->verified_cancellation_percent),
+                'cancellation_percent_verified' => (bool) $financials->cancellation_percent_verified,
             ],
             'installment_items' => $this->installmentItems->map(fn ($item) => [
                 'id' => $item->id,
@@ -97,6 +119,10 @@ class OwnerListingResource extends JsonResource
             'reviewer_notes' => $this->when(
                 $this->relationLoaded('statusHistory'),
                 fn () => $this->reviewerNotes(),
+            ),
+            'reviewer_field_notes' => $this->when(
+                $this->relationLoaded('statusHistory'),
+                fn () => $this->reviewerFieldNotes(),
             ),
         ];
     }
@@ -128,6 +154,24 @@ class OwnerListingResource extends JsonResource
             ->filter(fn ($row) => $row->to_status === ListingStatus::NeedsChanges)
             ->map(fn ($row) => trim((string) $row->reason))
             ->filter()
+            ->values()
+            ->all();
+    }
+
+    /** @return list<array{section: string, note: string}> */
+    private function reviewerFieldNotes(): array
+    {
+        if ($this->status !== ListingStatus::NeedsChanges) {
+            return [];
+        }
+
+        $latest = $this->statusHistory
+            ->filter(fn ($row) => $row->to_status === ListingStatus::NeedsChanges)
+            ->sortByDesc('id')
+            ->first();
+
+        return collect($latest?->field_notes ?? [])
+            ->map(fn (string $note, string $section) => ['section' => $section, 'note' => $note])
             ->values()
             ->all();
     }

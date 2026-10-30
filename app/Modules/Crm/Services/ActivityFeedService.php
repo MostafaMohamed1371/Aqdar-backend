@@ -2,7 +2,9 @@
 
 namespace App\Modules\Crm\Services;
 
+use App\Core\Enums\AppointmentStatus;
 use App\Core\Enums\CaseStatus;
+use App\Modules\Crm\Models\Appointment;
 use App\Modules\Crm\Models\BuyerRequest;
 use App\Modules\Crm\Models\Inquiry;
 use App\Modules\Crm\Models\TransferCase;
@@ -69,6 +71,29 @@ class ActivityFeedService
                     'label' => $case->client_label,
                     'listing' => $case->listing?->publicCard(),
                     'created_at' => $case->created_at,
+                ]);
+            });
+
+        Appointment::query()
+            ->where('user_id', $buyer->id)
+            ->with(['listing.media'])
+            ->get()
+            ->each(function (Appointment $appointment) use ($rows): void {
+                $chip = match ($appointment->status) {
+                    AppointmentStatus::Confirmed => 'replied',
+                    AppointmentStatus::Completed, AppointmentStatus::Cancelled => 'closed',
+                    default => 'in_review',
+                };
+                $rows->push([
+                    'id' => $appointment->id,
+                    'public_code' => $appointment->public_code,
+                    'kind' => 'appointment',
+                    'status' => $chip,
+                    'label' => $appointment->status?->value,
+                    'listing' => $appointment->listing?->publicCard(),
+                    'requested_date' => $appointment->requested_date?->toDateString(),
+                    'requested_slot' => $appointment->requested_slot,
+                    'created_at' => $appointment->created_at,
                 ]);
             });
 

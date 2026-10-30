@@ -144,6 +144,7 @@ class NotificationPhase15Test extends TestCase
         $this->assertFalse(
             InboxNotification::query()
                 ->where('event_key', 'staff_new_submission')
+                ->where('notifiable_type', $seller->getMorphClass())
                 ->where('notifiable_id', $seller->id)
                 ->exists()
         );
@@ -318,13 +319,13 @@ class NotificationPhase15Test extends TestCase
         );
         $this->assertTrue(
             InboxNotification::query()
-                ->where('event_key', 'inquiry_created')
+                ->where('event_key', 'staff_inquiry_assigned')
                 ->where('notifiable_id', $sales->id)
                 ->exists()
         );
         $this->assertFalse(
             InboxNotification::query()
-                ->where('event_key', 'inquiry_created')
+                ->where('event_key', 'staff_inquiry_assigned')
                 ->where('notifiable_id', $ops->id)
                 ->exists()
         );

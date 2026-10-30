@@ -165,6 +165,11 @@ class Listing extends Model
         return $this->hasMany(Favorite::class);
     }
 
+    public function views(): HasMany
+    {
+        return $this->hasMany(ListingView::class);
+    }
+
     public function documents(): HasMany
     {
         return $this->hasMany(ListingDocument::class)->orderByDesc('version');

@@ -5,6 +5,7 @@ namespace App\Modules\Dashboard\Http\Controllers;
 use App\Core\Enums\AppointmentStatus;
 use App\Core\Enums\LeadStatus;
 use App\Core\Http\Controllers\BaseController;
+use App\Core\Services\QueueQuery;
 use App\Modules\Crm\Models\Appointment;
 use App\Modules\Crm\Models\Lead;
 use App\Modules\Crm\Services\AppointmentService;
@@ -33,8 +34,10 @@ class LeadDeskController extends BaseController
         $filters = [
             'status' => (string) $request->query('status', 'all'),
             'source' => (string) $request->query('source', ''),
+            'priority' => (string) $request->query('priority', ''),
             'assigned_to' => (string) $request->query('assigned_to', ''),
             'q' => trim((string) $request->query('q', '')),
+            ...QueueQuery::filtersFrom($request),
         ];
 
         return view('dashboard::leads.index', [
@@ -42,6 +45,7 @@ class LeadDeskController extends BaseController
             'counts' => $this->leads->countsFor($staff),
             'tab' => $filters['status'] === '' ? 'all' : $filters['status'],
             'source' => $filters['source'],
+            'priority' => $filters['priority'],
             'assignedTo' => $filters['assigned_to'],
             'search' => $filters['q'],
             'assignable' => $this->leads->assignableStaff(),
@@ -87,7 +91,7 @@ class LeadDeskController extends BaseController
     {
         /** @var StaffUser $staff */
         $staff = $request->user();
-        $this->leads->assign($lead, $staff, (int) $request->validated('assigned_to'));
+        $this->leads->assign($lead, $staff, (int) $request->validated('assigned_to'), $request->validated('reason'));
 
         return back()->with('status', __('aqdar.crm.assigned'));
     }

@@ -18,7 +18,7 @@ class MyListingsIndexRequest extends BaseFormRequest
         $statuses = array_map(fn (ListingStatus $status) => $status->value, ListingStatus::cases());
 
         return [
-            'status' => ['sometimes', 'string', Rule::in([...$statuses, 'review', 'live'])],
+            'status' => ['sometimes', 'string', Rule::in([...$statuses, 'review', 'live', 'ended'])],
             'per_page' => ['sometimes', 'integer', 'min:1', 'max:50'],
             'page' => ['sometimes', 'integer', 'min:1'],
         ];

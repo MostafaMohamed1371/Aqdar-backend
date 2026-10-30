@@ -21,10 +21,12 @@
     <div class="ptitle">
         <h2><x-bilingual key="aqdar.menu.adm_09" /></h2>
         <div class="acts">
-            <a class="btn" href="#add-case">@include('dashboard::partials.icon', ['name' => 'plus']){{ __('aqdar.cases.add') }}</a>
+            @if ($canCreate ?? false)
+                <a class="btn" href="#add-case">@include('dashboard::partials.icon', ['name' => 'plus']){{ __('aqdar.cases.add') }}</a>
+            @endif
         </div>
     </div>
-    <p class="tiny">{{ __('aqdar.cases.manual_docs') }}</p>
+    <p class="tiny">{{ ($financeOnly ?? false) ? __('aqdar.cases.finance_only_note') : __('aqdar.cases.manual_docs') }}</p>
 
     <div class="kpis k5">
         @foreach ([
@@ -79,22 +81,23 @@
                 <option value="{{ $st->value }}" @selected($status === $st->value)>{{ __('aqdar.cases.lifecycle.'.$st->value) }}</option>
             @endforeach
         </select>
+        @include('dashboard::partials.date-range')
         <button type="submit" class="btn ghost">{{ __('aqdar.search') }}</button>
     </form>
 
     <div class="tw">
         <table class="t">
             <tr>
-                <th>{{ __('aqdar.crm.code') }}</th>
+                @include('dashboard::partials.sort-th', ['key' => 'code', 'label' => __('aqdar.crm.code')])
                 <th>{{ __('aqdar.crm.listing') }}</th>
                 <th>{{ __('aqdar.crm.buyer') }}</th>
                 <th>{{ __('aqdar.cases.seller') }}</th>
-                <th>{{ __('aqdar.cases.internal_stage') }}</th>
-                <th>{{ __('aqdar.cases.lifecycle_column') }}</th>
+                @include('dashboard::partials.sort-th', ['key' => 'stage', 'label' => __('aqdar.cases.internal_stage')])
+                @include('dashboard::partials.sort-th', ['key' => 'status', 'label' => __('aqdar.cases.lifecycle_column')])
                 <th>{{ __('aqdar.cases.client_sees') }}</th>
                 <th>{{ __('aqdar.crm.owner') }}</th>
                 <th>{{ __('aqdar.cases.missing_docs') }}</th>
-                <th>{{ __('aqdar.cases.updated') }}</th>
+                @include('dashboard::partials.sort-th', ['key' => 'updated', 'label' => __('aqdar.cases.updated')])
             </tr>
             @forelse ($cases as $item)
                 <tr>
@@ -116,14 +119,16 @@
     </div>
     {{ $cases->links() }}
 
-    <div id="add-case" class="card" style="margin-top:16px">
-        <div class="card-h"><b>{{ __('aqdar.cases.add') }}</b></div>
-        <form method="POST" action="{{ route('dashboard.cases.store') }}" class="toolbar" style="flex-wrap:wrap">
-            @csrf
-            <input type="number" name="buyer_id" required min="1" placeholder="{{ __('aqdar.crm.buyer_id') }}">
-            <input type="number" name="listing_id" min="1" placeholder="{{ __('aqdar.crm.listing') }}">
-            <input type="hidden" name="reason" value="{{ __('aqdar.crm.convert_default') }}">
-            <button class="btn" type="submit">@include('dashboard::partials.icon', ['name' => 'plus']){{ __('aqdar.cases.add') }}</button>
-        </form>
-    </div>
+    @if ($canCreate ?? false)
+        <div id="add-case" class="card" style="margin-top:16px">
+            <div class="card-h"><b>{{ __('aqdar.cases.add') }}</b></div>
+            <form method="POST" action="{{ route('dashboard.cases.store') }}" class="toolbar" style="flex-wrap:wrap">
+                @csrf
+                <input type="number" name="buyer_id" required min="1" placeholder="{{ __('aqdar.crm.buyer_id') }}">
+                <input type="number" name="listing_id" min="1" placeholder="{{ __('aqdar.crm.listing') }}">
+                <input type="hidden" name="reason" value="{{ __('aqdar.crm.convert_default') }}">
+                <button class="btn" type="submit">@include('dashboard::partials.icon', ['name' => 'plus']){{ __('aqdar.cases.add') }}</button>
+            </form>
+        </div>
+    @endif
 @endsection

@@ -53,6 +53,18 @@ class ListingFinancial extends Model
     /** @use HasFactory<ListingFinancialFactory> */
     use HasFactory;
 
+    /** Buyer-facing values copied to public_* columns so search can filter and sort on them. */
+    public const SEARCHABLE_PUBLIC_FIELDS = ['asking_price', 'remaining', 'installment_amount'];
+
+    protected static function booted(): void
+    {
+        static::saving(function (ListingFinancial $financial): void {
+            foreach (self::SEARCHABLE_PUBLIC_FIELDS as $field) {
+                $financial->setAttribute('public_'.$field, $financial->publicValue($field));
+            }
+        });
+    }
+
     protected static function newFactory(): ListingFinancialFactory
     {
         return ListingFinancialFactory::new();
@@ -93,6 +105,9 @@ class ListingFinancial extends Model
             'declared_asking_price' => 'decimal:2',
             'verified_asking_price' => 'decimal:2',
             'asking_price_verified' => 'boolean',
+            'public_asking_price' => 'decimal:2',
+            'public_remaining' => 'decimal:2',
+            'public_installment_amount' => 'decimal:2',
             'declared_cancellation_percent' => 'decimal:2',
             'verified_cancellation_percent' => 'decimal:2',
             'cancellation_percent_verified' => 'boolean',

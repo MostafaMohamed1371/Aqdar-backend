@@ -3,6 +3,8 @@
 namespace App\Modules\Dashboard\Services;
 
 use App\Core\Audit\AuditLogger;
+use App\Core\Enums\BuyerRequestStatus;
+use App\Core\Enums\LeadStatus;
 use App\Modules\Crm\Models\BuyerRequest;
 use App\Modules\Crm\Models\Lead;
 use App\Modules\Finance\Models\Commission;
@@ -83,8 +85,28 @@ class ReportService
         $total = (clone $leads)->count();
         $qualified = (clone $leads)->whereNotIn('status', ['new', 'contacted', 'lost'])->count();
         $converted = (clone $leads)->where('status', 'converted')->count();
+        [, $requestFilters] = $this->splitStatusFilters($filters);
+        $requests = $this->requestQuery($requestFilters);
+        $requestTotal = (clone $requests)->count();
+        $requestQualified = (clone $requests)->where(function (Builder $query): void {
+            $query->whereIn('status', [
+                BuyerRequestStatus::OptionsShared->value,
+                BuyerRequestStatus::NegotiationVisit->value,
+                BuyerRequestStatus::Converted->value,
+            ])->orWhereHas('lead', fn (Builder $lead) => $lead->whereIn('status', [
+                LeadStatus::Qualified->value,
+                LeadStatus::VisitScheduled->value,
+                LeadStatus::OfferSent->value,
+                LeadStatus::Converted->value,
+            ]));
+        })->count();
+        $requestTransactions = (clone $requests)->where(function (Builder $query): void {
+            $query->where('status', BuyerRequestStatus::Converted->value)->orWhereHas('transferCases');
+        })->count();
 
         return [
+            'request_qualified_rate' => $requestTotal > 0 ? round($requestQualified * 100 / $requestTotal, 1) : 0,
+            'request_transaction_rate' => $requestTotal > 0 ? round($requestTransactions * 100 / $requestTotal, 1) : 0,
             'avg_listing_review_hours' => $this->averageReviewHours($start, $end),
             'first_response_hours' => $this->averageFirstResponseHours($filters),
             'qualified_rate' => $total > 0 ? round($qualified * 100 / $total, 1) : 0,
@@ -376,7 +398,12 @@ class ReportService
         return BuyerRequest::query()
             ->whereBetween('created_at', [$start, $end])
             ->when(! empty($filters['status']) && $filters['status'] !== 'all', fn (Builder $query) => $query->where('status', $filters['status']))
-            ->when(! empty($filters['owner']), fn (Builder $query) => $query->where('assigned_to', (int) $filters['owner']));
+            ->when(! empty($filters['owner']), fn (Builder $query) => $query->where('assigned_to', (int) $filters['owner']))
+            ->when(! empty($filters['segment']) && $filters['segment'] !== 'all', fn (Builder $query) => $query->where('segment_preference', $filters['segment']))
+            ->when(! empty($filters['source']) && $filters['source'] !== 'all', fn (Builder $query) => $query->whereHas(
+                'lead',
+                fn (Builder $lead) => $lead->where('source', $filters['source']),
+            ));
     }
 
     /** @param array<string, mixed> $filters */

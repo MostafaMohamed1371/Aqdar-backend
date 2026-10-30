@@ -69,28 +69,24 @@ class LocaleTest extends TestCase
             ->assertSee('لوحة القيادة التنفيذية');
     }
 
-    public function test_french_locale_translates_dashboard(): void
+    public function test_dashboard_language_switcher_is_arabic_and_english_only(): void
     {
+        $this->get('/locale/fr')->assertNotFound();
+        $this->get('/locale/es')->assertNotFound();
+        $this->get('/locale/de')->assertNotFound();
+
+        $this->get('/dashboard')
+            ->assertOk()
+            ->assertSee('العربية')
+            ->assertSee('English')
+            ->assertDontSee('Français')
+            ->assertDontSee('Español')
+            ->assertDontSee('Deutsch');
+
         $this->withSession(['locale' => 'fr'])
             ->get('/dashboard')
             ->assertOk()
-            ->assertSee('Connectez-vous pour accéder à votre tableau de bord');
-    }
-
-    public function test_spanish_locale_translates_dashboard(): void
-    {
-        $this->withSession(['locale' => 'es'])
-            ->get('/dashboard')
-            ->assertOk()
-            ->assertSee('Inicia sesión para acceder a su panel');
-    }
-
-    public function test_german_locale_translates_dashboard(): void
-    {
-        $this->withSession(['locale' => 'de'])
-            ->get('/dashboard')
-            ->assertOk()
-            ->assertSee('Melden Sie sich an, um auf Ihr Dashboard zuzugreifen');
+            ->assertDontSee('Connectez-vous pour accéder à votre tableau de bord');
     }
 
     public function test_remember_me_sets_remember_cookie_on_login(): void

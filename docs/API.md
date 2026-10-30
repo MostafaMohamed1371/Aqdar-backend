@@ -7,7 +7,7 @@ Postman: [../postman/AQDAR-API.postman_collection.json](../postman/AQDAR-API.pos
 
 When a phase ships, append a section here. Process: [DOCUMENTATION_PROCESS.md](DOCUMENTATION_PROCESS.md).
 
-**Shipped in this file:** Phase 0 (locks + health), Phase 1 (identity), Phase 2 (catalog), Phase 3 (listings), Phase 4 (files + moderation), Phase 5 (inquiries + CRM), Phase 6 (buyer requests + transfer cases), Phase 7 (exit estimate + commissions), Phase 8 (notifications), Phase 9 (admin reports, settings, audit, hardening), Phase 13 (listing fields), Phase 14 (seller case timeline + case history), Phase 15 (notification matrix leftovers), plus post-G5 support chat, staff PDF, and public share landing.
+**Shipped in this file:** Phase 0 (locks + health), Phase 1 (identity), Phase 2 (catalog), Phase 3 (listings), Phase 4 (files + moderation), Phase 5 (inquiries + CRM), Phase 6 (buyer requests + transfer cases), Phase 7 (exit estimate + commissions), Phase 8 (notifications), Phase 9 (admin reports, settings, audit, hardening), Phases 10–12 (OTP/consent, session hardening, listing publish gate), Phase 13 (listing fields), Phase 14 (seller case timeline + case history), Phase 15 (notification matrix leftovers), Phase 16 (staff permission table vs BRD §8.2), Phase 17 (manual exit estimate + upload scan + private video), Phase 18 (account closure, saved searches, broadcast approval), UI closure (2FA, recently viewed, media order, onboarding/seller guide), plus post-G5 support chat, staff PDF, and public share landing.
 
 | Phase | Method | Path | Auth |
 |-------|--------|------|------|
@@ -20,28 +20,38 @@ When a phase ships, append a section here. Process: [DOCUMENTATION_PROCESS.md](D
 | 1 | POST | `/auth/forgot-password`, `/auth/reset-password` | Public |
 | 1 | GET | `/me`, `/auth/me` | Bearer |
 | 1 | PATCH | `/me` | Bearer (not suspended) |
+| 18 | POST | `/me/close` | Bearer (not suspended; FR-007 request only) |
+| 18 | POST | `/me/password` | Bearer (change password; signs out other devices) |
+| 1 | POST | `/auth/login/two-factor` | Public (finish a 2FA password login) |
+| 1 | PUT | `/me/two-factor` | Bearer (turn two-factor on/off) |
+| 18 | GET/POST/PATCH/DELETE | `/saved-searches`, `/saved-searches/{id}` | Bearer (CRUD always; match alerts need smart flag) |
 | 1 | POST | `/devices` | Bearer (not suspended) |
 | 1 | POST | `/auth/logout` | Bearer |
 | 2 | GET | `/categories` (tree + children) | Public |
 | 2 | GET | `/locations`, `/developers`, `/projects` | Public |
 | 2 | GET | `/unit-types`, `/amenities`, `/tags` | Public |
 | 2 | GET | `/content/faqs`, `/content/banners`, `/content/support` | Public |
+| 2 | GET | `/content/onboarding`, `/content/seller-guide` | Public |
 | 3 | POST | `/my/listings` | Bearer |
 | 3 | PUT | `/my/listings/{id}/step/{category|specs|financials|media|documents|review}` | Bearer |
 | 3 | POST | `/my/listings/{id}/submit` | Bearer (consent) |
 | 3 | PUT | `/my/listings/{id}/resubmit` | Bearer |
-| 3 | GET | `/my/listings`, `/my/listings/{id}`, `/my/listings/{id}/history` | Bearer |
-| 3 | GET | `/listings`, `/listings/counts`, `/listings/{id}`, `/listings/{id}/media`, `/map` | Public (published only; optional Bearer) |
+| 3 | GET | `/my/listings`, `/my/listings/{id}`, `/my/listings/{id}/preview`, `/my/listings/{id}/history` | Bearer |
+| 3 | GET | `/listings`, `/listings/counts`, `/listings/compare`, `/listings/{id}`, `/listings/{id}/media`, `/map` | Public (published only; optional Bearer) |
 | 3 | GET/POST/DELETE | `/favorites`, `/favorites/{listing}` | Bearer |
+| 3 | GET/DELETE | `/recently-viewed` | Bearer (FR-014) |
 | 4 | POST | `/my/listings/{id}/documents` | Bearer |
 | 4 | POST | `/my/listings/{id}/media` | Bearer |
 | 4 | DELETE | `/my/listings/{id}/media/{media}` | Bearer |
+| 4 | PUT | `/my/listings/{id}/media/order` | Bearer |
 | 4 | GET | `/my/documents` | Bearer |
 | 4 | GET | `/listings/{id}/media` | Public photos after staff approve |
 | 5 | POST | `/inquiries` | Bearer |
 | 5 | GET | `/my/inquiries`, `/my/inquiries/{id}` | Bearer (`?status=` APP-18 chips) |
 | 5 | POST | `/my/inquiries/{id}/callback` | Bearer |
 | 5 | GET | `/my/listings/{id}/interest` | Bearer (listing owner) |
+| 5 | GET | `/my/interest` | Bearer (all of the seller's listings) |
+| 5 | GET | `/appointments/slots?date=YYYY-MM-DD` | Bearer |
 | 5 | POST | `/appointments` | Bearer |
 | 5 | GET | `/my/appointments`, `/my/appointments/{id}` | Bearer |
 | 5 | GET | `/config/sales-contact` | Public |
@@ -50,7 +60,8 @@ When a phase ships, append a section here. Process: [DOCUMENTATION_PROCESS.md](D
 | 6 | POST | `/my/buyer-requests/{id}/callback` | Bearer |
 | 6 | GET | `/my/cases`, `/my/cases/{id}` | Bearer (client-safe labels only) |
 | 6 | POST | `/my/cases/{id}/documents` | Bearer (requested document upload) |
-| 7 | GET | `/listings/{id}/estimate` | Bearer (listing owner only) |
+| 7 | GET | `/listings/{id}/estimate` | Bearer (owner: full estimate; others: published listings only, without the seller's cancellation terms) |
+| 17 | POST | `/estimates` | Bearer (manual contract inputs; BRD APP-17) |
 
 ---
 
@@ -172,6 +183,20 @@ Password: min 8, letters and numbers. `consent_privacy` and `consent_terms` are 
 
 **200** — same shape as register. Suspended users are rejected.
 
+When the account has two-factor on (`two_factor_enabled` on the user resource), a correct password does **not** return a token. The server sends an OTP to the verified phone and returns **202**:
+
+```json
+{ "two_factor_required": true, "challenge": "<64 chars>", "phone": "010****5678", "resend_after": 45, "message": "…" }
+```
+
+### POST `/auth/login/two-factor`
+
+```json
+{ "challenge": "<from the 202>", "code": "123456" }
+```
+
+**200** — same shape as login. Wrong code is **422** on `code` (counts toward the OTP lockout). The challenge is single-use and expires with the OTP TTL; an expired or reused challenge is **422** on `challenge` (sign in again). Phone OTP login (`/auth/otp/verify`) is not affected — it already proves possession of the phone.
+
 ### POST `/auth/otp/send`
 
 APP-02 sends the phone plus one consent tick. Either `consent: true` or both `consent_privacy` / `consent_terms`.
@@ -224,7 +249,7 @@ Bearer required. **200** user resource.
 
 ### PATCH `/me`
 
-Bearer + not suspended. Name, `is_seller`, `is_buyer`, `account_type`, `locale`. A first email may be set when the account has none (stored unverified). Cannot change an existing phone or email, password, identity status, or consent timestamps.
+Bearer + not suspended. Name, `is_seller`, `is_buyer`, `account_type`, `locale`. A first email may be set when the account has none (stored unverified). Sending a different email when one is already set returns **422** on `email` (`aqdar.auth.email_locked`); resending the same address is accepted. Phone, password, identity status and consent timestamps are ignored.
 
 ```json
 { "name": "Jane Doe", "is_seller": true, "account_type": "individual", "locale": "ar", "email": "jane@example.com" }
@@ -336,9 +361,9 @@ Optional `?developer_id=`. Active projects, `is_other` last.
 
 Separate from category segments (APP-13 mix is not the data model). Tags are listing chips (featured / verified / resale), not unit types.
 
-### GET `/content/banners` · `/content/faqs` · `/content/support`
+### GET `/content/banners` · `/content/faqs` · `/content/support` · `/content/onboarding` · `/content/seller-guide`
 
-Banner `image_url` is the public_media URL (null when no image).
+Banner `image_url` is the public_media URL (null when no image). `onboarding` feeds the first-run intro slides; `seller-guide` feeds the seller "how it works" screen. Both return the same block shape, active only, ordered by `sort_order`.
 
 ```json
 {
@@ -372,8 +397,8 @@ Only `published` and `under_offer` listings are public. Draft / in_review / appr
 - `POST /my/listings` — draft + `AQ-####` public code; marks the user as seller.
 - `PUT /my/listings/{id}/step/{step}` — `category`, `specs`, `financials`, `media`, `documents`, `review`. Editable in `draft`, `needs_changes`, `published`, and `under_offer`. A public-field edit on a live listing moves it to `in_review`.
 - `POST /my/listings/{id}/submit` — `{ "consent": true }`. Required: category, specs, declared contract + asking price, and mandatory private documents (`national_id`, `contract`, `payment_proof`; distressed also `developer_status_letter`). Moves `draft → submitted → in_review` and returns `review_reference`. Stores a field snapshot of that version.
-- `PUT /my/listings/{id}/resubmit` — from `needs_changes` only. Stores a new field snapshot. Owner GET/PUT include `previous_snapshot` (last submitted fields) and `reviewer_notes` (request-changes reasons) for APP-25. Saving edits without resubmit keeps `needs_changes` (APP-25 «حفظ كمسودة»).
-- `GET /my/listings` · `/{id}` · `/{id}/history`. `?status=` exact status, `review` (submitted + in_review + resubmitted), or `live` / APP-23 `published` (published + under_offer). Includes `favorite_count`.
+- `PUT /my/listings/{id}/resubmit` — from `needs_changes` only. Stores a new field snapshot. Owner GET/PUT include `previous_snapshot` (last submitted fields) and `reviewer_notes` (request-changes reasons) for APP-25. While the listing is `needs_changes`, `reviewer_field_notes: [{ section, note }]` carries the reviewer's per-section notes from the latest request (`section` is one of `category|specs|financials|media|documents`). Saving edits without resubmit keeps `needs_changes` (APP-25 «حفظ كمسودة»).
+- `GET /my/listings` · `/{id}` · `/{id}/preview` · `/{id}/history`. `?status=` exact status, `review` (submitted + in_review + resubmitted + approved-awaiting-publish), `ended` (hold + closed + archived), or `live` / APP-23 `published` (published + under_offer). Includes `favorite_count`. The list response adds top-level `counts: { all, draft, review, needs_changes, live, rejected, ended }` for the APP-23 chips (unaffected by the current filter). Owner `financials` include both `declared_*` and staff `verified_*` (with `*_verified` flags). `GET /my/listings/{id}/preview` returns the **public** listing DTO for the owner of a draft or unpublished listing (no view count, no seller PII) so APP-24 can show the buyer-facing card before publish.
 
 Submit body:
 
@@ -411,17 +436,22 @@ Specs may also send `furnished` (`unfurnished`|`furnished`), `handover_date`, `n
 
 ### Public
 
-- `GET /listings` — filters: `q` (title / public code / area / unit type), `segment`, `distressed_child`, `governorate_id`, `area_id`, `developer_id`, `project_id`, `unit_type_id`, `tag` or `tag_id`, `area_min`/`area_max`, `price_min`/`price_max`, `down_payment_min`/`down_payment_max` (remaining), `installment_min`/`installment_max`, `sort=newest|price_asc|price_desc|area_asc|area_desc`, pagination. Optional Bearer sets `is_favorited`.
-- `GET /listings/counts` — published totals for home cards: `non_distressed`, `distressed`, `distressed_a`, `distressed_b`.
-- `GET /listings/{id}` — public DTO + labelled `financial_summary` + amenities/tags + `sales_contact`. Increments `view_count` (not returned on the public DTO).
+- `GET /listings` — filters: `q` (title / public code / area / unit type), `segment`, `distressed_child`, `governorate_id`, `area_id`, `developer_id`, `project_id`, `unit_type_id`, `bedrooms`, `finishing` (case-insensitive exact match), `tag` or `tag_id`, `area_min`/`area_max`, `price_min`/`price_max`, `down_payment_min`/`down_payment_max` (remaining), `installment_min`/`installment_max`, `neighborhood` (case-insensitive exact match), `sort=newest|price_asc|price_desc|area_asc|area_desc`, pagination. Optional Bearer sets `is_favorited`. Price, down-payment and installment filters and price sorting use the value buyers see (staff-verified when verified, else declared), stored in `listing_financials.public_*`.
+- `GET /listings/counts` — published totals for home cards: `non_distressed`, `distressed`, `distressed_a`, `distressed_b`, plus `unit_types: [{ id, slug, count }]` (only types with published listings) and `tags: [{ id, slug, count }]` (every active tag, count may be 0).
+- `GET /listings/compare?ids=1,2,3` (or `ids[]=`) — 2–3 ids, returns the public DTO for each published listing in the requested order; unpublished ids are dropped.
+- `GET /listings/{id}` — public DTO + labelled `financial_summary` + `installment_items` (`sequence`, `due_date`, `amount`, `paid` — no evidence document ids) + amenities/tags + `sales_contact`. Increments `view_count` (not returned on the public DTO). With a Bearer token the view is also stored for recently viewed.
 - `GET /listings/{id}/media` — approved public photos only (`id`, `sort_order`, `url`, `width`, `height`). Empty when none are approved. Never private originals or documents.
 - `GET /map` — pins with lat/lng rounded to 3 decimals.
 
-Public listing never includes seller identity. Each financial field is `{ value, source: declared|verified }`. Asking price uses verified value when staff has verified it (Phase 4). Contact text matching phone / email / URL / WhatsApp / QR is flagged.
+Public listing never includes seller identity. Each financial field is `{ value, source: declared|verified }`. Cards also carry `price_badge`: `verified` or `estimated` (seller-declared, not yet verified). Asking price uses verified value when staff has verified it (Phase 4). Contact text matching phone / email / URL / WhatsApp / QR is flagged.
 
 ### Favorites (Bearer)
 
 `POST /favorites/{listing}` (published only) · `GET /favorites` · `DELETE /favorites/{listing}`.
+
+### Recently viewed (Bearer, FR-014)
+
+`GET /recently-viewed` — up to 30 public listing cards, most recently opened first (one row per listing; reopening moves it to the top). Listings that are no longer public drop out. `DELETE /recently-viewed` clears the history.
 
 ---
 
@@ -438,6 +468,8 @@ Staff approve ≠ publish. Reviewer can approve a listing and open documents; op
 - `POST /my/listings/{id}/documents` — `multipart/form-data` `type` + `file`. Private disk, version bump. Allowed in draft/needs_changes, and while `in_review` only for a type staff marked replacement-requested or rejected. Response has no `path` / `disk`.
 - `POST /my/listings/{id}/media` — `multipart/form-data` `file` + optional `caption`. Images: EXIF stripped and resized (JPG/PNG/WebP, max 10MB). Video (`mp4`/`webm`) is stored as-is and published only after staff approve. Caption/filename contact leaks set `moderation_status=held`.
 - `DELETE /my/listings/{id}/media/{media}` — while the listing is editable.
+- `PUT /my/listings/{id}/media/order` — `{ "ids": [12, 9, 10] }`. Must list every media id of the listing exactly once (else 422 on `ids`). Rewrites `sort_order` (first id = cover). Does not send the listing back to review. Returns the reordered media list.
+- A document whose filename contains contact details (phone, email, URL) is stored as `{type}-v{version}.{ext}` instead of the original name.
 - `GET /my/documents` — owner status list (no file path).
 
 Upload document:
@@ -479,7 +511,7 @@ Inquiry `status` follows the lead for APP-18 chips: New unassigned → `new`, Ne
 
 Sales contact is also `GET /config` (`sales_contact`) and the thin alias `GET /config/sales-contact`. Changing `sales_phone` / `sales_hours` / `sales_name` in ADM-13 applies immediately.
 
-Seller interest (`GET /my/listings/{id}/interest`) is anonymized: `interested_buyer_seq`, `kind` (`listing_inquiry`|`viewing`), `client_status` (`new`|`in_review`|`closed`), `status`, `created_at`, `offer_amount` only if staff recorded a seller-visible amount, plus `counts`. No buyer name, phone, or id (UAT-10). Viewing requests `POST /appointments` are handled by Sales (no owner PII). APP-41 has no consent checkbox; consent defaults to true. Buyers list them at `GET /my/appointments`. Buyer requests (`BR-`) and transfer cases (`TR-`) are mixed into `GET /my/inquiries`.
+Seller interest (`GET /my/listings/{id}/interest`) is anonymized: `interested_buyer_seq`, `kind` (`listing_inquiry`|`viewing`), `client_status` (`new`|`in_review`|`closed`), `status`, `created_at`, `offer_amount` only if staff recorded a seller-visible amount, plus `counts`. No buyer name, phone, or id (UAT-10). `GET /my/interest` returns the same rows for all of the seller's listings (newest first), each with `listing: { id, public_code, title }`; `interested_buyer_seq` is numbered per listing. Viewing requests `POST /appointments` are handled by Sales (no owner PII). APP-41 has no consent checkbox; consent defaults to true. Buyers list them at `GET /my/appointments`. Buyer requests (`BR-`) and transfer cases (`TR-`) are mixed into `GET /my/inquiries`.
 
 ### Inquiries (Bearer)
 
@@ -516,9 +548,10 @@ Created (trimmed):
 }
 ```
 
-- `GET /my/inquiries?status=` — mixed APP-18 inbox (`kind`: `listing_inquiry` | `buyer_request` | `case`). Each row has a chip `status` (`new` | `in_review` | `replied` | `closed`) plus `label` (same chip for inquiries/requests; the client-safe case label for cases). `GET /my/inquiries/{id}` is still a listing inquiry. Buyer only (404 for others). Open cases filter as `in_review`.
+- `GET /my/inquiries?status=` — mixed APP-18 inbox (`kind`: `listing_inquiry` | `buyer_request` | `case` | `appointment`). Appointment rows add `requested_date` and `requested_slot`; their chip is `in_review` while requested, `replied` once confirmed, `closed` when completed or cancelled. Each row has a chip `status` (`new` | `in_review` | `replied` | `closed`) plus `label` (same chip for inquiries/requests; the client-safe case label for cases). `GET /my/inquiries/{id}` is still a listing inquiry. Buyer only (404 for others). Open cases filter as `in_review`. The detail adds `timeline: [{ key, state, at }]` (`received` → `assigned` → `contacted` → `viewing` → `closed`; `state` is `done|current|future`) and `consultant: { name, role }` once a sales agent is assigned (name only, never staff email or phone).
+- `GET /appointments/slots?date=YYYY-MM-DD` — APP-41 slot picker: `{ date, open, slots: [{ value, available }] }`. Slots come from `AQDAR_VIEWING_SLOTS`; past times today, days beyond `AQDAR_VIEWING_DAYS_AHEAD`, and `AQDAR_VIEWING_CLOSED_WEEKDAYS` are unavailable. `POST /appointments` rejects any other `requested_slot` with 422.
 - `POST /my/inquiries/{id}/callback` — sets lead `next_action=callback` (APP-16).
-- `GET /my/listings/{id}/interest` — owner only. Rows: `interested_buyer_seq`, `kind`, `client_status`, `status`, `created_at`, `offer_amount`. Top-level `counts` + `sales_contact`.
+- `GET /my/listings/{id}/interest` — owner only. Rows: `interested_buyer_seq`, `kind`, `kind_label`, `client_status`, `status`, `status_label`, `created_at`, `offer_amount`. Labels follow `Accept-Language`. Top-level `counts` + `sales_contact`.
 - `POST /appointments` `{ listing_id, requested_date, requested_slot, notes? }` → `APT-YYYY-#####`, status `requested`, `kind=viewing`. Consent optional.
 - `GET /my/appointments` · `GET /my/appointments/{id}` — buyer viewing requests.
 - `GET /config/sales-contact` — public `{ name, phone, hours }`.
@@ -580,7 +613,7 @@ Created (trimmed):
 - `GET /my/cases` · `GET /my/cases/{id}` — **buyer or seller** of the case. `status` is the client stage label; `lifecycle` is `open|waiting_for_information|on_hold|cancelled|lost|completed`. `timeline[].key` uses client labels (never `internal_stage`); `timeline[].at` is when that milestone was recorded. `viewer` is `buyer` or `seller`. No counterparty name/phone/email.
 - `POST /my/cases/{id}/documents` — buyer or seller upload (`kind` default `buyer_requested`). Decrements `missing_documents_count`.
 
-Staff desks **ADM-08** / **ADM-09** are Blade, not this API. Assigned Sales can act; others get 403 on private case actions (UAT-13).
+Staff desks **ADM-08** / **ADM-09** are Blade, not this API. Assigned Sales can act; others get 403 on private case actions (UAT-13). Finance may open ADM-09 and advance `schedule_transfer` / `completed` only (BRD §8.2); they cannot open leads, requests, lifecycle, assign, or documents.
 
 ## Phase 7 — Exit estimate and commissions
 
@@ -606,9 +639,9 @@ Owner-only. Contract price, paid amount, and cancellation percent are private. G
 }
 ```
 
-When `declared_cancellation_percent` or a verified percent exists, `computable` is true. Penalty = paid × percent / 100. Verified wins over declared. `0` is a real percent (computable). Market range uses published listings in the same area and unit type and is labelled `estimate`, not a certified valuation. Disclaimer prefers CMS `content_blocks.key = exit_estimate` (locale fallback), else `aqdar.estimate.disclaimer`.
+When `declared_cancellation_percent` or a verified percent exists, `computable` is true. Penalty = paid × percent / 100. A non-owner viewing a published listing gets `viewer: "buyer"`, `percent: null` and `reason: "cancellation_terms_private"`; unpublished listings are 404 for non-owners. Owners get `viewer: "owner"`. Verified wins over declared. `0` is a real percent (computable). Market range uses published listings in the same area and unit type and is labelled `estimate`, not a certified valuation. Disclaimer prefers CMS `content_blocks.key = exit_estimate` (locale fallback), else `aqdar.estimate.disclaimer`.
 
-Staff commissions (**ADM-10**) are Blade, not this API. Finance (`edit_commissions`) records a row on a **completed** transfer case. Reviewer PATCH is **403** (UAT-16). CSV export has no phones. Default rate is setting `commission_default_rate` (config fallback 2.5). Default status `earned`. Optional `commission_tax_percent`. The desk month filter (`?month=YYYY-MM`) applies to KPIs, table, and CSV. SVG monthly bars and a unit-type donut use recorded (non-waived) sale value / amount — no extra chart library.
+Staff commissions (**ADM-10**) are Blade, not this API. Finance (`edit_commissions`) records a row on a **completed** transfer case; the row stays pending until Operations (`approve_commissions`) approves it. Sales (`view_commissions`) see assigned-case rows only. Reviewer PATCH is **403** (UAT-16). CSV export has no phones. Default rate is setting `commission_default_rate` (config fallback 2.5). Default status `earned`. Optional `commission_tax_percent`. The desk month filter (`?month=YYYY-MM`) applies to KPIs, table, and CSV. SVG monthly bars and a unit-type donut use recorded (non-waived) sale value / amount — no extra chart library.
 
 ## Phase 8 — Notifications
 
@@ -657,6 +690,18 @@ Buyer↔seller chat, payment/escrow, and OCR stay **out**. These three slices ar
 
 Staff: ADM-12 `format=pdf` uses the same rows and phone rules as CSV (`export_csv`, `reveal_phone`). Support desk is under ADM-07 at `/dashboard/support` (`manage_crm`; Sales assigned-only).
 
+## Phase 10 — OTP delivery and consent
+
+No new routes. `POST /auth/otp/send` and `POST /auth/register` require consent the first time (**422** otherwise; SMS is not sent). Send returns `resend_after` and `consent_required`; the code is never in JSON. SMS goes through `AQDAR_SMS_DRIVER` (`log` | `http` | `null`); provider failure is **503**. The user stores `locale`, `consent_privacy_at`, `consent_terms_at`, `consent_version`. `PATCH /me` may change `locale` (`ar` | `en`) and set a first unverified email only. Details: [Phase 1](#phase-1--identity-otp-config).
+
+## Phase 11 — Session and audit hardening
+
+No new marketplace routes. Sanctum tokens expire (config, default 30 days). Staff remember-me no longer stores a password cookie. Staff deactivate, role change, or password change invalidates the session (`session_version`). Staff and marketplace logins are audited without the password. Staff 2FA / IP allowlist stay out (DEC-07).
+
+## Phase 12 — Listing publish gate and lifecycle
+
+No new marketplace routes. Staff approve and publish require every required document type's **latest** version to be **Approved**. New statuses: `under_offer` (public) and `archived` (not public). Unpublish (`published|under_offer|hold → approved`) removes the listing from public search and `/property/{code}` immediately. Editing public fields or media on a live listing moves it to `in_review` (FR-024). `GET /my/listings/{id}` exposes `previous_snapshot` and `reviewer_notes` for APP-25. APP-23 `published` / `live` chips include `under_offer`. Staff actions are Blade (ADM-02). Details: [Phase 3](#phase-3--listings).
+
 ## Phase 13 — Listing fields, installment evidence, commission policy reference
 
 No new marketplace routes. Existing seller steps and public listing DTOs gain BRD §3.3 fields. Staff assign a reviewer on ADM-02 (Blade).
@@ -700,3 +745,85 @@ Staff-only events (in-app + Blade `/dashboard/inbox`, **no push**):
 - `staff_new_buyer_request` — CRM queue including Sales on a new custom request (BRD §7.1 sales queue)
 
 Copy still cannot include party names or phones. Saved-search matching alerts stay behind the smart flag (SHOULD / APP-14).
+
+## Phase 16 — Staff permission table (BRD §8.2)
+
+No new marketplace routes. Blade RBAC only:
+
+- **Finance** advances ADM-09 finance stages (`schedule_transfer`, `completed`) after developer approval. Not the full pipeline. Still 403 on listing approve, leads, requests, case create/assign/lifecycle/documents.
+- **Operations** open ADM-10 and **approve** pending commission changes. They cannot create or PATCH amounts.
+- **Sales** open ADM-10 for **assigned cases only**. No edit, no approve, no CSV.
+- **Reviewer** remains review-only on commissions (UAT-16). Staff teams / team-scoped Sales numbers stay out (DEC-05).
+
+New permissions: `advance_finance_stages`, `approve_commissions`, `view_commissions`. Finance create/update sets `approved_at` null unless Super Admin. Existing commission rows are backfilled as approved.
+
+## Phase 17 — Manual exit estimate, upload scan, private video
+
+BRD **APP-17** is the exit estimate (the Flutter mockup labels the listing-sourced screen APP-32). Inputs may come from the seller listing **or** from a manual POST. Missing cancellation % is never invented. Same disclaimer as `GET /listings/{id}/estimate`.
+
+`POST /estimates`
+
+Auth required. Guest **401**. Body fields are all optional numbers. `listing_id` is optional and must be **owned** (other users get **404**); it is used only for market comparables, not to copy stored financials. Optional `area_id` / `unit_type_id` also feed comparables. Manual inputs are always `verified: false`. `source` is `manual`. `0` is a real percent (computable). No row is persisted.
+
+```json
+{
+  "contract_price": 2900000,
+  "total_paid": 1450000,
+  "remaining": 1450000,
+  "cancellation_percent": 10,
+  "asking_price": 2650000,
+  "listing_id": null,
+  "area_id": null,
+  "unit_type_id": null
+}
+```
+
+Response shape matches the listing estimate (`computable`, `reason`, `inputs`, `cancellation`, `transfer`, `market`, `assumptions`, `disclaimer`) plus `source`.
+
+**NFR-07 uploads.** `AQDAR_UPLOAD_SCAN_DRIVER=null` (default, local/tests) checks magic bytes against the MIME allowlist and rejects EXE/ELF payloads even when named `.pdf`. `clamav` also runs `clamdscan` when the binary exists and falls back to the MIME check with a warning if it does not. Listing documents, listing media, and case documents are scanned before they are stored.
+
+**Video.** Originals stay on `private_media`. Staff approve does **not** copy the original to `public_media`. `public_path` stays null, so public `photos` and `GET /listings/{id}/media` omit the video (`isApproved` requires a public derivative). Owner `ListingMedia` includes `kind: video|photo` so APP-30 can show a play tile; `url` stays null (no public original). Images are still re-encoded to JPEG and copied after approve.
+
+APP-32 «إدخال النسبة» saves on the listing via `PUT /my/listings/{id}/step/financials` (existing). Computing without saving uses `POST /estimates`. Mockup APP-17 is Custom Buyer Request (Phase 6); BRD APP-17 is this estimate.
+
+## Phase 18 — Account closure, saved searches, broadcast approval
+
+SHOULD items after MUST. Closure does **not** hard-delete the user (NFR-14). Saved-search **CRUD is always on**; match alerts stay behind `feature_smart_notifications`. Staff broadcasts wait for approval unless Super Admin created them.
+
+### `POST /me/close`
+
+Auth required. Guest **401**. Suspended / already-closed / pending-close sessions are **403**. Body:
+
+```json
+{ "reason": "أريد إغلاق الحساب" }
+```
+
+`reason` is required (3–500 chars). Sets `close_requested_at`, archives public listings, revokes tokens and devices, writes `user.closure_requested`. The JSON body is the user snapshot (`is_close_pending`, `is_closed`, …) plus `message` — the Bearer token is already revoked, so a later `GET /me` is **401**. The row is **not** anonymized yet. Login and OTP then return **422** (`account_close_pending`). Staff on ADM-04 **complete** anonymizes name/email/phone, sets `closed_at`, and keeps the row. **Decline** clears the pending request (archived listings stay archived). Existing admin hard-delete remains a separate ADM-04 action. `GET /me` (Sanctum session still bound in tests) exposes `is_close_pending` / `is_closed`.
+
+### `POST /me/password`
+
+Auth required. Body: `current_password` (required when the account already has a password; must be omitted for OTP-only accounts setting their first one), `password`, `password_confirmation`. Wrong current password is **422**. On success the password is updated, every other token for the user is revoked (the calling token stays valid), and `auth.password_changed` is written to the audit log. Throttled like password reset.
+
+### `PUT /me/two-factor`
+
+Auth required. Body: `enabled` (boolean), `current_password` (required when the account has a password; must be omitted otherwise). Enabling needs a verified phone (**422** on `enabled` otherwise). Returns the user resource. Audited as `auth.two_factor_enabled` / `auth.two_factor_disabled`.
+
+The user resource also carries `region: {code: "EG", name: "مصر"}` for the settings screen's read-only region row.
+
+### Saved searches
+
+`GET /saved-searches` · `POST /saved-searches` · `PATCH /saved-searches/{id}` · `DELETE /saved-searches/{id}`
+
+Auth required. Guest **401**. Max **20** per user (**422**). `filters` uses the same keys as public listing search (`area_id`, `price_max`, …). `notify` defaults true. `PATCH` may change `name`, `notify`, and/or `filters` (APP-14 settings gear). Other users’ rows are **404**. Publishing a listing runs `MatchSavedSearchesJob`; alerts (`smart_saved_search`) fire only when the smart flag is on, skip the listing owner, skip `notify: false`, and never include seller PII. Copy may use `listing_code` and `area` only. Staff verify of a **lower** public asking price on a live listing dispatches `smart_price_drop` (public `price` only; still behind the smart flag). Duplicate match/price keys are idempotent. The same verified price drop also sends `smart_favorite_updated` to buyers who saved the listing (not the owner; same smart flag; public `price` only).
+
+```json
+{
+  "name": "القاهرة الجديدة",
+  "notify": true,
+  "filters": { "area_id": 1, "price_max": 3000000 }
+}
+```
+
+### Broadcasts (Blade ADM-11)
+
+Operations may **schedule** a marketing broadcast (`pending`). They cannot approve their own (four-eyes). Super Admin create still **auto-approves and sends** (Phase 8). `sent_at` on the schedule tab is the usage record; opted-in inbox rows stay in the send log. Reviewer/Sales/Finance stay **403** on the content desk.

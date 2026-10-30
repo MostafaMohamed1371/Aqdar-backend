@@ -362,6 +362,37 @@ class NotificationPhase8Test extends TestCase
         ]);
     }
 
+    public function test_missed_scheduled_followup_alerts_assignee_and_managers_until_logged(): void
+    {
+        $sales = $this->actingAsStaff(StaffRole::Sales);
+        $manager = $this->actingAsStaff(StaffRole::Operations);
+        $lead = Lead::factory()->create(['assigned_to' => $sales->id, 'status' => LeadStatus::Contacted]);
+        $this->travel(-3)->days();
+        $lead->activities()->create([
+            'actor_id' => $sales->id,
+            'type' => 'call',
+            'body' => 'Call back on Sunday',
+            'due_at' => now()->addDay(),
+        ]);
+        $this->travelBack();
+
+        $this->assertSame(1, Lead::query()->overdueFollowUp()->count());
+        $this->artisan('aqdar:notify-overdue-followups')->assertSuccessful();
+
+        foreach ([$sales, $manager] as $staff) {
+            $this->assertTrue(
+                InboxNotification::query()
+                    ->where('event_key', 'sales_followup_overdue')
+                    ->where('notifiable_type', $staff->getMorphClass())
+                    ->where('notifiable_id', $staff->id)
+                    ->exists()
+            );
+        }
+
+        $lead->activities()->create(['actor_id' => $sales->id, 'type' => 'call', 'body' => 'Called back']);
+        $this->assertSame(0, Lead::query()->overdueFollowUp()->count());
+    }
+
     public function test_other_user_cannot_mark_notification_read(): void
     {
         $owner = User::factory()->create();

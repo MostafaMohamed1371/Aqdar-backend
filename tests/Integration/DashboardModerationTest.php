@@ -12,6 +12,7 @@ use App\Modules\Listing\Models\ListingMedia;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\URL;
+use Laravel\Sanctum\Sanctum;
 use Tests\Concerns\CreatesStaffUsers;
 use Tests\Concerns\UploadsListingDocuments;
 use Tests\TestCase;
@@ -47,6 +48,46 @@ class DashboardModerationTest extends TestCase
         $this->assertSame(ListingStatus::Approved, $listing->fresh()->status);
     }
 
+    public function test_bulk_approve_moves_eligible_listings_and_skips_the_rest(): void
+    {
+        $this->actingAsStaff(StaffRole::Reviewer);
+        $ready = Listing::factory()->create(['status' => ListingStatus::InReview]);
+        $this->seedApprovedRequiredDocuments($ready);
+        $missingDocs = Listing::factory()->create(['status' => ListingStatus::InReview]);
+        $published = Listing::factory()->published()->create();
+
+        $this->get('/dashboard/listings')
+            ->assertOk()
+            ->assertSee('form="bulk-form"', false)
+            ->assertSee(route('dashboard.listings.approve', $ready), false);
+
+        $this->from('/dashboard/listings')
+            ->post('/dashboard/listings/bulk', [
+                'action' => 'approve',
+                'ids' => [$ready->id, $missingDocs->id, $published->id],
+                'reason' => 'مراجعة جماعية',
+            ])
+            ->assertRedirect('/dashboard/listings')
+            ->assertSessionHas('status', __('aqdar.listings.desk.bulk_result', ['done' => 1, 'skipped' => 2]));
+
+        $this->assertSame(ListingStatus::Approved, $ready->fresh()->status);
+        $this->assertSame(ListingStatus::InReview, $missingDocs->fresh()->status);
+        $this->assertSame(ListingStatus::Published, $published->fresh()->status);
+
+        $this->post('/dashboard/listings/bulk', ['action' => 'publish', 'ids' => [$ready->id], 'reason' => 'abc'])
+            ->assertSessionHasErrors('action');
+    }
+
+    public function test_bulk_actions_need_listing_review_permission(): void
+    {
+        $this->actingAsStaff(StaffRole::Finance);
+        $listing = Listing::factory()->create(['status' => ListingStatus::InReview]);
+
+        $this->post('/dashboard/listings/bulk', ['action' => 'reject', 'ids' => [$listing->id], 'reason' => 'غير مكتمل'])
+            ->assertForbidden();
+        $this->assertSame(ListingStatus::InReview, $listing->fresh()->status);
+    }
+
     public function test_operations_can_publish_and_hold_with_reason(): void
     {
         $this->actingAsStaff(StaffRole::Operations);
@@ -68,13 +109,14 @@ class DashboardModerationTest extends TestCase
     {
         $this->actingAsStaff(StaffRole::Reviewer);
         $listing = Listing::factory()->create(['status' => ListingStatus::InReview]);
-        $listing->financials()->update([
+        $listing->financials->update([
             'declared_asking_price' => 900000,
             'verified_asking_price' => null,
             'asking_price_verified' => false,
         ]);
 
         $this->post('/dashboard/listings/'.$listing->id.'/verify-financials', [
+            'reason' => 'Matched developer statement',
             'verified_asking_price' => 850000,
         ])->assertRedirect();
 
@@ -150,6 +192,34 @@ class DashboardModerationTest extends TestCase
         $this->assertSame(ListingStatus::InReview, $listing->fresh()->status);
     }
 
+    public function test_request_changes_sends_per_section_notes_to_the_seller(): void
+    {
+        $this->actingAsStaff(StaffRole::Reviewer);
+        $listing = Listing::factory()->create(['status' => ListingStatus::InReview]);
+
+        $this->get('/dashboard/listings/'.$listing->id)
+            ->assertOk()
+            ->assertSee('field_notes[media]', false);
+
+        $this->post('/dashboard/listings/'.$listing->id.'/request-changes', [
+            'reason' => 'يرجى تعديل البيانات',
+            'field_notes' => ['media' => 'الصور غير واضحة', 'specs' => '', 'financials' => 'حدّث نظام السداد'],
+        ])->assertRedirect();
+
+        $this->post('/dashboard/listings/'.$listing->id.'/request-changes', [
+            'reason' => 'x x x',
+            'field_notes' => ['owner_phone' => 'not a section'],
+        ])->assertSessionHasErrors('field_notes');
+
+        Sanctum::actingAs($listing->owner);
+        $this->getJson('/api/v1/my/listings/'.$listing->id)
+            ->assertOk()
+            ->assertJsonPath('data.reviewer_field_notes', [
+                ['section' => 'media', 'note' => 'الصور غير واضحة'],
+                ['section' => 'financials', 'note' => 'حدّث نظام السداد'],
+            ]);
+    }
+
     public function test_operations_can_close_published_listing(): void
     {
         $this->actingAsStaff(StaffRole::Operations);
@@ -165,13 +235,14 @@ class DashboardModerationTest extends TestCase
     {
         $this->actingAsStaff(StaffRole::Reviewer);
         $listing = Listing::factory()->create(['status' => ListingStatus::InReview]);
-        $listing->financials()->update([
+        $listing->financials->update([
             'declared_seller_recovery_amount' => 400000,
             'verified_seller_recovery_amount' => null,
             'seller_recovery_verified' => false,
         ]);
 
         $this->post('/dashboard/listings/'.$listing->id.'/verify-financials', [
+            'reason' => 'Matched developer statement',
             'verified_seller_recovery_amount' => 390000,
         ])->assertRedirect();
 

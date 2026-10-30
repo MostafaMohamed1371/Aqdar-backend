@@ -14,6 +14,9 @@ use App\Core\Console\Commands\QaRunCommand;
 use App\Core\Console\Commands\ScalingCheckCommand;
 use App\Core\Console\Commands\SecurityCheckCommand;
 use App\Core\Identity\PublicCodeGenerator;
+use App\Core\Uploads\ClamAvUploadScanner;
+use App\Core\Uploads\MimeUploadScanner;
+use App\Core\Uploads\UploadScanner;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\RateLimiter;
@@ -28,6 +31,15 @@ class AppServiceProvider extends ServiceProvider
     {
         $this->app->singleton(AuditLogger::class);
         $this->app->singleton(PublicCodeGenerator::class);
+        $this->app->singleton(MimeUploadScanner::class);
+        $this->app->singleton(UploadScanner::class, function ($app) {
+            $mime = $app->make(MimeUploadScanner::class);
+            if (config('aqdar.files.scan.driver') === 'clamav') {
+                return new ClamAvUploadScanner($mime);
+            }
+
+            return $mime;
+        });
 
         if ($this->app->runningInConsole()) {
             $this->commands([

@@ -10,6 +10,7 @@ use App\Modules\Catalog\Models\Governorate;
 use App\Modules\Catalog\Models\Project;
 use App\Modules\Catalog\Models\Tag;
 use App\Modules\Catalog\Models\UnitType;
+use App\Modules\Category\Models\Category;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
@@ -17,6 +18,24 @@ use Illuminate\Validation\ValidationException;
 
 class MasterDataService
 {
+    /**
+     * Record counts for the master-data tabs (ADM-05).
+     *
+     * @return array{developers: int, projects: int, locations: int, unit-types: int, categories: int, amenities: int, tags: int}
+     */
+    public function counts(): array
+    {
+        return [
+            'developers' => Developer::query()->count(),
+            'projects' => Project::query()->count(),
+            'locations' => Governorate::query()->count(),
+            'unit-types' => UnitType::query()->count(),
+            'categories' => Category::query()->count(),
+            'amenities' => Amenity::query()->count(),
+            'tags' => Tag::query()->count(),
+        ];
+    }
+
     public function createGovernorate(array $data): Governorate
     {
         return Governorate::query()->create($data);
@@ -51,16 +70,23 @@ class MasterDataService
         $this->retire($area);
     }
 
-    public function createDeveloper(array $data): Developer
+    public function createDeveloper(array $data, ?UploadedFile $logo = null): Developer
     {
         $this->assertSingleOther(Developer::class, $data);
+        if ($logo !== null) {
+            $data['logo_path'] = $logo->store('developers', 'public_media');
+        }
 
         return Developer::query()->create($data);
     }
 
-    public function updateDeveloper(Developer $developer, array $data): Developer
+    public function updateDeveloper(Developer $developer, array $data, ?UploadedFile $logo = null): Developer
     {
         $this->assertSingleOther(Developer::class, $data, $developer->id);
+        if ($logo !== null) {
+            $this->deleteBannerImage($developer->logo_path);
+            $data['logo_path'] = $logo->store('developers', 'public_media');
+        }
         $developer->fill($data)->save();
 
         return $developer;

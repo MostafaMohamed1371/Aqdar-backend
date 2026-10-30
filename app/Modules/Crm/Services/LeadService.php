@@ -10,6 +10,7 @@ use App\Core\Enums\LeadStatus;
 use App\Core\Enums\PublicCodePrefix;
 use App\Core\Enums\StaffRole;
 use App\Core\Identity\PublicCodeGenerator;
+use App\Core\Services\QueueQuery;
 use App\Modules\Crm\Models\Lead;
 use App\Modules\Crm\Models\LeadActivity;
 use App\Modules\Listing\Models\Listing;
@@ -138,14 +139,15 @@ class LeadService
 
         $status = (string) ($filters['status'] ?? '');
         if ($status === 'overdue') {
-            $query->where('status', LeadStatus::New->value)
-                ->whereNotNull('sla_due_at')
-                ->where('sla_due_at', '<', now());
+            $query->overdueFollowUp();
         } elseif ($status !== '' && $status !== 'all') {
             $query->where('status', $status);
         }
         if (($filters['source'] ?? '') !== '') {
             $query->where('source', $filters['source']);
+        }
+        if (in_array($filters['priority'] ?? '', array_column(LeadPriority::cases(), 'value'), true)) {
+            $query->where('priority', $filters['priority']);
         }
         $assignedTo = (string) ($filters['assigned_to'] ?? '');
         if ($assignedTo === 'unassigned') {
@@ -160,6 +162,13 @@ class LeadService
                     ->orWhereHas('buyer', fn ($buyer) => $buyer->where('name', 'ilike', $like)->orWhere('phone', 'ilike', $like));
             });
         }
+        QueueQuery::apply($query, $filters, [
+            'code' => 'public_code',
+            'status' => 'status',
+            'priority' => 'priority',
+            'sla' => 'sla_due_at',
+            'created' => 'created_at',
+        ]);
 
         return $query->paginate(20)->withQueryString();
     }
@@ -174,18 +183,15 @@ class LeadService
         foreach (LeadStatus::cases() as $status) {
             $counts[$status->value] = (clone $base)->where('status', $status->value)->count();
         }
-        $counts['overdue'] = (clone $base)
-            ->where('status', LeadStatus::New->value)
-            ->whereNotNull('sla_due_at')
-            ->where('sla_due_at', '<', now())
-            ->count();
+        $counts['overdue'] = (clone $base)->overdueFollowUp()->count();
 
         return $counts;
     }
 
-    public function assign(Lead $lead, StaffUser $actor, int $assigneeId): Lead
+    public function assign(Lead $lead, StaffUser $actor, int $assigneeId, ?string $reason = null): Lead
     {
         $this->assertCanManageAll($actor);
+        $this->assertReassignReason($lead->assigned_to, $assigneeId, $reason);
 
         $assignee = StaffUser::query()->findOrFail($assigneeId);
         if (! $assignee->hasPermission('manage_crm')) {
@@ -196,9 +202,27 @@ class LeadService
 
         $lead->forceFill(['assigned_to' => $assignee->id])->save();
         $this->syncLinkedInquiries($lead);
-        $this->audit->write('lead.assigned', $actor, $lead, ['assignee_id' => $assignee->id]);
+        $this->audit->write('lead.assigned', $actor, $lead, array_filter([
+            'assignee_id' => $assignee->id,
+            'reason' => $reason,
+        ]));
 
         return $lead->fresh(['buyer', 'listing', 'assignee']) ?? $lead;
+    }
+
+    /**
+     * Replacing an existing owner must be justified; first assignment needs no reason.
+     */
+    public function assertReassignReason(?int $currentAssigneeId, int $newAssigneeId, ?string $reason): void
+    {
+        if ($currentAssigneeId === null || $currentAssigneeId === $newAssigneeId) {
+            return;
+        }
+        if (mb_strlen(trim((string) $reason)) < 3) {
+            throw ValidationException::withMessages([
+                'reason' => [__('aqdar.crm.reassign_reason_required')],
+            ]);
+        }
     }
 
     public function addActivity(Lead $lead, StaffUser $actor, array $data): LeadActivity

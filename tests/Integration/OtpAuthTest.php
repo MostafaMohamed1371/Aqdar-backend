@@ -138,13 +138,15 @@ class OtpAuthTest extends TestCase
             'phone' => '+201011111111',
         ]);
 
-        $this->postJson('/api/v1/auth/otp/send', ['phone' => '01011111111']);
+        $this->postJson('/api/v1/auth/otp/send', ['phone' => '01011111111'])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('phone');
 
         $this->postJson('/api/v1/auth/otp/verify', [
             'phone' => '01011111111',
             'code' => '123456',
         ])->assertUnprocessable()
-            ->assertJsonValidationErrors('phone');
+            ->assertJsonMissingPath('data.token');
 
         Sanctum::actingAs($user);
 
@@ -186,10 +188,13 @@ class OtpAuthTest extends TestCase
 
         $originalPhone = $user->phone;
 
+        $this->patchJson('/api/v1/me', ['email' => 'hacked@example.com'])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('email');
+
         $this->patchJson('/api/v1/me', [
             'is_seller' => true,
             'phone' => '01000000000',
-            'email' => 'hacked@example.com',
             'locale' => 'en',
         ])->assertOk()
             ->assertJsonPath('data.locale', 'en')
@@ -241,8 +246,9 @@ class OtpAuthTest extends TestCase
         $this->assertNull($user->fresh()->email_verified_at);
 
         $this->patchJson('/api/v1/me', ['email' => 'other@example.com'])
-            ->assertOk()
-            ->assertJsonPath('data.email', 'first@example.com');
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('email');
+        $this->assertSame('first@example.com', $user->fresh()->email);
     }
 
     public function test_me_rejects_a_duplicate_first_email(): void

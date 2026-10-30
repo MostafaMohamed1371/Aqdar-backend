@@ -178,9 +178,9 @@ Responses include `Content-Language: ar` and translated validation/auth messages
 
 ### Dashboard — language switcher
 
-Use the language links in the header, or visit `/locale/ar`, `/locale/en`, etc.
+Use the language links in the header, or visit `/locale/ar`, `/locale/en`.
 
-Supported locales: `en`, `ar`, `fr`, `es`, `de` (config: `structer.available_locales`).
+Supported locales: `ar`, `en` (config: `structer.available_locales`).
 
 ### Remember me
 

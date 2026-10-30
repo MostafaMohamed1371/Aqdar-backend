@@ -47,7 +47,7 @@ Roles: `super_admin`, `operations`, `reviewer`, `sales`, `finance`.
 | Id | Screen | Route | Permission |
 |----|--------|-------|------------|
 | ADM-05 | Developers & projects | `/dashboard/developers` | `manage_catalog` (super admin) |
-| ADM-11 | Content (banners, FAQs, support) | `/dashboard/content` | `manage_catalog` |
+| ADM-11 | Content (banners, FAQs, support) | `/dashboard/content` | `manage_catalog`; Operations may open schedule via `approve_broadcasts` |
 | ADM-15 | Categories | `/dashboard/categories` | `manage_catalog` |
 | ADM-15 | Locations | `/dashboard/locations` | `manage_catalog` |
 | ADM-15 | Unit types | `/dashboard/unit-types` | `manage_catalog` |
@@ -68,7 +68,7 @@ Settings Blade is ADM-13 (Phase 9). Marketplace **API** writes stay 403.
 
 `approve_listing` is super admin, operations, and reviewer. Sales and finance get 403.
 
-Queue tabs: all, in review (submitted / in_review / resubmitted), needs changes, approved, published, hold/closed, rejected, draft. Search is title or public code. Phase 3 shipped the peek; **actions are Phase 4** below.
+Queue tabs: all, in review (submitted / in_review / resubmitted), needs changes, approved, published (published / under offer), hold (hold / closed / archived), rejected, draft. Search is title or public code. Phase 3 shipped the peek; **actions are Phase 4** below.
 
 ---
 
@@ -79,6 +79,7 @@ Queue tabs: all, in review (submitted / in_review / resubmitted), needs changes,
 | ADM-02 | Listing queue + filters | `/dashboard/listings` | `approve_listing` |
 | ADM-02 | Approve / request changes / reject / reopen | `POST /dashboard/listings/{id}/…` | `approve_listing` (reason required) |
 | ADM-02 | Publish / hold / close | `POST /dashboard/listings/{id}/publish` (hold, close) | `publish_listing` |
+| ADM-02 | Unpublish / under offer / archive (Phase 12) | `POST /dashboard/listings/{id}/unpublish`, `…/under-offer`, `…/archive` | `publish_listing` (reason required) |
 | ADM-02 | Verify financials | `POST /dashboard/listings/{id}/verify-financials` | `approve_listing` |
 | ADM-02 | Approve / reject photos | `POST …/media/{id}/approve` | `approve_listing` |
 | ADM-02 | Assign reviewer | `POST /dashboard/listings/{id}/assign-reviewer` | `approve_listing` |
@@ -119,9 +120,9 @@ ADM-01 `inquiries_this_month`, `custom_buy_requests`, `overdue_followups`, `acti
 | ADM-08 | Request detail | `/dashboard/requests/{id}` | `manage_crm` (Sales: assigned only) |
 | ADM-08 | Assign | `POST /dashboard/requests/{id}/assign` | Operations + super admin |
 | ADM-08 | Status / rematch / send / response / open lead / convert | `POST /dashboard/requests/{id}/…` | Assigned Sales or ops/admin |
-| ADM-09 | Transfer cases | `/dashboard/cases` | `manage_crm` |
-| ADM-09 | Case detail | `/dashboard/cases/{id}` | `manage_crm` (Sales: assigned only) |
-| ADM-09 | Stage / lifecycle / developer letter | `POST /dashboard/cases/{id}/stage` etc. | Assigned Sales or ops (`advance_case` for stage) |
+| ADM-09 | Transfer cases | `/dashboard/cases` | `manage_crm` or `advance_finance_stages` |
+| ADM-09 | Case detail | `/dashboard/cases/{id}` | `manage_crm` (Sales: assigned only) or Finance (all, finance stages only) |
+| ADM-09 | Stage / lifecycle / developer letter | `POST /dashboard/cases/{id}/stage` etc. | Assigned Sales or ops (`advance_case` for stage). Finance: stage only, `schedule_transfer` / `completed` after developer approval. |
 | ADM-09 | Signed document download | `GET /dashboard/cases/documents/{id}/download` | Signed URL + `manage_crm`; watermarked; `access_logs.document.opened` |
 
 Type tabs on ADM-08: apartments / villas / land / investment. Table columns: code (link), buyer, unit type, region, price, area, status, owner. Pipeline chevrons are filters; the last step combines converted + closed. Request detail lists market (distressed / non-distressed), asking price, score, sent date, and a refresh-matches action. Convert opens a transfer case. ADM-09 KPI uses the building icon for awaiting developer. Table columns: code (link), listing, buyer, seller, internal stage, **lifecycle**, client sees, owner, missing docs, last update. Lifecycle filter: open / waiting for information / on hold / cancelled / lost / completed. Waiting-for-information is a lifecycle badge (`warn`), not an extra pipeline stage (BRD §9.2). Hold, cancel, lost, and waiting-for-information write `case_history` (actor, time, old/new status, reason). Completing via the stage form also writes status history. Chevrons filter by internal stage. Developer approval and title transfer are uploaded by hand — no government integration. Missing-documents count and a request-document note are staff tools; the app only sees the safe label.
@@ -132,12 +133,13 @@ Type tabs on ADM-08: apartments / villas / land / investment. Table columns: cod
 
 | Id | Screen | Route | Permission |
 |----|--------|-------|------------|
-| ADM-10 | Commissions & revenue | `/dashboard/commissions` | `edit_commissions` (Finance + Super Admin) |
-| ADM-10 | Create | `POST /dashboard/commissions` | completed transfer case only; unique per case |
-| ADM-10 | Update | `PUT/PATCH /dashboard/commissions/{id}` | reason required; writes `commission_history` + audit |
-| ADM-10 | CSV | `GET /dashboard/commissions/export` | `edit_commissions` + `export_csv`; no phones |
+| ADM-10 | Commissions & revenue | `/dashboard/commissions` | `edit_commissions` (Finance + Super Admin), `approve_commissions` (Operations), `view_commissions` (Sales, own rows) |
+| ADM-10 | Create | `POST /dashboard/commissions` | completed transfer case only; unique per case; pending until Operations approve |
+| ADM-10 | Update | `PUT/PATCH /dashboard/commissions/{id}` | Finance only; reason required; re-pends; writes `commission_history` + audit |
+| ADM-10 | Approve | `POST /dashboard/commissions/{id}/approve` | Operations (`approve_commissions`) |
+| ADM-10 | CSV | `GET /dashboard/commissions/export` | view permission + `export_csv`; no phones |
 
-KPIs: total (non-waived), due, deal count, average percent rate. Month dropdown (`YYYY-MM`, last 12 months) filters KPIs, table, CSV, and the donut. SVG monthly grouped bars (last 6 months ending at the selected month, or now): teal sale value vs gold commission amount — no chart library. Donut splits recorded sale value into apartment / villa / land / investment (same buckets as ADM-08). Table: date, case code (link to ADM-09 when the staff has `manage_crm`), payer (`buyer` / `seller` / `both`), listing as unit type · area, sale value, basis/rate, amount, invoice, status (`earned` / `due` / `paid` / `waived`) with inline update. Last change shows old → new status, reason, and date. Create uses a completed-case dropdown, not a raw numeric id. Reviewer, Operations, and Sales get 403 (UAT-16). Default rate comes from setting `commission_default_rate` (config fallback 2.5). CMS disclaimer `exit_estimate` is seeded. The platform does not collect money or act as escrow.
+KPIs: total (non-waived), due, deal count, average percent rate. Month dropdown (`YYYY-MM`, last 12 months) filters KPIs, table, CSV, and the donut. SVG monthly grouped bars (last 6 months ending at the selected month, or now): teal sale value vs gold commission amount — no chart library. Donut splits recorded sale value into apartment / villa / land / investment (same buckets as ADM-08). Table: date, case code (link to ADM-09 when the staff has `manage_crm` or `advance_finance_stages`), payer (`buyer` / `seller` / `both`), listing as unit type · area, sale value, basis/rate, amount, invoice, status (`earned` / `due` / `paid` / `waived`) with inline update for Finance. Pending rows show a badge until Operations approve. Last change shows old → new status, reason, and date. Create uses a completed-case dropdown, not a raw numeric id. Reviewer PATCH is **403** (UAT-16). Operations approve and cannot edit amounts. Sales view assigned-case rows only. Default rate comes from setting `commission_default_rate` (config fallback 2.5). CMS disclaimer `exit_estimate` is seeded. The platform does not collect money or act as escrow.
 
 ---
 
@@ -187,6 +189,36 @@ ADM-14 searches `audit_logs` / `access_logs`. No delete route. Retention default
 | ADM-15 | Category commission policy code (reference only) | create/edit/index categories | `manage_catalog` |
 
 Queue search includes `unit_code`. Installment evidence links to ADM-03 (document type + original filename), not a raw id. `unit_code` is shown to staff and returned to the owner API; it is never public. Commission policy on a category is copied onto the listing; public `GET /categories` does not expose the code.
+
+---
+
+## Phase 16 screens
+
+| Id | Screen | Route | Permission |
+|----|--------|-------|------------|
+| ADM-09 | Finance stage only | `GET /dashboard/cases`, `POST /dashboard/cases/{id}/stage` | `advance_finance_stages` (Finance) |
+| ADM-10 | Approve commission | `POST /dashboard/commissions/{id}/approve` | `approve_commissions` (Operations) |
+| ADM-10 | View own commissions | `GET /dashboard/commissions` | `view_commissions` (Sales, assigned cases) |
+
+Staff teams and team-scoped Sales numbers stay out (DEC-05). Reviewer remains listing review-only.
+
+---
+
+## Phase 17 screens
+
+No new Blade screens. ADM-03 media approve is unchanged: **images** still get a public JPEG after review; **videos** stay on the private disk even after approve (the original is never copied to `public_media`). Owner API `kind` is `video` so APP-30 can show a play tile without a public URL.
+
+---
+
+## Phase 18 screens
+
+| Id | Screen | Route | Permission |
+|----|--------|-------|------------|
+| ADM-04 | Complete / decline account closure | `POST /dashboard/users/{id}/close/complete`, `…/decline` | `suspend_user` |
+| ADM-11 | Schedule broadcasts | `GET /dashboard/content?tab=schedule`, `POST /dashboard/notifications/broadcasts` | `manage_catalog` **or** `approve_broadcasts` |
+| ADM-11 | Approve broadcast | `POST /dashboard/notifications/broadcasts/{id}/approve` | `approve_broadcasts` (not own row, except Super Admin) |
+
+Operations open ADM-11 for schedule/approve only. Catalog banners, templates, and test-send stay Super Admin (`manage_catalog`). User-requested closure is a pending badge until legal review; complete anonymizes the row and does not hard-delete.
 
 ---
 

@@ -12,13 +12,15 @@ class EnsureStaffPermission
 {
     public function __construct(private AuditLogger $auditLogger) {}
 
-    public function handle(Request $request, Closure $next, string $permission): Response
+    public function handle(Request $request, Closure $next, string ...$permissions): Response
     {
         $user = $request->user();
+        $allowed = $user instanceof StaffUser && $permissions !== []
+            && collect($permissions)->contains(fn (string $permission): bool => $user->can($permission));
 
-        if (! $user instanceof StaffUser || ! $user->can($permission)) {
+        if (! $allowed) {
             $this->auditLogger->write('permission_denied', $user instanceof StaffUser ? $user : null, null, [
-                'permission' => $permission,
+                'permission' => $permissions[0] ?? 'unknown',
                 'path' => $request->path(),
             ]);
 

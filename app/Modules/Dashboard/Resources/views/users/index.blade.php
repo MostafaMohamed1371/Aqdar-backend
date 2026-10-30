@@ -73,6 +73,8 @@
                 @php
                     $tone = $user->identity_status->badgeTone();
                     $revealed = $revealedPhones[$user->id] ?? null;
+                    $revealedEmail = $revealedEmails[$user->id] ?? null;
+                    $duplicateReasons = $duplicates[$user->id] ?? [];
                 @endphp
                 <tr>
                     <td>
@@ -82,11 +84,11 @@
                         </div>
                     </td>
                     <td>{{ $user->account_type->labelAr() }}</td>
-                    <td class="en">{{ ContactMask::email($user->email) }}</td>
+                    <td class="en">{{ $revealedEmail ?: ContactMask::email($user->email) }}</td>
                     <td>
                         <span class="en">{{ $revealed ?? ContactMask::phone($user->phone) }}</span>
                         @can('reveal_phone')
-                            @if ($user->phone && ! $revealed)
+                            @if (($user->phone || $user->email) && ! $revealed)
                                 <form method="POST" action="{{ route('dashboard.users.reveal', $user) }}" style="display:inline">
                                     @csrf
                                     <button class="ib" type="submit" title="{{ __('aqdar.users.reveal_title') }}">
@@ -99,26 +101,44 @@
                     <td><span class="badge {{ $tone }}">{{ $user->identity_status->labelAr() }}</span></td>
                     <td>{{ $user->activityLabel() }}</td>
                     <td>
-                        @if ($user->isSuspended())
+                        @if ($user->isClosed())
+                            <span class="badge bad">{{ __('aqdar.users.closed_badge') }}</span>
+                        @elseif ($user->isClosePending())
+                            <span class="badge gold">{{ __('aqdar.users.close_requested_badge') }}</span>
+                        @elseif ($user->isSuspended())
                             <span class="badge bad">{{ __('aqdar.users.suspended_badge') }}</span>
                         @else
                             <span class="badge ok">{{ __('aqdar.users.active_badge') }}</span>
                         @endif
+                        @if ($duplicateReasons !== [])
+                            <span class="badge warn" title="{{ collect($duplicateReasons)->map(fn ($reason) => __('aqdar.users.duplicate_reasons.'.$reason))->implode(' · ') }}">{{ __('aqdar.users.possible_duplicate') }}</span>
+                        @endif
                     </td>
                     <td>
                         @can('suspend_user')
-                            <a href="{{ route('dashboard.users.edit', $user) }}" class="btn ghost sm">{{ __('structer.edit') }}</a>
+                            @if (! $user->isClosed())
+                                <a href="{{ route('dashboard.users.edit', $user) }}" class="btn ghost sm">{{ __('structer.edit') }}</a>
+                            @endif
                             <form method="POST" action="{{ route('dashboard.users.destroy', $user) }}" onsubmit="return confirm(@js(__('aqdar.users.confirm_delete')))" style="display:inline">
                                 @csrf
                                 @method('DELETE')
                                 <button type="submit" class="btn bad sm">{{ __('structer.delete') }}</button>
                             </form>
-                            @if ($user->isSuspended())
+                            @if ($user->isClosePending())
+                                <form method="POST" action="{{ route('dashboard.users.close.complete', $user) }}" onsubmit="return confirm(@js(__('aqdar.users.confirm_complete_close')))" style="display:inline">
+                                    @csrf
+                                    <button class="btn sm" type="submit">{{ __('aqdar.users.complete_close') }}</button>
+                                </form>
+                                <form method="POST" action="{{ route('dashboard.users.close.decline', $user) }}" style="display:inline">
+                                    @csrf
+                                    <button class="btn ghost sm" type="submit">{{ __('aqdar.users.decline_close') }}</button>
+                                </form>
+                            @elseif ($user->isSuspended())
                                 <form method="POST" action="{{ route('dashboard.users.reactivate', $user) }}" style="display:inline">
                                     @csrf
                                     <button class="btn sm" type="submit">{{ __('aqdar.users.reactivate') }}</button>
                                 </form>
-                            @else
+                            @elseif (! $user->isClosed())
                                 <form method="POST" action="{{ route('dashboard.users.suspend', $user) }}" style="display:inline-flex;gap:6px;align-items:center">
                                     @csrf
                                     <input class="btn ghost sm" name="reason" placeholder="{{ __('aqdar.users.reason') }}" required>
@@ -138,5 +158,5 @@
 
     {{ $users->links() }}
 
-    <p class="tiny">@include('dashboard::partials.icon', ['name' => 'lock']) {{ __('aqdar.users.mask_note') }}</p>
+    <p class="tiny">@include('dashboard::partials.icon', ['name' => 'lock']) {{ __('aqdar.users.mask_note') }} {{ __('aqdar.users.closure_note') }}</p>
 @endsection

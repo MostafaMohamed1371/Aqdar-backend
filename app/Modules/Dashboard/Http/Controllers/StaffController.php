@@ -5,6 +5,7 @@ namespace App\Modules\Dashboard\Http\Controllers;
 use App\Core\Enums\Permission as PermissionEnum;
 use App\Core\Enums\StaffRole;
 use App\Core\Http\Controllers\BaseController;
+use App\Modules\Dashboard\Http\Requests\RevokeStaffRequest;
 use App\Modules\Dashboard\Http\Requests\StoreStaffRequest;
 use App\Modules\Dashboard\Http\Requests\UpdateStaffRequest;
 use App\Modules\Staff\Models\StaffUser;
@@ -36,6 +37,7 @@ class StaffController extends BaseController
     {
         return view('dashboard::staff.create', [
             'roles' => $this->staffService->roles(),
+            'branches' => $this->staffService->branches(),
         ]);
     }
 
@@ -55,6 +57,7 @@ class StaffController extends BaseController
         return view('dashboard::staff.edit', [
             'staffUser' => $staffUser,
             'roles' => $this->staffService->roles(),
+            'branches' => $this->staffService->branches(),
         ]);
     }
 
@@ -80,13 +83,22 @@ class StaffController extends BaseController
             ->with('status', __('aqdar.staff.deleted'));
     }
 
-    public function deactivate(Request $request, StaffUser $staffUser): RedirectResponse
+    public function deactivate(RevokeStaffRequest $request, StaffUser $staffUser): RedirectResponse
     {
         /** @var StaffUser $actor */
         $actor = $request->user();
-        $this->staffService->deactivate($staffUser, $actor);
+        $this->staffService->deactivate($staffUser, $actor, (string) $request->validated('reason'));
 
         return back()->with('status', __('aqdar.staff.deactivated'));
+    }
+
+    public function signOutEverywhere(RevokeStaffRequest $request, StaffUser $staffUser): RedirectResponse
+    {
+        /** @var StaffUser $actor */
+        $actor = $request->user();
+        $this->staffService->signOutEverywhere($staffUser, $actor, (string) $request->validated('reason'));
+
+        return back()->with('status', __('aqdar.staff.sessions_revoked'));
     }
 
     public function activate(Request $request, StaffUser $staffUser): RedirectResponse

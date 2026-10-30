@@ -3,6 +3,8 @@
 namespace Tests\Integration;
 
 use App\Core\Enums\ListingStatus;
+use App\Core\Enums\MarketSegment;
+use App\Modules\Category\Models\Category;
 use App\Modules\Crm\Models\TransferCase;
 use App\Modules\Listing\Models\Listing;
 use App\Modules\User\Models\User;
@@ -23,6 +25,42 @@ class PrivacyNegativeSuiteTest extends TestCase
         $this->getJson('/api/v1/listings/'.$listing->id)->assertNotFound();
         $this->getJson('/api/v1/listings/'.$listing->id.'/media')->assertNotFound();
         $this->get('/property/'.$listing->public_code)->assertNotFound();
+    }
+
+    public function test_uat_03_non_distressed_listing_shows_segment_and_approved_public_fields(): void
+    {
+        $category = Category::query()->where('slug', 'non-distressed')->first()
+            ?? Category::factory()->create(['slug' => 'non-distressed-uat03']);
+        $listing = Listing::factory()->published()->create([
+            'segment' => MarketSegment::NonDistressed,
+            'distressed_child' => null,
+            'category_id' => $category->id,
+        ]);
+        $listing->financials()->update([
+            'declared_asking_price' => 2400000,
+            'verified_asking_price' => 2300000,
+            'asking_price_verified' => true,
+            'declared_contract_price' => 2000000,
+        ]);
+
+        $this->getJson('/api/v1/listings/'.$listing->id)
+            ->assertOk()
+            ->assertJsonPath('data.segment', 'non_distressed')
+            ->assertJsonPath('data.distressed_child', null)
+            ->assertJsonPath('data.category.id', $category->id)
+            ->assertJsonPath('data.asking_price', 2300000)
+            ->assertJsonPath('data.asking_price_source', 'verified')
+            ->assertJsonPath('data.verification_badge', true)
+            ->assertJsonPath('data.currency', 'EGP')
+            ->assertJsonMissingPath('data.unit_code')
+            ->assertJsonMissingPath('data.commission_policy_code');
+
+        $this->getJson('/api/v1/listings?segment=non_distressed')
+            ->assertOk()
+            ->assertJsonPath('data.0.id', $listing->id);
+        $this->getJson('/api/v1/listings?segment=distressed')
+            ->assertOk()
+            ->assertJsonCount(0, 'data');
     }
 
     public function test_uat_08_public_listing_and_share_hide_seller_pii(): void

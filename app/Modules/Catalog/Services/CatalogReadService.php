@@ -29,6 +29,7 @@ class CatalogReadService
     {
         return Developer::query()
             ->where('is_active', true)
+            ->where('is_verified', true)
             ->orderBy('is_other')
             ->orderBy('sort_order')
             ->get();

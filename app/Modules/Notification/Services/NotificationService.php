@@ -4,7 +4,6 @@ namespace App\Modules\Notification\Services;
 
 use App\Core\Audit\AuditLogger;
 use App\Core\Enums\DeliveryStatus;
-use App\Core\Enums\LeadStatus;
 use App\Core\Enums\NotificationCategory;
 use App\Core\Enums\NotificationChannel;
 use App\Core\Enums\Permission;
@@ -33,7 +32,7 @@ class NotificationService
     /** @var list<string> */
     private const SAFE_KEYS = [
         'listing_code', 'listing_id', 'area', 'unit_type', 'client_label',
-        'public_code', 'lead_code', 'event',
+        'public_code', 'lead_code', 'event', 'price',
     ];
 
     public function __construct(
@@ -227,29 +226,61 @@ class NotificationService
     {
         $this->assertSafeCopy($data['title_ar'], $data['title_en'] ?? $data['title_ar'], $data['body_ar'], $data['body_en'] ?? $data['body_ar']);
         $when = ! empty($data['scheduled_at']) ? Carbon::parse($data['scheduled_at']) : now();
+        $autoApprove = $actor->isSuperAdmin();
         $broadcast = NotificationBroadcast::query()->create([
             'title_ar' => $data['title_ar'],
             'title_en' => $data['title_en'] ?? $data['title_ar'],
             'body_ar' => $data['body_ar'],
             'body_en' => $data['body_en'] ?? $data['body_ar'],
             'audience' => $data['audience'] ?? 'marketing_opted_in',
-            'status' => $when->isFuture() ? 'scheduled' : 'queued',
+            'status' => $autoApprove ? ($when->isFuture() ? 'scheduled' : 'queued') : 'pending',
             'scheduled_at' => $when,
             'created_by' => $actor->id,
+            'approved_at' => $autoApprove ? now() : null,
+            'approved_by' => $autoApprove ? $actor->id : null,
         ]);
         $this->audit->write('notification.broadcast_scheduled', $actor, $broadcast, [
             'scheduled_at' => $when->toIso8601String(),
+            'approved' => $autoApprove,
         ]);
-        if (! $when->isFuture()) {
+        if ($autoApprove && ! $when->isFuture()) {
             SendBroadcastJob::dispatch($broadcast->id)->afterCommit();
         }
 
         return $broadcast;
     }
 
+    public function approveBroadcast(NotificationBroadcast $broadcast, StaffUser $actor): NotificationBroadcast
+    {
+        if ($broadcast->isApproved()) {
+            return $broadcast;
+        }
+
+        if ((int) $broadcast->created_by === (int) $actor->id && ! $actor->isSuperAdmin()) {
+            throw ValidationException::withMessages([
+                'broadcast' => [__('aqdar.notifications.cannot_approve_own')],
+            ]);
+        }
+
+        $when = $broadcast->scheduled_at ?? now();
+        $broadcast->forceFill([
+            'approved_at' => now(),
+            'approved_by' => $actor->id,
+            'status' => $when->isFuture() ? 'scheduled' : 'queued',
+        ])->save();
+        $this->audit->write('notification.broadcast_approved', $actor, $broadcast);
+
+        if (! $when->isFuture()) {
+            SendBroadcastJob::dispatch($broadcast->id)->afterCommit();
+        }
+
+        return $broadcast->fresh() ?? $broadcast;
+    }
+
     public function dispatchDueBroadcasts(): int
     {
         $rows = NotificationBroadcast::query()
+            ->whereNotNull('approved_at')
             ->whereIn('status', ['scheduled', 'queued'])
             ->where('scheduled_at', '<=', now())
             ->get();
@@ -263,10 +294,13 @@ class NotificationService
     public function dispatchBroadcast(int $broadcastId): void
     {
         $broadcast = NotificationBroadcast::query()->find($broadcastId);
-        if ($broadcast === null || $broadcast->sent_at !== null) {
+        if ($broadcast === null || $broadcast->sent_at !== null || ! $broadcast->isApproved()) {
             return;
         }
         $users = User::query()
+            ->whereNull('closed_at')
+            ->whereNull('close_requested_at')
+            ->whereNull('suspended_at')
             ->whereHas('notificationPreference', fn ($query) => $query->where('marketing_opt_in', true))
             ->get();
         foreach ($users as $user) {
@@ -285,25 +319,22 @@ class NotificationService
     public function notifyOverdueFollowups(): int
     {
         $leads = Lead::query()
-            ->where('status', LeadStatus::New->value)
-            ->whereNotNull('sla_due_at')
-            ->where('sla_due_at', '<', now())
-            ->whereNotNull('assigned_to')
-            ->with('assignee')
+            ->overdueFollowUp()
+            ->with(['assignee', 'listing'])
             ->get();
         $count = 0;
         foreach ($leads as $lead) {
-            $staff = $lead->assignee;
-            if ($staff === null) {
-                continue;
-            }
-            $row = $this->notifySafely($staff, 'sales_followup_overdue', [
+            $activity = $lead->activities()->overdueFollowUp()->first();
+            $key = 'sales_followup_overdue:lead:'.$lead->id.($activity !== null ? ':activity:'.$activity->id : '');
+            $context = [
                 'lead_code' => $lead->public_code,
                 'listing_code' => $lead->listing?->public_code,
-            ], 'sales_followup_overdue:lead:'.$lead->id);
-            if ($row !== null) {
+            ];
+            $staff = $lead->assignee;
+            if ($staff !== null && $this->notifySafely($staff, 'sales_followup_overdue', $context, $key) !== null) {
                 $count++;
             }
+            $count += $this->notifyStaffQueue('sales_followup_overdue', $context, Permission::ManageCrm, true, $key.':manager');
         }
 
         return $count;

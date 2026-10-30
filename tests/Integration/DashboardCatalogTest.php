@@ -85,26 +85,26 @@ class DashboardCatalogTest extends TestCase
         ]);
     }
 
-    public function test_dashboard_uses_light_desk_without_dark_toggle(): void
+    public function test_dashboard_offers_light_and_dark_toggle(): void
     {
         $this->actingAsStaff();
 
         $this->get('/dashboard')
             ->assertOk()
-            ->assertDontSee('data-theme-toggle', false)
+            ->assertSee('data-theme-toggle', false)
             ->assertSee('color-scheme', false)
-            ->assertSee('content="light"', false)
-            ->assertSee('structer-theme', false);
+            ->assertSee('content="light dark"', false)
+            ->assertSee('structer-theme', false)
+            ->assertSee('prefers-color-scheme', false);
     }
 
-    public function test_login_page_forces_light_color_scheme(): void
+    public function test_login_page_offers_light_and_dark_toggle(): void
     {
         $this->get('/dashboard')
             ->assertOk()
-            ->assertDontSee('data-theme-toggle', false)
-            ->assertDontSee('prefers-color-scheme', false)
+            ->assertSee('data-theme-toggle', false)
+            ->assertSee('prefers-color-scheme', false)
             ->assertSee('structer-theme', false)
-            ->assertSee('root.classList.remove', false)
-            ->assertSee('content="light"', false);
+            ->assertSee('content="light dark"', false);
     }
 }

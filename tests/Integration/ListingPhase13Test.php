@@ -251,6 +251,14 @@ class ListingPhase13Test extends TestCase
         $this->from('/dashboard/listings/'.$listing->id)
             ->post('/dashboard/listings/'.$listing->id.'/assign-reviewer', [
                 'assigned_reviewer_id' => null,
+            ])->assertRedirect()
+            ->assertSessionHasErrors('reason');
+        $this->assertSame($reviewer->id, $listing->fresh()->assigned_reviewer_id);
+
+        $this->from('/dashboard/listings/'.$listing->id)
+            ->post('/dashboard/listings/'.$listing->id.'/assign-reviewer', [
+                'assigned_reviewer_id' => null,
+                'reason' => 'Reviewer on leave',
             ])->assertRedirect();
         $this->assertNull($listing->fresh()->assigned_reviewer_id);
 

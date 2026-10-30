@@ -60,4 +60,14 @@ class CatalogController extends BaseController
     {
         return ContentBlockResource::collection($this->catalog->content(ContentBlockType::Support));
     }
+
+    public function onboarding(): AnonymousResourceCollection
+    {
+        return ContentBlockResource::collection($this->catalog->content(ContentBlockType::Onboarding));
+    }
+
+    public function sellerGuide(): AnonymousResourceCollection
+    {
+        return ContentBlockResource::collection($this->catalog->content(ContentBlockType::SellerGuide));
+    }
 }

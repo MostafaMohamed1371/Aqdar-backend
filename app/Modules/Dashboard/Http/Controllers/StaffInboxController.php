@@ -50,7 +50,7 @@ class StaffInboxController extends BaseController
 
             return route('dashboard.listings.index', array_filter(['q' => $listingCode ?: null]));
         }
-        if (in_array($event, ['staff_unassigned_lead', 'sales_followup_overdue', 'inquiry_created'], true)) {
+        if (in_array($event, ['staff_unassigned_lead', 'sales_followup_overdue', 'inquiry_created', 'staff_inquiry_assigned'], true)) {
             return route('dashboard.leads.index', array_filter([
                 'q' => $leadCode ?: $publicCode ?: null,
                 'assigned_to' => $event === 'staff_unassigned_lead' ? 'unassigned' : null,

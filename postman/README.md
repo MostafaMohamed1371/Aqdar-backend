@@ -41,9 +41,13 @@ AQDAR API
 ├── Phase 7 — Estimate       listings/{id}/estimate (owner; missing % never invented)
 ├── Phase 8 — Notifications  inbox, read, read-all, preferences (in-app always on)
 ├── Phase 9 — Handover       /up, /config (maintenance + platform_name), listings throttle note
+├── Phase 10–12 — Consent/gate  otp/send without consent 422, PATCH /me locale; session + publish gate are Blade
 ├── Phase 13 — Listing fields  specs phase/parking/unit_code, financials offer expiry + installment paid/evidence, public categories hide policy code
 ├── Phase 14 — Cases           my/cases list + show for buyer or seller; no internal_stage / counterparty PII
-└── Phase 15 — Notifications   inbox may include listing_held / listing_suspended; staff queue is Blade /dashboard/inbox
+├── Phase 15 — Notifications   inbox may include listing_held / listing_suspended; staff queue is Blade /dashboard/inbox
+├── Phase 16 — Staff RBAC      Blade only: finance stages, commission approve, sales view own
+├── Phase 17 — Estimate/files  POST /estimates (manual); upload scan; videos stay private
+└── Phase 18 — Closure/search  POST /me/close; saved-searches CRUD + PATCH; price-drop alert behind smart flag
 ```
 
 ---
