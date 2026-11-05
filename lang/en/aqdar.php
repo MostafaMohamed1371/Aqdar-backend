@@ -61,7 +61,7 @@ return [
         'phone' => 'Enter a valid Egyptian phone number.',
         'phone_required' => 'Please enter a phone number.',
         'code_required' => 'Please enter the verification code.',
-        'code_size' => 'The verification code must be 6 digits.',
+        'code_size' => 'The verification code must be 4 digits.',
         'device_uuid' => 'Please enter a device identifier.',
         'platform' => 'Platform must be ios, android, web, or huawei.',
         'account_type' => 'Account type must be individual, developer, or broker.',

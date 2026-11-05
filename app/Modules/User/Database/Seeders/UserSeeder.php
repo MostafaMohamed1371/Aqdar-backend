@@ -9,12 +9,35 @@ class UserSeeder extends Seeder
 {
     public function run(): void
     {
-        User::query()->firstOrCreate(
+        User::query()->updateOrCreate(
             ['email' => 'test@example.com'],
             [
-                'name' => 'Test User',
+                'name' => 'مشتري تجريبي',
                 'password' => 'password',
+                'phone' => '+201012345678',
+                'phone_verified_at' => now(),
                 'is_buyer' => true,
+                'is_seller' => false,
+                'locale' => 'ar',
+                'consent_privacy_at' => now(),
+                'consent_terms_at' => now(),
+                'consent_version' => (string) config('aqdar.consent.version', '1'),
+            ],
+        );
+
+        User::query()->updateOrCreate(
+            ['email' => 'buyer@example.com'],
+            [
+                'name' => 'Buyer Demo',
+                'password' => 'password',
+                'phone' => '+201098765432',
+                'phone_verified_at' => now(),
+                'is_buyer' => true,
+                'is_seller' => false,
+                'locale' => 'en',
+                'consent_privacy_at' => now(),
+                'consent_terms_at' => now(),
+                'consent_version' => (string) config('aqdar.consent.version', '1'),
             ],
         );
     }

@@ -18,7 +18,7 @@ class FavoriteController extends BaseController
         $listings = Listing::query()
             ->public()
             ->whereHas('favorites', fn ($query) => $query->where('user_id', $request->user()->id))
-            ->with(['financials', 'governorate', 'area', 'developer', 'project', 'unitType', 'category'])
+            ->with(['financials', 'governorate', 'area', 'developer', 'project', 'unitType', 'category', 'media'])
             ->latest('published_at')
             ->paginate(min(max((int) $request->integer('per_page', 15), 1), 50));
 
@@ -38,7 +38,7 @@ class FavoriteController extends BaseController
             'listing_id' => $listing->id,
         ]);
 
-        $listing->load(['financials', 'governorate', 'area', 'developer', 'project', 'unitType', 'category']);
+        $listing->load(['financials', 'governorate', 'area', 'developer', 'project', 'unitType', 'category', 'media']);
 
         return (new PublicListingResource($listing))->response()->setStatusCode(201);
     }

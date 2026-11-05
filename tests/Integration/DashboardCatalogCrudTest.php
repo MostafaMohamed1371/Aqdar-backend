@@ -3,6 +3,7 @@
 namespace Tests\Integration;
 
 use App\Core\Enums\ContentBlockType;
+use App\Core\Support\PublicMediaUrl;
 use App\Modules\Catalog\Database\Seeders\CatalogSeeder;
 use App\Modules\Catalog\Models\Amenity;
 use App\Modules\Catalog\Models\Area;
@@ -358,6 +359,6 @@ class DashboardCatalogCrudTest extends TestCase
         $this->getJson('/api/v1/content/banners')
             ->assertOk()
             ->assertJsonFragment(['key' => 'home-hero-test', 'link_url' => 'https://example.com/promo'])
-            ->assertJsonPath('data.0.image_url', Storage::disk('public_media')->url($block->image_path));
+            ->assertJsonPath('data.0.image_url', PublicMediaUrl::for($block->image_path));
     }
 }

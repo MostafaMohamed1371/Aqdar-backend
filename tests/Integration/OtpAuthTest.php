@@ -44,7 +44,7 @@ class OtpAuthTest extends TestCase
 
         $this->postJson('/api/v1/auth/otp/verify', [
             'phone' => '01012345678',
-            'code' => '123456',
+            'code' => '1234',
         ])->assertOk()
             ->assertJsonPath('data.user.locale', 'en')
             ->assertJsonPath('data.user.consent_version', '1');
@@ -56,7 +56,7 @@ class OtpAuthTest extends TestCase
 
         $response = $this->postJson('/api/v1/auth/otp/verify', [
             'phone' => '01012345678',
-            'code' => '123456',
+            'code' => '1234',
             ...$this->otpConsent(['locale' => 'ar']),
         ]);
 
@@ -78,7 +78,7 @@ class OtpAuthTest extends TestCase
 
         $this->postJson('/api/v1/auth/otp/verify', [
             'phone' => '01012345678',
-            'code' => '123456',
+            'code' => '1234',
         ])->assertUnprocessable()
             ->assertJsonValidationErrors(['consent_privacy', 'consent_terms']);
     }
@@ -88,14 +88,14 @@ class OtpAuthTest extends TestCase
         $this->postJson('/api/v1/auth/otp/send', $this->otpSendBody('01012345678'));
         $this->postJson('/api/v1/auth/otp/verify', [
             'phone' => '01012345678',
-            'code' => '123456',
+            'code' => '1234',
             ...$this->otpConsent(),
         ])->assertOk();
 
         $this->postJson('/api/v1/auth/otp/send', ['phone' => '01012345678']);
         $this->postJson('/api/v1/auth/otp/verify', [
             'phone' => '01012345678',
-            'code' => '123456',
+            'code' => '1234',
         ])->assertOk();
     }
 
@@ -103,7 +103,7 @@ class OtpAuthTest extends TestCase
     {
         $this->postJson('/api/v1/auth/otp/verify', [
             'phone' => '01012345678',
-            'code' => '123456',
+            'code' => '1234',
         ])->assertUnprocessable();
     }
 
@@ -113,13 +113,13 @@ class OtpAuthTest extends TestCase
 
         $this->postJson('/api/v1/auth/otp/verify', [
             'phone' => '01012345678',
-            'code' => '123456',
+            'code' => '1234',
             ...$this->otpConsent(),
         ])->assertOk();
 
         $this->postJson('/api/v1/auth/otp/verify', [
             'phone' => '01012345678',
-            'code' => '123456',
+            'code' => '1234',
         ])->assertUnprocessable();
     }
 
@@ -144,7 +144,7 @@ class OtpAuthTest extends TestCase
 
         $this->postJson('/api/v1/auth/otp/verify', [
             'phone' => '01011111111',
-            'code' => '123456',
+            'code' => '1234',
         ])->assertUnprocessable()
             ->assertJsonMissingPath('data.token');
 

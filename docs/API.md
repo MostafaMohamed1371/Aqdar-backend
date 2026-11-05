@@ -192,7 +192,7 @@ When the account has two-factor on (`two_factor_enabled` on the user resource), 
 ### POST `/auth/login/two-factor`
 
 ```json
-{ "challenge": "<from the 202>", "code": "123456" }
+{ "challenge": "<from the 202>", "code": "1234" }
 ```
 
 **200** — same shape as login. Wrong code is **422** on `code` (counts toward the OTP lockout). The challenge is single-use and expires with the OTP TTL; an expired or reused challenge is **422** on `challenge` (sign in again). Phone OTP login (`/auth/otp/verify`) is not affected — it already proves possession of the phone.
@@ -211,14 +211,14 @@ APP-02 sends the phone plus one consent tick. Either `consent: true` or both `co
 { "message": "…", "resend_after": 45, "consent_required": false }
 ```
 
-`resend_after` is the UI countdown (seconds). Server still rate-limits send at 5 / 10 minutes. First send for a new or unconsented phone **requires** `consent: true` (or both flags); missing consent is **422** and SMS is not sent. Returning users with stored consent may omit the flags. Resend within the OTP TTL may omit flags because consent is cached from the accepted send. `consent_required` on **200** is `false` after an accepted send (or for returning users). Local/testing code is `123456` (logs only in `local`). Never in the JSON body. Staging/production send the code through `AQDAR_SMS_DRIVER` (`log` | `http` | `null`). SMS provider failure is **503**.
+`resend_after` is the UI countdown (seconds). Server still rate-limits send at 5 / 10 minutes. First send for a new or unconsented phone **requires** `consent: true` (or both flags); missing consent is **422** and SMS is not sent. Returning users with stored consent may omit the flags. Resend within the OTP TTL may omit flags because consent is cached from the accepted send. `consent_required` on **200** is `false` after an accepted send (or for returning users). Local/testing code is `1234` (logs only in `local`). Never in the JSON body. Staging/production send the code through `AQDAR_SMS_DRIVER` (`log` | `http` | `null`). SMS provider failure is **503**.
 
 ### POST `/auth/otp/verify`
 
 ```json
 {
   "phone": "01012345678",
-  "code": "123456",
+  "code": "1234",
   "consent": true,
   "locale": "ar"
 }
@@ -298,7 +298,7 @@ Public. **200**. `sales_contact.name` and `hours` follow `Accept-Language` (`ar`
     },
     "otp": {
       "resend_after": 45,
-      "length": 6
+      "length": 4
     }
   }
 }
@@ -436,7 +436,7 @@ Specs may also send `furnished` (`unfurnished`|`furnished`), `handover_date`, `n
 
 ### Public
 
-- `GET /listings` — filters: `q` (title / public code / area / unit type), `segment`, `distressed_child`, `governorate_id`, `area_id`, `developer_id`, `project_id`, `unit_type_id`, `bedrooms`, `finishing` (case-insensitive exact match), `tag` or `tag_id`, `area_min`/`area_max`, `price_min`/`price_max`, `down_payment_min`/`down_payment_max` (remaining), `installment_min`/`installment_max`, `neighborhood` (case-insensitive exact match), `sort=newest|price_asc|price_desc|area_asc|area_desc`, pagination. Optional Bearer sets `is_favorited`. Price, down-payment and installment filters and price sorting use the value buyers see (staff-verified when verified, else declared), stored in `listing_financials.public_*`.
+- `GET /listings` — filters: `q` (title / public code / area / unit type), `segment` (`distressed` | `non_distressed`; `voluntary` is invalid), `distressed_child`, `governorate_id`, `area_id`, `developer_id`, `project_id`, `unit_type_id`, `bedrooms`, `finishing` (case-insensitive exact match), `tag` or `tag_id`, `area_min`/`area_max`, `price_min`/`price_max`, `down_payment_min`/`down_payment_max` (remaining), `installment_min`/`installment_max`, `neighborhood` (case-insensitive exact match), `sort=newest|price_asc|price_desc|area_asc|area_desc`, pagination. Optional Bearer sets `is_favorited`. Price, down-payment and installment filters and price sorting use the value buyers see (staff-verified when verified, else declared), stored in `listing_financials.public_*`.
 - `GET /listings/counts` — published totals for home cards: `non_distressed`, `distressed`, `distressed_a`, `distressed_b`, plus `unit_types: [{ id, slug, count }]` (only types with published listings) and `tags: [{ id, slug, count }]` (every active tag, count may be 0).
 - `GET /listings/compare?ids=1,2,3` (or `ids[]=`) — 2–3 ids, returns the public DTO for each published listing in the requested order; unpublished ids are dropped.
 - `GET /listings/{id}` — public DTO + labelled `financial_summary` + `installment_items` (`sequence`, `due_date`, `amount`, `paid` — no evidence document ids) + amenities/tags + `sales_contact`. Increments `view_count` (not returned on the public DTO). With a Bearer token the view is also stored for recently viewed.
@@ -650,7 +650,7 @@ In-app inbox is the source of truth (F10). Push is best-effort via a queued job.
 - `GET /notifications` — paginated inbox + `meta.unread_count`. Each row has `event`, `category`, `title`, `body`, `context` (safe keys only: listing code, area, client label — never a name or phone), `read_at`. `?category=` listing\|inquiry\|case\|system\|marketing\|smart. `?unread=1`. APP-14 `smart` is empty while `feature_smart_notifications` is off.
 - `POST /notifications/{id}/read`
 - `POST /notifications/read-all`
-- `GET|PATCH /me/notification-preferences` — `push_enabled`, `email_enabled`, `sms_enabled`, `marketing_opt_in`. In-app cannot be turned off.
+- `GET|PATCH /me/notification-preferences` (alias `GET|PATCH /me/preferences`) — `push_enabled`, `email_enabled`, `sms_enabled`, `marketing_opt_in`. In-app cannot be turned off.
 
 UAT-14: listing publish writes an inbox row and a push delivery. UAT-18: `push_enabled=false` still returns the in-app row. Duplicate events reuse `idempotency_key`. Expired device tokens are cleared. Quiet hours and default copy live in settings/templates (DEC-09).
 

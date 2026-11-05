@@ -13,6 +13,7 @@ After **every** finished phase, follow [DOCUMENTATION_PROCESS.md](DOCUMENTATION_
 | If you want to… | Read |
 |-----------------|------|
 | Install and run | [GETTING_STARTED.md](GETTING_STARTED.md) |
+| **Send pack to Flutter / mobile** | [MOBILE_DEVELOPER.md](MOBILE_DEVELOPER.md) |
 | Call or extend the REST API | [API.md](API.md) + [Postman](../postman/README.md) |
 | Use the Blade admin | [DASHBOARD.md](DASHBOARD.md) |
 | See phase plan | [AQDAR_BACKEND_PHASES.md](AQDAR_BACKEND_PHASES.md) |
@@ -51,7 +52,7 @@ Starter-era files (`STARTER_GUIDE.md`, `STRUCTER.md`, `SCALING.md`, `DOCKER.md`,
 | `APP_NAME` | `AQDAR` |
 | `APP_LOCALE` | `ar` (Arabic first) |
 | `DB_CONNECTION` | `pgsql` — database `aqdar_eg` |
-| `AQDAR_OTP_TEST_CODE` | Local/testing OTP (`123456`) — never in JSON |
+| `AQDAR_OTP_TEST_CODE` | Local/testing OTP (`1234`) — never in JSON |
 | `SALES_PHONE` / `SALES_TEAM_NAME` / `SALES_HOURS` | Public `GET /config` sales contact |
 
 Full list: [.env.example](../.env.example). Never commit secrets.

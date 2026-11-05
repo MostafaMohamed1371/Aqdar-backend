@@ -2,10 +2,11 @@
 
 namespace App\Modules\Catalog\Http\Resources;
 
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
-/** @mixin \Illuminate\Database\Eloquent\Model */
+/** @mixin Model */
 class NamedCatalogResource extends JsonResource
 {
     public function toArray(Request $request): array
@@ -21,6 +22,10 @@ class NamedCatalogResource extends JsonResource
             'sort_order' => $this->sort_order,
             'developer_id' => $this->developer_id ?? null,
             'governorate_id' => $this->governorate_id ?? null,
+            'logo_url' => $this->when(
+                method_exists($this->resource, 'logoUrl'),
+                fn () => $this->resource->logoUrl(),
+            ),
             'areas' => NamedCatalogResource::collection($this->whenLoaded('areas')),
         ];
     }

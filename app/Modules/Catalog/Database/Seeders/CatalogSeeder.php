@@ -160,6 +160,58 @@ class CatalogSeeder extends Seeder
 
     private function seedDevelopers(): void
     {
+        $catalog = [
+            ['tmg', 'طلعت مصطفى', 'Talaat Moustafa Group', 1, [
+                ['madinaty', 'مدينتي', 'Madinaty'],
+                ['rehab', 'الرحاب', 'Al Rehab'],
+            ]],
+            ['palm-hills', 'بالم هيلز', 'Palm Hills Developments', 2, [
+                ['badya', 'بادية', 'Badya'],
+                ['palm-parks', 'بالم باركس', 'Palm Parks'],
+            ]],
+            ['sodic', 'سوديك', 'SODIC', 3, [
+                ['villette', 'فيليت', 'Villette'],
+                ['eastown', 'إيستاون', 'Eastown'],
+            ]],
+            ['emaar', 'إعمار مصر', 'Emaar Misr', 4, [
+                ['uptown-cairo', 'أب تاون القاهرة', 'Uptown Cairo'],
+                ['marassi', 'مراسي', 'Marassi'],
+            ]],
+            ['mountain-view', 'ماونتن فيو', 'Mountain View', 5, [
+                ['icity', 'آي سيتي', 'iCity'],
+                ['october-park', 'أكتوبر بارك', 'October Park'],
+            ]],
+            ['ora', 'أورا', 'Ora Developers', 6, [
+                ['zelda', 'زيلدا', 'Zed'],
+            ]],
+        ];
+
+        foreach ($catalog as [$slug, $ar, $en, $order, $projects]) {
+            $developer = Developer::query()->updateOrCreate(
+                ['slug' => $slug],
+                [
+                    'name_ar' => $ar,
+                    'name_en' => $en,
+                    'is_other' => false,
+                    'is_active' => true,
+                    'sort_order' => $order,
+                ],
+            );
+
+            foreach ($projects as $index => [$projectSlug, $projectAr, $projectEn]) {
+                Project::query()->updateOrCreate(
+                    ['developer_id' => $developer->id, 'slug' => $projectSlug],
+                    [
+                        'name_ar' => $projectAr,
+                        'name_en' => $projectEn,
+                        'is_other' => false,
+                        'is_active' => true,
+                        'sort_order' => $index + 1,
+                    ],
+                );
+            }
+        }
+
         $other = Developer::query()->updateOrCreate(
             ['slug' => 'other'],
             [
@@ -169,22 +221,6 @@ class CatalogSeeder extends Seeder
                 'is_active' => true,
                 'sort_order' => 99,
             ],
-        );
-
-        $tmg = Developer::query()->updateOrCreate(
-            ['slug' => 'tmg'],
-            [
-                'name_ar' => 'طلعت مصطفى',
-                'name_en' => 'Talaat Moustafa Group',
-                'is_other' => false,
-                'is_active' => true,
-                'sort_order' => 1,
-            ],
-        );
-
-        Project::query()->updateOrCreate(
-            ['developer_id' => $tmg->id, 'slug' => 'madinaty'],
-            ['name_ar' => 'مدينتي', 'name_en' => 'Madinaty', 'is_other' => false, 'is_active' => true, 'sort_order' => 1],
         );
 
         Project::query()->updateOrCreate(
@@ -290,6 +326,42 @@ class CatalogSeeder extends Seeder
         );
 
         ContentBlock::query()->updateOrCreate(
+            ['type' => ContentBlockType::Faq, 'key' => 'what-documents'],
+            [
+                'title_ar' => 'ما المستندات المطلوبة للبيع؟',
+                'title_en' => 'What documents are required to sell?',
+                'body_ar' => 'بطاقة الرقم القومي والعقد وإثبات السداد. السوق المتعثر يحتاج خطاب موقف من المطوّر.',
+                'body_en' => 'National ID, contract, and payment proof. Distressed listings also need a developer status letter.',
+                'is_active' => true,
+                'sort_order' => 3,
+            ],
+        );
+
+        ContentBlock::query()->updateOrCreate(
+            ['type' => ContentBlockType::Faq, 'key' => 'how-favorites'],
+            [
+                'title_ar' => 'كيف أحفظ إعلاناً؟',
+                'title_en' => 'How do I save a listing?',
+                'body_ar' => 'سجّل الدخول ثم اضغط القلب على بطاقة العقار. المحفوظات تظهر في حسابك.',
+                'body_en' => 'Sign in and tap the heart on a listing card. Saved units appear in your account.',
+                'is_active' => true,
+                'sort_order' => 4,
+            ],
+        );
+
+        ContentBlock::query()->updateOrCreate(
+            ['type' => ContentBlockType::Banner, 'key' => 'home-distressed'],
+            [
+                'title_ar' => 'فرص السوق المتعثر',
+                'title_en' => 'Distressed market opportunities',
+                'body_ar' => 'وحدات بتعثر سداد قائم أو متوقع. راجع التفاصيل المالية المعتمدة قبل اتخاذ قرار.',
+                'body_en' => 'Units with a current or expected payment default. Review verified financials before you decide.',
+                'is_active' => true,
+                'sort_order' => 2,
+            ],
+        );
+
+        ContentBlock::query()->updateOrCreate(
             ['type' => ContentBlockType::Support, 'key' => 'support-hours'],
             [
                 'title_ar' => 'الدعم',
@@ -312,5 +384,45 @@ class CatalogSeeder extends Seeder
                 'sort_order' => 20,
             ],
         );
+
+        $onboarding = [
+            ['welcome', 'مرحباً بك في عَقدار', 'Welcome to AQDAR', 'منصة مصرية للخروج وإعادة البيع. تصفح الفرص أو اعرض وحدتك بخطوات واضحة.', 'An Egyptian exit and resale marketplace. Browse opportunities or list your unit in clear steps.', 1],
+            ['browse', 'ابحث بدون أرقام تواصل', 'Browse without phone numbers', 'لا تظهر أرقام البائعين أو المشترين في التطبيق. كل اهتمام يمر عبر فريق المبيعات.', 'Seller and buyer phones never appear in the app. Every interest goes through Sales.', 2],
+            ['sell', 'اعرض وحدتك بأمان', 'List your unit safely', 'أدخل بيانات الوحدة والمستندات. المراجعة تتم قبل النشر على البحث العام.', 'Enter unit details and documents. Review happens before the listing goes public.', 3],
+            ['sales', 'فريق المبيعات معك', 'Sales team with you', 'الاستفسارات والمعاينات والحالات تُدار عبر فريق المبيعات فقط.', 'Inquiries, viewings, and cases are handled by the sales team only.', 4],
+        ];
+
+        foreach ($onboarding as [$key, $titleAr, $titleEn, $bodyAr, $bodyEn, $order]) {
+            ContentBlock::query()->updateOrCreate(
+                ['type' => ContentBlockType::Onboarding, 'key' => $key],
+                [
+                    'title_ar' => $titleAr,
+                    'title_en' => $titleEn,
+                    'body_ar' => $bodyAr,
+                    'body_en' => $bodyEn,
+                    'is_active' => true,
+                    'sort_order' => $order,
+                ],
+            );
+        }
+
+        $sellerGuide = [
+            ['seller-prepare', 'جهّز بيانات الوحدة', 'Prepare your unit details', 'المساحة والغرف والتشطيب والموقع والمطور والمشروع تساعد على مراجعة أسرع.', 'Area, rooms, finishing, location, developer, and project help speed up review.', 1],
+            ['seller-docs', 'ارفع المستندات المطلوبة', 'Upload required documents', 'بطاقة الرقم القومي والعقد وإثبات السداد مطلوبة قبل اعتماد الإعلان.', 'National ID, contract, and payment proof are required before approval.', 2],
+        ];
+
+        foreach ($sellerGuide as [$key, $titleAr, $titleEn, $bodyAr, $bodyEn, $order]) {
+            ContentBlock::query()->updateOrCreate(
+                ['type' => ContentBlockType::SellerGuide, 'key' => $key],
+                [
+                    'title_ar' => $titleAr,
+                    'title_en' => $titleEn,
+                    'body_ar' => $bodyAr,
+                    'body_en' => $bodyEn,
+                    'is_active' => true,
+                    'sort_order' => $order,
+                ],
+            );
+        }
     }
 }

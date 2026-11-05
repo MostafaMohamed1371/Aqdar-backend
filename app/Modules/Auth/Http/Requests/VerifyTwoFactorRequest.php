@@ -16,7 +16,7 @@ class VerifyTwoFactorRequest extends BaseFormRequest
     {
         return [
             'challenge' => ['required', 'string', 'size:64'],
-            'code' => ['required', 'string', 'size:6'],
+            'code' => ['required', 'string', 'size:'.max(4, (int) config('aqdar.otp.length', 4))],
         ];
     }
 

@@ -2,6 +2,8 @@
 
 Import these files into [Postman](https://www.postman.com/).
 
+**Sending this to a Flutter / mobile developer?** Start with [docs/MOBILE_DEVELOPER.md](../docs/MOBILE_DEVELOPER.md) — it lists exactly which files to share and how to auth.
+
 | File | Purpose |
 |------|---------|
 | `AQDAR-API.postman_collection.json` | Product API, **one folder per finished phase** |
@@ -19,7 +21,7 @@ The old `Structer-API.postman_collection.json` is leftover starter. Do not use i
 4. Run **Phase 1 — Identity → Register** or **Verify OTP**
 5. `auth_token` is stored; Bearer is applied to protected requests
 
-Local OTP code is `123456` (never returned by the API).
+Local OTP code is `1234` (never returned by the API).
 
 ---
 
@@ -61,7 +63,7 @@ AQDAR API
 | `auth_token` | (empty) | Set by Register / Login / Verify OTP |
 | `email` / `password` | demo user | Marketplace, not staff |
 | `phone` | `01012345678` | Egyptian |
-| `otp_code` | `123456` | local/testing only |
+| `otp_code` | `1234` | local/testing only |
 | `category_slug` | `electronics` | Needs a seeded/active category |
 | `listing_id` | `1` | Set by Start draft |
 | `document_id` | `1` | Set by Phase 4 document upload |

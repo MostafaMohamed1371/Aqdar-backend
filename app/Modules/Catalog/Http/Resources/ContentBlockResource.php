@@ -2,11 +2,12 @@
 
 namespace App\Modules\Catalog\Http\Resources;
 
+use App\Core\Support\PublicMediaUrl;
+use App\Modules\Catalog\Models\ContentBlock;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
-use Illuminate\Support\Facades\Storage;
 
-/** @mixin \App\Modules\Catalog\Models\ContentBlock */
+/** @mixin ContentBlock */
 class ContentBlockResource extends JsonResource
 {
     public function toArray(Request $request): array
@@ -22,9 +23,7 @@ class ContentBlockResource extends JsonResource
             'body_ar' => $this->body_ar,
             'body_en' => $this->body_en,
             'image_path' => $this->image_path,
-            'image_url' => $this->image_path
-                ? Storage::disk('public_media')->url($this->image_path)
-                : null,
+            'image_url' => PublicMediaUrl::for($this->image_path),
             'link_url' => $this->link_url,
             'sort_order' => $this->sort_order,
         ];

@@ -34,7 +34,9 @@ php artisan serve
 **Staff (after seed):** `test@example.com` / `password`  
 There is **no public register** on the dashboard. Super admin creates marketplace users and staff from the desk.
 
-**Marketplace OTP (local/testing only):** code `123456` — never returned in JSON.
+**Marketplace demo (after seed):** buyer `test@example.com` / `password` (phone `+201012345678`, OTP `1234`); seller `seller@example.com` / `password`. `MobileDemoSeeder` fills browse/map/favorites/notifications with Egypt sample listings + photos. Run `php artisan storage:link` so media URLs resolve.
+
+**Marketplace OTP (local/testing only):** code `1234` — never returned in JSON.
 
 Full install: [docs/GETTING_STARTED.md](docs/GETTING_STARTED.md)
 
@@ -47,6 +49,7 @@ Full install: [docs/GETTING_STARTED.md](docs/GETTING_STARTED.md)
 | [docs/README.md](docs/README.md) | Index |
 | [docs/GETTING_STARTED.md](docs/GETTING_STARTED.md) | Install, PostgreSQL, first run |
 | [docs/API.md](docs/API.md) | REST API by phase (source of truth for HTTP) |
+| [docs/MOBILE_DEVELOPER.md](docs/MOBILE_DEVELOPER.md) | **Handoff pack for Flutter / mobile** |
 | [docs/DASHBOARD.md](docs/DASHBOARD.md) | Blade admin screens |
 | [docs/DOCUMENTATION_PROCESS.md](docs/DOCUMENTATION_PROCESS.md) | **After each phase:** update API.md + Postman |
 | [docs/AQDAR_BACKEND_PHASES.md](docs/AQDAR_BACKEND_PHASES.md) | Product phases |

@@ -5,12 +5,12 @@ return [
     'currency' => 'EGP',
 
     'otp' => [
-        'length' => 6,
+        'length' => 4,
         'ttl_seconds' => (int) env('AQDAR_OTP_TTL', 300),
         'resend_after_seconds' => (int) env('AQDAR_OTP_RESEND_AFTER', 45),
         'max_attempts' => (int) env('AQDAR_OTP_MAX_ATTEMPTS', 5),
         'decay_minutes' => (int) env('AQDAR_OTP_DECAY_MINUTES', 10),
-        'test_code' => env('AQDAR_OTP_TEST_CODE', '123456'),
+        'test_code' => env('AQDAR_OTP_TEST_CODE', '1234'),
     ],
 
     'sms' => [

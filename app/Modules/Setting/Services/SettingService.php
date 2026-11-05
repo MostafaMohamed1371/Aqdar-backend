@@ -59,7 +59,7 @@ class SettingService extends AbstractService
             ],
             'otp' => [
                 'resend_after' => max(1, (int) config('aqdar.otp.resend_after_seconds', 45)),
-                'length' => max(4, (int) config('aqdar.otp.length', 6)),
+                'length' => max(4, (int) config('aqdar.otp.length', 4)),
             ],
         ];
     }

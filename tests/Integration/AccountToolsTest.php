@@ -106,16 +106,16 @@ class AccountToolsTest extends TestCase
             ->assertJsonMissingPath('token')
             ->json('challenge');
 
-        $this->postJson('/api/v1/auth/login/two-factor', ['challenge' => $challenge, 'code' => '000000'])
+        $this->postJson('/api/v1/auth/login/two-factor', ['challenge' => $challenge, 'code' => '0000'])
             ->assertUnprocessable()
             ->assertJsonValidationErrors('code');
 
-        $this->postJson('/api/v1/auth/login/two-factor', ['challenge' => $challenge, 'code' => '123456'])
+        $this->postJson('/api/v1/auth/login/two-factor', ['challenge' => $challenge, 'code' => '1234'])
             ->assertOk()
             ->assertJsonPath('data.user.id', $user->id)
             ->assertJsonPath('data.user.two_factor_enabled', true);
 
-        $this->postJson('/api/v1/auth/login/two-factor', ['challenge' => $challenge, 'code' => '123456'])
+        $this->postJson('/api/v1/auth/login/two-factor', ['challenge' => $challenge, 'code' => '1234'])
             ->assertUnprocessable()
             ->assertJsonValidationErrors('challenge');
     }

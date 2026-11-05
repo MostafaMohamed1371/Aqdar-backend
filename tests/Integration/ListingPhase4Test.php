@@ -7,6 +7,7 @@ use App\Core\Enums\DocumentReviewStatus;
 use App\Core\Enums\DocumentType;
 use App\Core\Enums\ListingStatus;
 use App\Core\Enums\StaffRole;
+use App\Core\Support\PublicMediaUrl;
 use App\Modules\Catalog\Database\Seeders\CatalogSeeder;
 use App\Modules\Catalog\Models\Area;
 use App\Modules\Catalog\Models\UnitType;
@@ -124,13 +125,26 @@ class ListingPhase4Test extends TestCase
         $this->getJson('/api/v1/listings/'.$listing->id.'/media')
             ->assertOk()
             ->assertJsonPath('data.0.id', $media->id)
-            ->assertJsonPath('data.0.url', Storage::disk('public_media')->url($media->public_path));
+            ->assertJsonPath('data.0.url', PublicMediaUrl::for($media->public_path));
 
         $public = $this->getJson('/api/v1/listings/'.$listing->id)->assertOk();
         $this->assertNotEmpty($public->json('data.photos'));
         $this->assertArrayNotHasKey('documents', $public->json('data'));
         $encoded = json_encode($public->json());
         $this->assertStringNotContainsString('original_path', $encoded);
+    }
+
+    public function test_public_photo_url_follows_the_request_host(): void
+    {
+        $listing = Listing::factory()->published()->create();
+        ListingMedia::factory()->approved()->create([
+            'listing_id' => $listing->id,
+            'public_path' => 'listings/'.$listing->id.'/1.jpg',
+        ]);
+
+        $this->getJson('http://10.0.2.2:8000/api/v1/listings/'.$listing->id.'/media')
+            ->assertOk()
+            ->assertJsonPath('data.0.url', 'http://10.0.2.2:8000/storage/media/listings/'.$listing->id.'/1.jpg');
     }
 
     public function test_owner_document_list_does_not_include_file_path(): void

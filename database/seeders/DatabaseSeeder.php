@@ -3,7 +3,6 @@
 namespace Database\Seeders;
 
 use App\Modules\Catalog\Database\Seeders\CatalogSeeder;
-use App\Modules\Listing\Database\Seeders\ListingSeeder;
 use App\Modules\Notification\Database\Seeders\NotificationSeeder;
 use App\Modules\Setting\Models\Setting;
 use App\Modules\Staff\Database\Seeders\StaffSeeder;
@@ -24,8 +23,8 @@ class DatabaseSeeder extends Seeder
             StaffSeeder::class,
             UserSeeder::class,
             CatalogSeeder::class,
-            ListingSeeder::class,
             NotificationSeeder::class,
+            MobileDemoSeeder::class,
         ]);
 
         foreach ([
@@ -33,7 +32,7 @@ class DatabaseSeeder extends Seeder
             ['support_email', (string) config('aqdar.platform.support_email', 'support@aqdar.eg'), 'platform'],
             ['sales_name', (string) config('aqdar.sales.name'), 'sales'],
             ['sales_name_en', (string) config('aqdar.sales.name_en'), 'sales'],
-            ['sales_phone', (string) config('aqdar.sales.phone'), 'sales'],
+            ['sales_phone', (string) (config('aqdar.sales.phone') ?: '+201000000001'), 'sales'],
             ['sales_hours', (string) config('aqdar.sales.hours'), 'sales'],
             ['sales_hours_en', (string) config('aqdar.sales.hours_en'), 'sales'],
             ['lead_assignment_rule', (string) config('aqdar.crm.assignment_rule', 'manual'), 'crm'],

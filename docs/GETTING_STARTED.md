@@ -72,11 +72,12 @@ php artisan serve
 
 Privacy: public listings hide seller PII; CSV exports hide phones by default; see [README.md](../README.md#privacy). Backups and staging/production: [OPS.md](OPS.md), [DEPLOY.md](DEPLOY.md).
 
-**Staff after seed:** `test@example.com` / `password`
+**Staff after seed:** `test@example.com` / `password`  
+**Marketplace demo after seed:** buyer `test@example.com` / `password` (OTP phone `+201012345678` → code `1234`); seller `seller@example.com` / `password`. Also run `php artisan storage:link` for listing photos.
 
 ### 5. Marketplace API user
 
-Do **not** use `/register` in the browser. Create a marketplace user from **Dashboard → Users**, or:
+Seed already creates demo buyers/sellers for the mobile app. Or create another user from **Dashboard → Users**, or:
 
 ```bash
 curl -X POST http://127.0.0.1:8000/api/v1/auth/register \
@@ -85,9 +86,10 @@ curl -X POST http://127.0.0.1:8000/api/v1/auth/register \
   -d '{"name":"Demo User","email":"demo@example.com","password":"password123","password_confirmation":"password123"}'
 ```
 
-Save `data.token`. OTP login (local): send then verify with code `123456`.
+Save `data.token`. OTP login (local): send then verify with code `1234`.
 
-Import Postman: [../postman/README.md](../postman/README.md). Full HTTP reference: [API.md](API.md).
+Import Postman: [../postman/README.md](../postman/README.md). Full HTTP reference: [API.md](API.md).  
+Mobile / Flutter handoff pack: [MOBILE_DEVELOPER.md](MOBILE_DEVELOPER.md).
 
 ---
 
@@ -124,7 +126,7 @@ See [DOCKER.md](../DOCKER.md) for scaling compose and production.
 5. Run **Phase 1 — Identity → Register** or **Verify OTP** — the token is saved automatically
 6. Run any authenticated request (Bearer `{{auth_token}}`)
 
-Local OTP code is `123456`. After each phase, a new **Phase N** folder is added. See [postman/README.md](../postman/README.md).
+Local OTP code is `1234`. After each phase, a new **Phase N** folder is added. See [postman/README.md](../postman/README.md).
 
 Do not use the leftover `Structer-API` collection.
 

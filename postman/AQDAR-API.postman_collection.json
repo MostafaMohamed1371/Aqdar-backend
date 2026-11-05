@@ -524,7 +524,7 @@
     },
     {
       "name": "Phase 1 — Identity",
-      "description": "Marketplace register/login/OTP, me, devices, public config and categories. OTP local code is 123456 (never in JSON).",
+      "description": "Marketplace register/login/OTP, me, devices, public config and categories. OTP local code is 1234 (never in JSON).",
       "item": [
         {
           "name": "Register",
@@ -688,7 +688,7 @@
                 "send"
               ]
             },
-            "description": "Sends OTP. Local/testing code is 123456 in logs only. Never in this response. 5 / 10 min. APP-02 sends consent:true. Response includes resend_after (45s UI timer) and consent_required.",
+            "description": "Sends OTP. Local/testing code is 1234 in logs only. Never in this response. 5 / 10 min. APP-02 sends consent:true. Response includes resend_after (45s UI timer) and consent_required.",
             "auth": {
               "type": "noauth"
             },
@@ -4086,7 +4086,7 @@
             "description": "When `POST /auth/login` returns **202** with `two_factor_required: true`, an OTP was sent to the verified phone. Send the `challenge` from that response with the 6-digit code to receive the token. Challenge lives for the OTP TTL and is single-use.",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"challenge\": \"{{two_factor_challenge}}\",\n  \"code\": \"123456\"\n}"
+              "raw": "{\n  \"challenge\": \"{{two_factor_challenge}}\",\n  \"code\": \"{{otp_code}}\"\n}"
             },
             "auth": {
               "type": "noauth"

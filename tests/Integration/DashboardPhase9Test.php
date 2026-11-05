@@ -337,7 +337,7 @@ class DashboardPhase9Test extends TestCase
         $this->postJson('/api/v1/auth/otp/send', $this->otpSendBody('01012345678'));
         $this->postJson('/api/v1/auth/otp/verify', [
             'phone' => '01012345678',
-            'code' => '123456',
+            'code' => '1234',
             ...$this->otpConsent(),
         ])->assertOk()
             ->assertJsonPath('data.user.is_buyer', true);

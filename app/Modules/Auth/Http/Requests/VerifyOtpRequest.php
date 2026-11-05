@@ -18,7 +18,7 @@ class VerifyOtpRequest extends BaseFormRequest
     {
         return [
             'phone' => ['required', 'string', 'max:20'],
-            'code' => ['required', 'string', 'size:6'],
+            'code' => ['required', 'string', 'size:'.max(4, (int) config('aqdar.otp.length', 4))],
             'consent' => ['sometimes', 'accepted'],
             'consent_privacy' => ['sometimes', 'accepted'],
             'consent_terms' => ['sometimes', 'accepted'],

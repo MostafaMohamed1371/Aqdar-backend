@@ -31,7 +31,7 @@ class OtpServiceTest extends TestCase
 
         $this->assertCount(1, $gateway->sent);
         $this->assertSame('+201012345678', $gateway->sent[0]['phone']);
-        $this->assertStringContainsString('123456', $gateway->sent[0]['message']);
+        $this->assertStringContainsString('1234', $gateway->sent[0]['message']);
     }
 
     #[Test]
@@ -40,7 +40,7 @@ class OtpServiceTest extends TestCase
         $otp = app(OtpService::class);
         $otp->send('01012345678');
 
-        $this->assertSame('+201012345678', $otp->verify('01012345678', '123456'));
+        $this->assertSame('+201012345678', $otp->verify('01012345678', '1234'));
     }
 
     #[Test]
@@ -51,7 +51,7 @@ class OtpServiceTest extends TestCase
 
         $this->expectException(ValidationException::class);
 
-        $otp->verify('01012345678', '000000');
+        $otp->verify('01012345678', '0000');
     }
 
     #[Test]
@@ -62,7 +62,7 @@ class OtpServiceTest extends TestCase
         $stored = Cache::get('otp:code:+201012345678');
 
         $this->assertIsString($stored);
-        $this->assertNotSame('123456', $stored);
+        $this->assertNotSame('1234', $stored);
     }
 
     #[Test]
@@ -70,10 +70,10 @@ class OtpServiceTest extends TestCase
     {
         $otp = app(OtpService::class);
         $otp->send('01012345678');
-        $otp->verify('01012345678', '123456');
+        $otp->verify('01012345678', '1234');
 
         $this->expectException(ValidationException::class);
 
-        $otp->verify('01012345678', '123456');
+        $otp->verify('01012345678', '1234');
     }
 }

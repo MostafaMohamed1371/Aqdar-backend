@@ -5,6 +5,7 @@ namespace Tests\Integration;
 use App\Core\Enums\DistressedChild;
 use App\Core\Enums\ListingStatus;
 use App\Core\Enums\MarketSegment;
+use App\Core\Support\PublicMediaUrl;
 use App\Modules\Catalog\Database\Seeders\CatalogSeeder;
 use App\Modules\Catalog\Models\Amenity;
 use App\Modules\Catalog\Models\Area;
@@ -12,6 +13,7 @@ use App\Modules\Catalog\Models\Tag;
 use App\Modules\Catalog\Models\UnitType;
 use App\Modules\Category\Models\Category;
 use App\Modules\Listing\Models\Listing;
+use App\Modules\Listing\Models\ListingMedia;
 use App\Modules\User\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
@@ -282,6 +284,32 @@ class ListingPhase3Test extends TestCase
             'user_id' => $user->id,
             'listing_id' => $published->id,
         ]);
+    }
+
+    public function test_favorites_include_approved_photos_like_public_listings(): void
+    {
+        $this->marketplaceUser();
+        $listing = Listing::factory()->published()->create();
+        $media = ListingMedia::factory()->approved()->create([
+            'listing_id' => $listing->id,
+            'public_path' => 'listings/'.$listing->id.'/favorite.jpg',
+        ]);
+        Storage::disk('public_media')->put($media->public_path, 'jpeg-bytes');
+
+        $created = $this->postJson('/api/v1/favorites/'.$listing->id)
+            ->assertCreated();
+        $this->assertNotEmpty($created->json('data.photos'));
+        $this->assertSame(
+            PublicMediaUrl::for($media->public_path),
+            $created->json('data.photos.0.url'),
+        );
+
+        $this->getJson('/api/v1/favorites')
+            ->assertOk()
+            ->assertJsonPath('data.0.id', $listing->id)
+            ->assertJsonPath('data.0.photos.0.id', $media->id)
+            ->assertJsonPath('data.0.photos.0.url', PublicMediaUrl::for($media->public_path))
+            ->assertJsonPath('data.0.is_favorited', true);
     }
 
     public function test_published_media_endpoint_is_empty_without_approved_photos(): void

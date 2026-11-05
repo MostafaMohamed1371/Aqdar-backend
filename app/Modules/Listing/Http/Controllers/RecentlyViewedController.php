@@ -21,7 +21,7 @@ class RecentlyViewedController extends BaseController
         $listings = Listing::query()
             ->public()
             ->whereHas('views', fn ($query) => $query->where('user_id', $userId))
-            ->with(['financials', 'governorate', 'area', 'developer', 'project', 'unitType', 'category'])
+            ->with(['financials', 'governorate', 'area', 'developer', 'project', 'unitType', 'category', 'media'])
             ->orderByDesc(ListingView::query()
                 ->select('viewed_at')
                 ->whereColumn('listing_views.listing_id', 'listings.id')
