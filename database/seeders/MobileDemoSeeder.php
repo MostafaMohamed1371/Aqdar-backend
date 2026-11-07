@@ -822,6 +822,8 @@ class MobileDemoSeeder extends Seeder
         );
 
         $contract = max($def['paid'] + $def['remaining'], $def['asking']);
+        $cancelPercent = $def['cancel_percent'] ?? 10;
+
         $financialPayload = [
             'declared_contract_price' => $contract,
             'declared_total_paid' => $def['paid'],
@@ -831,12 +833,18 @@ class MobileDemoSeeder extends Seeder
             'declared_installment_amount' => $def['installment'],
             'declared_remaining_installments' => $def['installments_left'],
             'declared_asking_price' => $def['asking'],
+            'declared_cancellation_percent' => $cancelPercent,
             'declared_next_due_date' => ($def['remaining'] > 0) ? now()->addDays(20)->toDateString() : null,
         ];
 
         if (! empty($def['verified_asking'])) {
             $financialPayload['verified_asking_price'] = $def['asking'];
             $financialPayload['asking_price_verified'] = true;
+        }
+
+        if (! empty($def['verified_cancel'])) {
+            $financialPayload['verified_cancellation_percent'] = $cancelPercent;
+            $financialPayload['cancellation_percent_verified'] = true;
         }
 
         $listing->financials()->updateOrCreate(
