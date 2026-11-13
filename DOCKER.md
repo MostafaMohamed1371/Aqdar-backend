@@ -48,7 +48,7 @@ docker compose up -d
 | Service | URL |
 |---------|-----|
 | App | http://localhost:8080 |
-| PostgreSQL | `localhost:5433` (user: `aqdar`, database: `aqdar`) |
+| MySQL | `localhost:3307` (user: `aqdar`, database: `aqdar`) |
 
 ### Useful commands
 
@@ -100,8 +100,9 @@ Run tests inside container:
 ```bash
 docker run --rm \
   -e APP_ENV=testing \
-  -e DB_CONNECTION=pgsql \
-  -e DB_HOST=postgres \
+  -e DB_CONNECTION=mysql \
+  -e DB_HOST=mysql \
+  -e DB_PORT=3306 \
   -e DB_DATABASE=aqdar_eg_testing \
   -e DB_USERNAME=aqdar \
   -e DB_PASSWORD=secret \
@@ -181,14 +182,14 @@ docker compose -f docker-compose.prod.yml up -d
 
 ```
 ┌──────────┐     ┌──────────┐     ┌──────────┐
-│  nginx   │────▶│  app     │────▶│ postgres │
-│  :80     │     │  PHP-FPM │     │  :5432   │
+│  nginx   │────▶│  app     │────▶│  mysql   │
+│  :80     │     │  PHP-FPM │     │  :3306   │
 └──────────┘     └──────────┘     └──────────┘
 ```
 
 - **nginx** — serves `public/`, proxies PHP to FPM
 - **app** — Laravel 13, PHP 8.4, runs migrations on start
-- **postgres** — PostgreSQL 16 with persistent volume
+- **mysql** — MySQL 8.4 with persistent volume
 
 ---
 
@@ -198,7 +199,7 @@ docker compose -f docker-compose.prod.yml up -d
 |---------|-----|
 | `APP_KEY` missing | `docker compose exec app php artisan key:generate` |
 | Permission denied on `storage/` | `docker compose exec app chmod -R 775 storage bootstrap/cache` |
-| PostgreSQL connection refused | Wait for healthcheck: `docker compose ps` |
+| MySQL connection refused | Wait for healthcheck: `docker compose ps` |
 | Assets missing | Run `npm run build` on host, or rebuild image |
 | CI: Symfony packages require PHP >= 8.4.1 | `composer.lock` was generated on PHP 8.4/8.5. Docker + CI use PHP **8.4**. Do not run CI on 8.3. |
 | CI: `composer dump-autoload` exit 255 | Caused by `artisan package:discover` without APP_KEY. Image build uses `--no-scripts`; discovery runs in `docker/entrypoint.sh`. |

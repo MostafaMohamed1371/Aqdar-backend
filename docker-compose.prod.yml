@@ -17,7 +17,7 @@ services:
     env_file:
       - .env.production
     depends_on:
-      postgres:
+      mysql:
         condition: service_healthy
       redis:
         condition: service_healthy
@@ -47,7 +47,7 @@ services:
     depends_on:
       redis:
         condition: service_healthy
-      postgres:
+      mysql:
         condition: service_healthy
     networks:
       - aqdar
@@ -66,25 +66,39 @@ services:
     networks:
       - aqdar
 
-  postgres:
-    image: postgres:16-alpine
+  mysql:
+    image: mysql:8.4
     restart: always
     environment:
-      POSTGRES_DB: ${DB_DATABASE:-aqdar}
-      POSTGRES_USER: ${DB_USERNAME:-aqdar}
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-secret}
+      MYSQL_DATABASE: ${DB_DATABASE:-aqdar}
+      MYSQL_USER: ${DB_USERNAME:-aqdar}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-secret}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-secret}
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - mysql_data:/var/lib/mysql
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-aqdar} -d ${DB_DATABASE:-aqdar}"]
+      test:
+        [
+          "CMD",
+          "mysqladmin",
+          "ping",
+          "-h",
+          "127.0.0.1",
+          "-uroot",
+          "-p${DB_ROOT_PASSWORD:-secret}",
+        ]
       interval: 10s
       timeout: 5s
       retries: 10
+      start_period: 20s
     networks:
       - aqdar
 
 volumes:
-  postgres_data:
+  mysql_data:
   redis_data:
 
 networks:

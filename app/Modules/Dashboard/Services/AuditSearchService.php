@@ -182,9 +182,9 @@ class AuditSearchService
         if ($term !== '') {
             $like = '%'.$term.'%';
             $query->where(function (Builder $inner) use ($like): void {
-                $inner->where('action', 'ilike', $like)
-                    ->orWhere('ip_address', 'ilike', $like)
-                    ->orWhere('subject_type', 'ilike', $like);
+                $inner->where('action', 'like', $like)
+                    ->orWhere('ip_address', 'like', $like)
+                    ->orWhere('subject_type', 'like', $like);
             });
         }
         if (! empty($filters['action']) && $filters['action'] !== 'all') {

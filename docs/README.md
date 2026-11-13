@@ -51,7 +51,7 @@ Starter-era files (`STARTER_GUIDE.md`, `STRUCTER.md`, `SCALING.md`, `DOCKER.md`,
 |----------|---------|
 | `APP_NAME` | `AQDAR` |
 | `APP_LOCALE` | `ar` (Arabic first) |
-| `DB_CONNECTION` | `pgsql` — database `aqdar_eg` |
+| `DB_CONNECTION` | `mysql` — database `aqdar_eg` |
 | `AQDAR_OTP_TEST_CODE` | Local/testing OTP (`1234`) — never in JSON |
 | `SALES_PHONE` / `SALES_TEAM_NAME` / `SALES_HOURS` | Public `GET /config` sales contact |
 

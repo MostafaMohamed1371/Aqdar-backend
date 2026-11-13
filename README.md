@@ -7,7 +7,7 @@ This repository is the Laravel backend:
 - **`/api/v1`** — Flutter marketplace (Sanctum)
 - **`/dashboard`** — staff admin as Blade (not React), styled from `dashboard.html` + `ui.css`
 
-**Stack:** Laravel 13 · PHP 8.4+ · PostgreSQL · Sanctum · Vite · Tailwind 4 + `ui.css`
+**Stack:** Laravel 13 · PHP 8.4+ · MySQL · Sanctum · Vite · Tailwind 4 + `ui.css`
 
 **Current delivery:** Phase 0 through Phase 9, plus Phases 10–18 (OTP/consent, session audit, listing publish gate, listing fields, seller case timeline + history, notification matrix leftovers, staff permission table vs BRD §8.2, manual exit estimate + upload scan + private video, account closure + saved searches + broadcast approval).
 
@@ -19,7 +19,7 @@ This repository is the Laravel backend:
 composer install
 cp .env.example .env
 php artisan key:generate
-# set DB_* to PostgreSQL (database aqdar_eg)
+# set DB_* to MySQL (database aqdar_eg)
 php artisan migrate --seed
 npm install && npm run build
 php artisan serve
@@ -47,7 +47,7 @@ Full install: [docs/GETTING_STARTED.md](docs/GETTING_STARTED.md)
 | Document | Purpose |
 |----------|---------|
 | [docs/README.md](docs/README.md) | Index |
-| [docs/GETTING_STARTED.md](docs/GETTING_STARTED.md) | Install, PostgreSQL, first run |
+| [docs/GETTING_STARTED.md](docs/GETTING_STARTED.md) | Install, MySQL, first run |
 | [docs/API.md](docs/API.md) | REST API by phase (source of truth for HTTP) |
 | [docs/MOBILE_DEVELOPER.md](docs/MOBILE_DEVELOPER.md) | **Handoff pack for Flutter / mobile** |
 | [docs/DASHBOARD.md](docs/DASHBOARD.md) | Blade admin screens |

@@ -84,7 +84,7 @@ return [
 
     'backup' => [
         'path' => env('AQDAR_BACKUP_PATH', ''),
-        'pg_dump' => env('AQDAR_PG_DUMP', ''),
+        'mysqldump' => env('AQDAR_MYSQLDUMP', ''),
         'dump' => filter_var(env('AQDAR_BACKUP_DUMP', true), FILTER_VALIDATE_BOOLEAN),
     ],
 

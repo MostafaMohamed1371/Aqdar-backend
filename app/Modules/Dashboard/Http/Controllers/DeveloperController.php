@@ -25,9 +25,9 @@ class DeveloperController extends BaseController
         $developers = Developer::query()
             ->withCount('projects')
             ->when($search !== '', fn (Builder $query) => $query->where(fn (Builder $inner) => $inner
-                ->where('name_ar', 'ilike', $pattern)
-                ->orWhere('name_en', 'ilike', $pattern)
-                ->orWhere('commercial_register', 'ilike', $pattern)))
+                ->where('name_ar', 'like', $pattern)
+                ->orWhere('name_en', 'like', $pattern)
+                ->orWhere('commercial_register', 'like', $pattern)))
             ->orderBy('is_other')
             ->orderBy('sort_order')
             ->orderBy('id');
@@ -35,11 +35,11 @@ class DeveloperController extends BaseController
         $projects = Project::query()
             ->with('developer')
             ->when($search !== '', fn (Builder $query) => $query->where(fn (Builder $inner) => $inner
-                ->where('name_ar', 'ilike', $pattern)
-                ->orWhere('name_en', 'ilike', $pattern)
+                ->where('name_ar', 'like', $pattern)
+                ->orWhere('name_en', 'like', $pattern)
                 ->orWhereHas('developer', fn (Builder $developer) => $developer
-                    ->where('name_ar', 'ilike', $pattern)
-                    ->orWhere('name_en', 'ilike', $pattern))))
+                    ->where('name_ar', 'like', $pattern)
+                    ->orWhere('name_en', 'like', $pattern))))
             ->orderBy('is_other')
             ->orderBy('sort_order')
             ->orderBy('id');

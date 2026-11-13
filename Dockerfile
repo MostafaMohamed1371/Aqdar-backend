@@ -74,8 +74,7 @@ RUN apk add --no-cache \
         icu-dev \
         libzip-dev \
         oniguruma-dev \
-        libpq-dev \
-        postgresql-client \
+        mariadb-client \
         $PHPIZE_DEPS \
     && docker-php-ext-configure intl \
     && docker-php-ext-install \
@@ -85,7 +84,7 @@ RUN apk add --no-cache \
         opcache \
         pcntl \
         pdo \
-        pdo_pgsql \
+        pdo_mysql \
         zip \
     && pecl install redis \
     && docker-php-ext-enable redis \

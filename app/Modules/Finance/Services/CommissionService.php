@@ -359,8 +359,8 @@ class CommissionService
         if (! empty($filters['q'])) {
             $like = '%'.addcslashes((string) $filters['q'], '%_\\').'%';
             $query->where(function (Builder $inner) use ($like): void {
-                $inner->where('invoice_reference', 'ilike', $like)
-                    ->orWhereHas('transferCase', fn ($case) => $case->where('public_code', 'ilike', $like));
+                $inner->where('invoice_reference', 'like', $like)
+                    ->orWhereHas('transferCase', fn ($case) => $case->where('public_code', 'like', $like));
             });
         }
         $month = $this->monthStart((string) ($filters['month'] ?? ''));

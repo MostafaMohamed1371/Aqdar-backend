@@ -49,9 +49,9 @@ class DocumentDeskController extends BaseController
         if ($search !== '') {
             $like = '%'.addcslashes($search, '%_\\').'%';
             $query->where(function ($inner) use ($like): void {
-                $inner->where('original_name', 'ilike', $like)
-                    ->orWhereHas('listing', fn ($listing) => $listing->where('public_code', 'ilike', $like)
-                        ->orWhereHas('owner', fn ($owner) => $owner->where('name', 'ilike', $like)));
+                $inner->where('original_name', 'like', $like)
+                    ->orWhereHas('listing', fn ($listing) => $listing->where('public_code', 'like', $like)
+                        ->orWhereHas('owner', fn ($owner) => $owner->where('name', 'like', $like)));
             });
         }
 

@@ -138,9 +138,9 @@ class UserService extends AbstractService
         return User::query()
             ->when($search !== '', function ($query) use ($search): void {
                 $query->where(function ($inner) use ($search): void {
-                    $inner->where('name', 'ilike', '%'.$search.'%')
-                        ->orWhere('email', 'ilike', '%'.$search.'%')
-                        ->orWhere('phone', 'ilike', '%'.$search.'%');
+                    $inner->where('name', 'like', '%'.$search.'%')
+                        ->orWhere('email', 'like', '%'.$search.'%')
+                        ->orWhere('phone', 'like', '%'.$search.'%');
                 });
             })
             ->latest()
@@ -283,7 +283,7 @@ class UserService extends AbstractService
             $emailCounts = User::query()
                 ->where(function ($query) use ($emails): void {
                     foreach ($emails as $email) {
-                        $query->orWhere('email', 'ilike', addcslashes($email, '%_\\'));
+                        $query->orWhere('email', 'like', addcslashes($email, '%_\\'));
                     }
                 })
                 ->pluck('email')

@@ -70,13 +70,13 @@ class ListingDeskController extends BaseController
         if ($search !== '') {
             $like = '%'.addcslashes($search, '%_\\').'%';
             $query->where(function ($inner) use ($like): void {
-                $inner->where('title_ar', 'ilike', $like)
-                    ->orWhere('title_en', 'ilike', $like)
-                    ->orWhere('public_code', 'ilike', $like)
-                    ->orWhere('unit_code', 'ilike', $like)
+                $inner->where('title_ar', 'like', $like)
+                    ->orWhere('title_en', 'like', $like)
+                    ->orWhere('public_code', 'like', $like)
+                    ->orWhere('unit_code', 'like', $like)
                     ->orWhereHas('developer', function ($developer) use ($like): void {
-                        $developer->where('name_ar', 'ilike', $like)
-                            ->orWhere('name_en', 'ilike', $like);
+                        $developer->where('name_ar', 'like', $like)
+                            ->orWhere('name_en', 'like', $like);
                     });
             });
         }

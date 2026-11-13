@@ -54,15 +54,15 @@ This document maps your architecture notes to concrete implementation in this pr
 
 | Item | Location |
 |------|----------|
-| Read/write hosts | `config/database.php` → `pgsql.read` / `pgsql.write` |
+| Read/write hosts | `config/database.php` → `mysql.read` / `mysql.write` |
 | Env vars | `DB_WRITE_HOST`, `DB_READ_HOST` (fallback: `DB_HOST`) |
 | Avoid N+1 / foreach queries | Use eager loading (`with()`), batch queries in repositories |
 | Indexes | Add in module migrations for filtered/sorted columns |
 
 ```env
-DB_CONNECTION=pgsql
-DB_WRITE_HOST=postgres-primary.internal
-DB_READ_HOST=postgres-replica.internal
+DB_CONNECTION=mysql
+DB_WRITE_HOST=mysql-primary.internal
+DB_READ_HOST=mysql-replica.internal
 DB_STICKY=true
 ```
 

@@ -25,9 +25,9 @@ class StaffService
             ->with('role')
             ->when($search !== '', function ($query) use ($search): void {
                 $query->where(function ($inner) use ($search): void {
-                    $inner->where('name', 'ilike', '%'.$search.'%')
-                        ->orWhere('email', 'ilike', '%'.$search.'%')
-                        ->orWhere('branch', 'ilike', '%'.$search.'%');
+                    $inner->where('name', 'like', '%'.$search.'%')
+                        ->orWhere('email', 'like', '%'.$search.'%')
+                        ->orWhere('branch', 'like', '%'.$search.'%');
                 });
             })
             ->latest()

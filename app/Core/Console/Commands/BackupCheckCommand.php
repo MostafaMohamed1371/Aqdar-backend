@@ -29,7 +29,7 @@ class BackupCheckCommand extends Command
             $ok = $ok && $exists;
         }
 
-        $this->comment('See docs/OPS.md for PostgreSQL dump/restore drill. This command does not dump production.');
+        $this->comment('See docs/OPS.md for MySQL dump/restore drill. This command does not dump production.');
 
         return $ok ? self::SUCCESS : self::FAILURE;
     }

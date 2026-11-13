@@ -130,11 +130,11 @@ class ListingSearchService
         }
 
         if (! empty($filters['finishing'])) {
-            $query->where('listings.finishing', 'ilike', addcslashes(trim((string) $filters['finishing']), '%_\\'));
+            $query->where('listings.finishing', 'like', addcslashes(trim((string) $filters['finishing']), '%_\\'));
         }
 
         if (! empty($filters['neighborhood'])) {
-            $query->where('listings.neighborhood', 'ilike', addcslashes(trim((string) $filters['neighborhood']), '%_\\'));
+            $query->where('listings.neighborhood', 'like', addcslashes(trim((string) $filters['neighborhood']), '%_\\'));
         }
 
         if (isset($filters['area_min'])) {
@@ -180,14 +180,14 @@ class ListingSearchService
         if ($term !== '') {
             $like = '%'.addcslashes($term, '%_\\').'%';
             $query->where(function (Builder $inner) use ($like): void {
-                $inner->where('listings.title_ar', 'ilike', $like)
-                    ->orWhere('listings.title_en', 'ilike', $like)
-                    ->orWhere('listings.public_code', 'ilike', $like)
+                $inner->where('listings.title_ar', 'like', $like)
+                    ->orWhere('listings.title_en', 'like', $like)
+                    ->orWhere('listings.public_code', 'like', $like)
                     ->orWhereHas('area', function (Builder $area) use ($like): void {
-                        $area->where('name_ar', 'ilike', $like)->orWhere('name_en', 'ilike', $like);
+                        $area->where('name_ar', 'like', $like)->orWhere('name_en', 'like', $like);
                     })
                     ->orWhereHas('unitType', function (Builder $type) use ($like): void {
-                        $type->where('name_ar', 'ilike', $like)->orWhere('name_en', 'ilike', $like);
+                        $type->where('name_ar', 'like', $like)->orWhere('name_en', 'like', $like);
                     });
             });
         }

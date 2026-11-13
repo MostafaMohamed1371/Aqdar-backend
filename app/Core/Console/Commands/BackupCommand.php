@@ -10,14 +10,14 @@ class BackupCommand extends Command
 {
     protected $signature = 'aqdar:backup';
 
-    protected $description = 'Copy private files and dump PostgreSQL when AQDAR_BACKUP_PATH is set';
+    protected $description = 'Copy private files and dump MySQL when AQDAR_BACKUP_PATH is set';
 
     public function handle(): int
     {
         $check = $this->call('aqdar:backup-check');
         $path = (string) config('aqdar.backup.path', '');
         if ($path === '') {
-            $this->comment('AQDAR_BACKUP_PATH is empty; skipped pg_dump. See docs/OPS.md.');
+            $this->comment('AQDAR_BACKUP_PATH is empty; skipped mysqldump. See docs/OPS.md.');
 
             return $check;
         }
@@ -25,44 +25,46 @@ class BackupCommand extends Command
         File::ensureDirectoryExists($path);
         $this->copyPrivateFiles($path);
         if (! (bool) config('aqdar.backup.dump', true)) {
-            $this->comment('pg_dump skipped by AQDAR_BACKUP_DUMP.');
+            $this->comment('mysqldump skipped by AQDAR_BACKUP_DUMP.');
 
             return $check;
         }
-        $file = rtrim($path, '/').'/aqdar_eg-'.now()->format('Y-m-d').'.dump';
+        $file = rtrim($path, '/').'/aqdar_eg-'.now()->format('Y-m-d').'.sql';
         $connection = (string) config('database.default');
-        if ($connection !== 'pgsql') {
-            $this->warn('pg_dump skipped: database.default is '.$connection);
+        if ($connection !== 'mysql') {
+            $this->warn('mysqldump skipped: database.default is '.$connection);
 
             return $check;
         }
 
-        $binary = $this->pgDumpBinary();
+        $binary = $this->mysqlDumpBinary();
         if ($binary === '') {
-            $this->warn('pg_dump binary not found; directories were still checked.');
+            $this->warn('mysqldump binary not found; directories were still checked.');
 
             return $check;
         }
 
-        $config = config('database.connections.pgsql', []);
+        $config = config('database.connections.mysql', []);
         $process = new Process([
             $binary,
-            '-Fc',
+            '--single-transaction',
+            '--routines',
+            '--triggers',
             '-h', (string) ($config['host'] ?? '127.0.0.1'),
-            '-p', (string) ($config['port'] ?? '5432'),
-            '-U', (string) ($config['username'] ?? 'postgres'),
-            '-d', (string) ($config['database'] ?? 'aqdar_eg'),
-            '-f', $file,
+            '-P', (string) ($config['port'] ?? '3306'),
+            '-u', (string) ($config['username'] ?? 'root'),
+            (string) ($config['database'] ?? 'aqdar_eg'),
+            '--result-file='.$file,
         ]);
         $process->setTimeout(600);
         $env = getenv() ?: [];
         if (! empty($config['password'])) {
-            $env['PGPASSWORD'] = (string) $config['password'];
+            $env['MYSQL_PWD'] = (string) $config['password'];
         }
         $process->setEnv($env);
         $process->run();
         if (! $process->isSuccessful()) {
-            $this->error('pg_dump failed.');
+            $this->error('mysqldump failed.');
 
             return self::FAILURE;
         }
@@ -72,13 +74,13 @@ class BackupCommand extends Command
         return $check === self::SUCCESS ? self::SUCCESS : $check;
     }
 
-    private function pgDumpBinary(): string
+    private function mysqlDumpBinary(): string
     {
         foreach ([
-            (string) config('aqdar.backup.pg_dump', ''),
-            '/opt/homebrew/bin/pg_dump',
-            '/usr/local/bin/pg_dump',
-            '/usr/bin/pg_dump',
+            (string) config('aqdar.backup.mysqldump', ''),
+            '/opt/homebrew/bin/mysqldump',
+            '/usr/local/bin/mysqldump',
+            '/usr/bin/mysqldump',
         ] as $candidate) {
             if ($candidate !== '' && is_executable($candidate)) {
                 return $candidate;

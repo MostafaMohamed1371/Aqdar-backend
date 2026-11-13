@@ -8,10 +8,10 @@ Install and run **AQDAR** locally or with Docker.
 
 | Tool | Version |
 |------|---------|
-| PHP | 8.4+ with `pdo_pgsql` |
+| PHP | 8.4+ with `pdo_mysql` |
 | Composer | 2.x |
 | Node.js | 18+ (for frontend assets) |
-| PostgreSQL | 16 (database `aqdar_eg`) |
+| MySQL | 8+ (database `aqdar_eg`) |
 | Redis | Optional locally; required for scaling |
 | JMeter | Optional — load tests only |
 
@@ -30,24 +30,27 @@ cp .env.example .env
 php artisan key:generate
 ```
 
-### 2. Database (PostgreSQL)
+### 2. Database (MySQL)
 
-`.env.example` already uses Postgres. Create the database and role, then set `DB_PASSWORD` in `.env` (never commit it):
+`.env.example` already uses MySQL. Create the database, then set `DB_PASSWORD` in `.env` if needed (never commit it):
 
 ```env
-DB_CONNECTION=pgsql
+DB_CONNECTION=mysql
 DB_HOST=127.0.0.1
-DB_PORT=5432
+DB_PORT=3307
 DB_DATABASE=aqdar_eg
-DB_USERNAME=aqdar_eg
-DB_PASSWORD=your_password
+DB_USERNAME=root
+DB_PASSWORD=
+DB_CHARSET=utf8mb4
+DB_COLLATION=utf8mb4_unicode_ci
 ```
 
 ```bash
+mysql -uroot -e "CREATE DATABASE IF NOT EXISTS aqdar_eg CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci; CREATE DATABASE IF NOT EXISTS aqdar_eg_testing CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
 php artisan migrate --seed
 ```
 
-PHPUnit uses PostgreSQL (`phpunit.xml` → database `aqdar_eg_testing`). Create that database once, then `php artisan test`. Do not point tests at `aqdar_eg`.
+PHPUnit uses MySQL (`phpunit.xml` → database `aqdar_eg_testing`). Create that database once, then `php artisan test`. Do not point tests at `aqdar_eg`.
 
 ### 3. Frontend assets
 
@@ -104,7 +107,7 @@ docker compose up -d
 | Service | URL |
 |---------|-----|
 | App (nginx) | http://localhost:8080 |
-| PostgreSQL | localhost:5433 (user `aqdar`, database `aqdar`) |
+| MySQL | localhost:3307 (user `aqdar`, database `aqdar`) |
 | Redis | localhost:6379 |
 
 Run migrations inside the container:

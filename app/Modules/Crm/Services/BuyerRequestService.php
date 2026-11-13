@@ -186,9 +186,9 @@ class BuyerRequestService
             $query->where('intent', 'investment');
         } elseif (in_array($type, ['apartment', 'villa', 'land'], true)) {
             $query->whereHas('unitType', function (Builder $inner) use ($type): void {
-                $inner->where('slug', 'ilike', '%'.$type.'%')
-                    ->orWhere('name_en', 'ilike', '%'.$type.'%')
-                    ->orWhere('name_ar', 'ilike', '%'.$this->arabicType($type).'%');
+                $inner->where('slug', 'like', '%'.$type.'%')
+                    ->orWhere('name_en', 'like', '%'.$type.'%')
+                    ->orWhere('name_ar', 'like', '%'.$this->arabicType($type).'%');
             });
         }
         $assignedTo = (string) ($filters['assigned_to'] ?? '');
@@ -218,8 +218,8 @@ class BuyerRequestService
         if (! empty($filters['q'])) {
             $like = '%'.addcslashes((string) $filters['q'], '%_\\').'%';
             $query->where(function (Builder $inner) use ($like): void {
-                $inner->where('public_code', 'ilike', $like)
-                    ->orWhereHas('buyer', fn ($buyer) => $buyer->where('name', 'ilike', $like)->orWhere('phone', 'ilike', $like));
+                $inner->where('public_code', 'like', $like)
+                    ->orWhereHas('buyer', fn ($buyer) => $buyer->where('name', 'like', $like)->orWhere('phone', 'like', $like));
             });
         }
         QueueQuery::apply($query, $filters, [

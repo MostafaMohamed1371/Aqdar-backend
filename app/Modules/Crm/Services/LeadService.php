@@ -158,8 +158,8 @@ class LeadService
         if (! empty($filters['q'])) {
             $like = '%'.addcslashes((string) $filters['q'], '%_\\').'%';
             $query->where(function (Builder $inner) use ($like): void {
-                $inner->where('public_code', 'ilike', $like)
-                    ->orWhereHas('buyer', fn ($buyer) => $buyer->where('name', 'ilike', $like)->orWhere('phone', 'ilike', $like));
+                $inner->where('public_code', 'like', $like)
+                    ->orWhereHas('buyer', fn ($buyer) => $buyer->where('name', 'like', $like)->orWhere('phone', 'like', $like));
             });
         }
         QueueQuery::apply($query, $filters, [
