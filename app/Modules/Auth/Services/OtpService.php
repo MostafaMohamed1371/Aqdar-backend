@@ -68,13 +68,7 @@ class OtpService
 
     private function generateCode(): string
     {
-        if (app()->environment('testing', 'local')) {
-            return (string) config('aqdar.otp.test_code', '1234');
-        }
-
-        $length = max(4, (int) config('aqdar.otp.length', 4));
-
-        return str_pad((string) random_int(0, (10 ** $length) - 1), $length, '0', STR_PAD_LEFT);
+        return (string) config('aqdar.otp.test_code', '1234');
     }
 
     private function hitVerifyAttempt(string $phone): void
