@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <path d="M32 4 60 26v34H4V26z" fill="#14283F"/>
+  <path d="M32 4 60 26v34H47V31L32 19z" fill="#087E82"/>
+  <path d="M4 27 32 5l4 3L8 30v30H4z" fill="#C5985F"/>
+  <text x="27" y="53" text-anchor="middle" font-family="Cairo, Tahoma, sans-serif" font-weight="800" font-size="28" fill="#fff">9</text>
+</svg>
