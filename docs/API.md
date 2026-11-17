@@ -89,28 +89,51 @@ JSON resources are wrapped in `data`.
 | 429 | Rate limit |
 | 500 | Unexpected server error (no stack trace in JSON) |
 
-Every API error is JSON with a translated `message` (`Accept-Language: ar` or `en`). Validation also includes `errors`.
+Every API error is JSON with translated fields (`Accept-Language: ar` or `en`):
+
+| Field | Purpose |
+|-------|---------|
+| `code` | Stable machine code (`validation`, `unauthenticated`, …) |
+| `title` | Short human heading for toasts / banners |
+| `message` | Main readable sentence (for single-field validation = that field’s text) |
+| `hint` | What the user should do next |
+| `errors` | Field map (422 only) |
+| `details` | Flat unique list of all field messages (422 only) |
 
 **400**
 
 ```json
-{ "message": "The request body is not valid JSON." }
+{
+  "code": "bad_request",
+  "title": "Could not complete this action",
+  "message": "The request body is not valid JSON.",
+  "hint": "Check the request body and send valid JSON."
+}
 ```
 
 **401 / 403 / 404 / 405 / 429 / 500**
 
 ```json
-{ "message": "Authentication is required." }
+{
+  "code": "unauthenticated",
+  "title": "Could not complete this action",
+  "message": "Authentication is required.",
+  "hint": "Sign in again, then retry this action."
+}
 ```
 
 **422**
 
 ```json
 {
-  "message": "The given data was invalid.",
+  "code": "validation",
+  "title": "Some fields need attention",
+  "message": "Enter a valid Egyptian phone number.",
+  "hint": "Correct the items listed, then submit again.",
   "errors": {
     "phone": ["Enter a valid Egyptian phone number."]
-  }
+  },
+  "details": ["Enter a valid Egyptian phone number."]
 }
 ```
 

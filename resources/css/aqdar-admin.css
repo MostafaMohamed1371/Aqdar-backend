@@ -745,3 +745,34 @@ label.check {
         overflow: hidden;
     }
 }
+
+html.dark .flash,
+html[data-theme="dark"] .flash {
+    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.28);
+}
+
+html.dark .flash--ok,
+html[data-theme="dark"] .flash--ok {
+    border-color: rgba(18, 128, 92, 0.45);
+}
+
+html.dark .flash--warn,
+html[data-theme="dark"] .flash--warn {
+    border-color: rgba(199, 129, 31, 0.45);
+}
+
+html.dark .flash--bad,
+html[data-theme="dark"] .flash--bad {
+    border-color: rgba(192, 57, 43, 0.45);
+}
+
+html.dark .flash__close:hover,
+html.dark .flash__close:focus-visible,
+html[data-theme="dark"] .flash__close:hover,
+html[data-theme="dark"] .flash__close:focus-visible {
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.flash[hidden] {
+    display: none !important;
+}

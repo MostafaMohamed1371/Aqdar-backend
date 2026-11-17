@@ -23,7 +23,10 @@ class ApiErrorResponseTest extends TestCase
             ],
             content: '{not-json',
         )->assertStatus(400)
+            ->assertJsonPath('code', 'invalid_json')
             ->assertJsonPath('message', __('aqdar.http.invalid_json'))
+            ->assertJsonPath('title', __('aqdar.flash.error_title'))
+            ->assertJsonPath('hint', __('aqdar.http.hint_bad_request'))
             ->assertHeader('Content-Language');
     }
 
@@ -31,8 +34,12 @@ class ApiErrorResponseTest extends TestCase
     {
         $this->getJson('/api/v1/me')
             ->assertUnauthorized()
+            ->assertJsonPath('code', 'unauthenticated')
             ->assertJsonPath('message', __('aqdar.http.unauthenticated'))
+            ->assertJsonPath('title', __('aqdar.flash.error_title'))
+            ->assertJsonPath('hint', __('aqdar.http.hint_unauthenticated'))
             ->assertJsonMissingPath('errors')
+            ->assertJsonMissingPath('details')
             ->assertJsonMissingPath('exception');
     }
 
@@ -72,14 +79,18 @@ class ApiErrorResponseTest extends TestCase
     {
         $this->postJson('/api/v1/auth/otp/send', [])
             ->assertUnprocessable()
-            ->assertJsonPath('message', __('aqdar.http.validation'))
-            ->assertJsonValidationErrors('phone');
+            ->assertJsonPath('code', 'validation')
+            ->assertJsonPath('title', __('aqdar.flash.validation_title'))
+            ->assertJsonPath('hint', __('aqdar.flash.validation_hint'))
+            ->assertJsonValidationErrors('phone')
+            ->assertJsonStructure(['details']);
 
         $this->postJson('/api/v1/auth/otp/verify', [
             'phone' => '01012345678',
             'code' => '12',
         ])->assertUnprocessable()
-            ->assertJsonValidationErrors('code');
+            ->assertJsonValidationErrors('code')
+            ->assertJsonPath('details.0', fn ($value) => is_string($value) && $value !== '');
     }
 
     public function test_device_platform_is_validated(): void

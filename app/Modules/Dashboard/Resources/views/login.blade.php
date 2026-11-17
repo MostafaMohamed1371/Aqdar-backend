@@ -24,11 +24,7 @@
         <h1>{{ config('app.name') }}</h1>
         <p class="sub">{{ __('structer.sign_in_to_dashboard') }}</p>
 
-        @if (session('status'))
-            <div class="alert" style="background:var(--ok-soft);border-color:#b7e0cc;color:var(--ok)">
-                <b>{{ session('status') }}</b>
-            </div>
-        @endif
+        @include('dashboard::partials.flash')
 
         @php
             $rememberedEmail = old('email');

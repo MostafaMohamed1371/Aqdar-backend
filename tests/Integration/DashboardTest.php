@@ -77,9 +77,37 @@ class DashboardTest extends TestCase
         ])->assertRedirect('/dashboard')
             ->assertSessionHasErrors('email');
 
-        $this->get('/dashboard')
+        $this->withSession(['locale' => 'ar'])
+            ->get('/dashboard')
             ->assertOk()
-            ->assertSee(__('structer.sign_in_to_dashboard'));
+            ->assertSee(__('structer.sign_in_to_dashboard', locale: 'ar'))
+            ->assertSee('class="flash flash--bad"', false)
+            ->assertSee(__('aqdar.flash.validation_title', locale: 'ar'))
+            ->assertSee(__('aqdar.flash.validation_hint', locale: 'ar'))
+            ->assertSee(__('aqdar.auth.account_suspended', locale: 'ar'));
+    }
+
+    public function test_dashboard_validation_errors_use_readable_flash_banner(): void
+    {
+        $this->actingAsStaff();
+
+        $this->withSession(['locale' => 'en'])
+            ->from(route('dashboard.developers.index'))
+            ->post(route('dashboard.developers.store'), [
+                'slug' => 'bad-dev',
+                'name_ar' => 'س',
+                'name_en' => 'Bad',
+                'commercial_register' => '12 34; drop',
+            ])
+            ->assertRedirect(route('dashboard.developers.index'))
+            ->assertSessionHasErrors('commercial_register');
+
+        $this->get(route('dashboard.developers.index'))
+            ->assertOk()
+            ->assertSee('class="flash flash--bad"', false)
+            ->assertSee(__('aqdar.flash.validation_title', locale: 'en'))
+            ->assertSee(__('aqdar.flash.validation_hint', locale: 'en'))
+            ->assertSee('data-flash-dismiss', false);
     }
 
     public function test_remember_me_sets_laravel_recaller_not_a_password_cookie(): void

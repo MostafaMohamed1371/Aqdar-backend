@@ -31,7 +31,7 @@ class DashboardThemeContractTest extends TestCase
         $admin = (string) file_get_contents(base_path('resources/css/aqdar-admin.css'));
         $app = (string) file_get_contents(base_path('resources/css/app.css'));
 
-        foreach (['.desk', '.dside', '.dmain', '.dhead', '.dbody', '.kpi', '.btn', '.card'] as $selector) {
+        foreach (['.desk', '.dside', '.dmain', '.dhead', '.dbody', '.kpi', '.btn', '.card', '.flash', '.flash--bad', '.flash--ok'] as $selector) {
             $this->assertStringContainsString($selector, $ui, "ui.css missing {$selector}");
         }
 
@@ -61,6 +61,11 @@ class DashboardThemeContractTest extends TestCase
         $this->assertStringContainsString("dir=\"{{ app()->getLocale() === 'ar' ? 'rtl' : 'ltr' }}\"", $layout);
         $this->assertStringContainsString("class=\"desk {{ app()->getLocale() === 'ar' ? 'is-rtl' : 'is-ltr' }}\"", $layout);
         $this->assertStringContainsString('class="aqdar-desk"', $layout);
+        $this->assertStringContainsString('dashboard::partials.flash', $layout);
+        $flash = (string) file_get_contents(base_path('app/Modules/Dashboard/Resources/views/partials/flash.blade.php'));
+        $this->assertStringContainsString('class="flash flash--', $flash);
+        $this->assertStringContainsString('data-flash-dismiss', $flash);
+        $this->assertStringContainsString('aqdar.flash.validation_title', $flash);
         $this->assertStringContainsString('class="dside"', (string) file_get_contents(base_path('app/Modules/Dashboard/Resources/views/partials/sidebar.blade.php')));
         $header = (string) file_get_contents(base_path('app/Modules/Dashboard/Resources/views/partials/header.blade.php'));
         $icons = (string) file_get_contents(base_path('app/Modules/Dashboard/Resources/views/partials/icon.blade.php'));

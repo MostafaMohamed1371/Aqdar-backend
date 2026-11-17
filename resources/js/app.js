@@ -157,6 +157,18 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
+    document.querySelectorAll('[data-flash-dismiss]').forEach((button) => {
+        button.addEventListener('click', () => {
+            const flash = button.closest('[data-flash]');
+
+            if (! flash) {
+                return;
+            }
+
+            flash.setAttribute('hidden', 'hidden');
+        });
+    });
+
     document.querySelectorAll('[data-password-toggle]').forEach((button) => {
         const wrapper = button.closest('.inp, .relative');
         const input = wrapper?.querySelector('[data-password-input]');

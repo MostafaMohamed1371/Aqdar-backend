@@ -4,8 +4,6 @@ namespace App\Core\Http\Requests;
 
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Http\Exceptions\HttpResponseException;
-use Illuminate\Http\JsonResponse;
 use Illuminate\Validation\ValidationException;
 
 abstract class BaseFormRequest extends FormRequest
@@ -30,6 +28,10 @@ abstract class BaseFormRequest extends FormRequest
             'consent_privacy' => __('aqdar.auth.consent_privacy'),
             'consent_terms' => __('aqdar.auth.consent_terms'),
             'locale' => __('aqdar.auth.locale'),
+            'contact_method' => __('aqdar.requests.contact_method'),
+            'preferred_time' => __('aqdar.requests.preferred_time'),
+            'listing_id' => __('aqdar.crm.listing_id'),
+            'message' => __('aqdar.requests.inquiry_message'),
         ];
     }
 
@@ -109,15 +111,6 @@ abstract class BaseFormRequest extends FormRequest
 
     protected function failedValidation(Validator $validator): void
     {
-        if ($this->expectsJson() || $this->is('api/*')) {
-            throw new HttpResponseException(
-                response()->json([
-                    'message' => __('aqdar.http.validation'),
-                    'errors' => $validator->errors(),
-                ], JsonResponse::HTTP_UNPROCESSABLE_ENTITY)->header('Content-Language', app()->getLocale())
-            );
-        }
-
         throw (new ValidationException($validator))
             ->errorBag($this->errorBag)
             ->redirectTo($this->getRedirectUrl());
