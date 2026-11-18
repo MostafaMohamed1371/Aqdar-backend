@@ -63,8 +63,14 @@ class ListingPhase4Test extends TestCase
             ->postJson("/api/v1/my/listings/{$id}/submit", ['consent' => true])
             ->assertUnprocessable()
             ->assertJsonValidationErrors('documents')
-            ->assertJsonPath('code', 'validation')
-            ->assertJsonPath('title', __('aqdar.flash.validation_title', locale: 'ar'));
+            ->assertJsonPath('code', 'documents_required')
+            ->assertJsonPath('title', __('aqdar.listings.documents_missing_title', locale: 'ar'))
+            ->assertJsonPath('hint', __('aqdar.listings.documents_missing_hint', locale: 'ar'))
+            ->assertJsonPath('details', [
+                'بطاقة الرقم القومي',
+                'عقد المطور',
+                'إيصالات السداد',
+            ]);
 
         $message = (string) $response->json('errors.documents.0');
         $this->assertStringContainsString('بطاقة الرقم القومي', $message);

@@ -7,6 +7,7 @@ use App\Core\Enums\DocumentReviewStatus;
 use App\Core\Enums\DocumentType;
 use App\Core\Enums\MediaModerationStatus;
 use App\Core\Uploads\UploadScanner;
+use App\Modules\Listing\Exceptions\RequiredDocumentsException;
 use App\Modules\Listing\Jobs\ProcessListingMediaJob;
 use App\Modules\Listing\Models\Listing;
 use App\Modules\Listing\Models\ListingDocument;
@@ -210,11 +211,7 @@ class ListingFileService
         $missing = $this->missingRequiredTypes($listing);
 
         if ($missing !== []) {
-            throw ValidationException::withMessages([
-                'documents' => [__('aqdar.listings.documents_required', [
-                    'types' => DocumentType::labeledList($missing),
-                ])],
-            ]);
+            throw RequiredDocumentsException::missing($missing, $listing->id);
         }
     }
 
@@ -223,11 +220,7 @@ class ListingFileService
         $missing = $this->missingApprovedRequiredTypes($listing);
 
         if ($missing !== []) {
-            throw ValidationException::withMessages([
-                'documents' => [__('aqdar.listings.documents_not_approved', [
-                    'types' => DocumentType::labeledList($missing),
-                ])],
-            ]);
+            throw RequiredDocumentsException::notApproved($missing, $listing->id);
         }
     }
 

@@ -10,6 +10,7 @@ use App\Core\Http\Middleware\OptionalSanctumAuth;
 use App\Core\Http\Middleware\RejectInvalidJson;
 use App\Core\Http\Middleware\SecurityHeaders;
 use App\Core\Http\Middleware\SetLocaleFromRequest;
+use App\Modules\Listing\Exceptions\RequiredDocumentsException;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -61,8 +62,31 @@ return Application::configure(basePath: dirname(__DIR__))
             fn (Request $request) => $request->is('api/*') || $request->expectsJson(),
         );
 
-        $exceptions->render(function (\Throwable $exception, Request $request) {
+        $exceptions->render(function (RequiredDocumentsException $exception, Request $request) {
+            if ($request->is('api/*') || $request->expectsJson()) {
+                return ApiErrorResponse::from($exception);
+            }
+
+            $actionUrl = $exception->listingId
+                ? route('dashboard.documents.show', $exception->listingId)
+                : route('dashboard.documents.index', ['status' => 'pending']);
+
+            return back()
+                ->withErrors($exception->errors(), $exception->errorBag)
+                ->with('document_block', [
+                    'reason' => $exception->reason,
+                    'labels' => $exception->labels(),
+                    'message' => $exception->errors()['documents'][0] ?? null,
+                    'action_url' => $actionUrl,
+                ]);
+        });
+
+        $exceptions->render(function (Throwable $exception, Request $request) {
             if ($exception instanceof HttpResponseException) {
+                return null;
+            }
+
+            if ($exception instanceof RequiredDocumentsException) {
                 return null;
             }
 

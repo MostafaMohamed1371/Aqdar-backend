@@ -748,22 +748,48 @@ label.check {
 
 html.dark .flash,
 html[data-theme="dark"] .flash {
-    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.28);
+    box-shadow: 0 14px 34px rgba(0, 0, 0, 0.38);
 }
 
 html.dark .flash--ok,
 html[data-theme="dark"] .flash--ok {
-    border-color: rgba(18, 128, 92, 0.45);
+    background: linear-gradient(135deg, rgba(18, 128, 92, 0.28), rgba(18, 128, 92, 0.14));
+    border-color: rgba(18, 128, 92, 0.55);
+    color: #7dceb0;
 }
 
 html.dark .flash--warn,
-html[data-theme="dark"] .flash--warn {
-    border-color: rgba(199, 129, 31, 0.45);
+html.dark .flash--block,
+html[data-theme="dark"] .flash--warn,
+html[data-theme="dark"] .flash--block {
+    background: linear-gradient(135deg, rgba(199, 129, 31, 0.34), rgba(199, 129, 31, 0.16));
+    border-color: rgba(199, 129, 31, 0.6);
+    color: #f0c787;
+}
+
+html.dark .flash--warn .flash__title,
+html.dark .flash--warn .flash__message,
+html.dark .flash--block .flash__title,
+html.dark .flash--block .flash__message,
+html[data-theme="dark"] .flash--warn .flash__title,
+html[data-theme="dark"] .flash--warn .flash__message,
+html[data-theme="dark"] .flash--block .flash__title,
+html[data-theme="dark"] .flash--block .flash__message {
+    color: #ffd79a;
+}
+
+html.dark .flash--block .flash__chip,
+html[data-theme="dark"] .flash--block .flash__chip {
+    background: rgba(15, 28, 42, 0.45);
+    border-color: rgba(240, 199, 135, 0.35);
+    color: #ffd79a;
 }
 
 html.dark .flash--bad,
 html[data-theme="dark"] .flash--bad {
-    border-color: rgba(192, 57, 43, 0.45);
+    background: linear-gradient(135deg, rgba(192, 57, 43, 0.32), rgba(192, 57, 43, 0.14));
+    border-color: rgba(192, 57, 43, 0.55);
+    color: #f0a39b;
 }
 
 html.dark .flash__close:hover,
