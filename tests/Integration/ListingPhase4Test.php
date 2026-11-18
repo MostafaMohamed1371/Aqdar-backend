@@ -59,9 +59,23 @@ class ListingPhase4Test extends TestCase
             'declared_asking_price' => 950000,
         ]);
 
-        $this->postJson("/api/v1/my/listings/{$id}/submit", ['consent' => true])
+        $response = $this->withHeaders(['Accept-Language' => 'ar'])
+            ->postJson("/api/v1/my/listings/{$id}/submit", ['consent' => true])
             ->assertUnprocessable()
-            ->assertJsonValidationErrors('documents');
+            ->assertJsonValidationErrors('documents')
+            ->assertJsonPath('code', 'validation')
+            ->assertJsonPath('title', __('aqdar.flash.validation_title', locale: 'ar'));
+
+        $message = (string) $response->json('errors.documents.0');
+        $this->assertStringContainsString('بطاقة الرقم القومي', $message);
+        $this->assertStringContainsString('عقد المطور', $message);
+        $this->assertStringContainsString('إيصالات السداد', $message);
+        $this->assertStringNotContainsString('national_id', $message);
+        $this->assertStringNotContainsString('payment_proof', $message);
+        $this->assertStringNotContainsString('documents.', $message);
+        $encoded = json_encode($response->json());
+        $this->assertStringNotContainsString('national_id', (string) $encoded);
+        $this->assertStringNotContainsString('payment_proof', (string) $encoded);
 
         $this->attachRequiredDocuments((int) $id);
         $this->postJson("/api/v1/my/listings/{$id}/submit", ['consent' => true])

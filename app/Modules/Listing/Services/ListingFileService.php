@@ -212,7 +212,7 @@ class ListingFileService
         if ($missing !== []) {
             throw ValidationException::withMessages([
                 'documents' => [__('aqdar.listings.documents_required', [
-                    'types' => implode(', ', array_map(fn (DocumentType $type) => $type->value, $missing)),
+                    'types' => DocumentType::labeledList($missing),
                 ])],
             ]);
         }
@@ -225,7 +225,7 @@ class ListingFileService
         if ($missing !== []) {
             throw ValidationException::withMessages([
                 'documents' => [__('aqdar.listings.documents_not_approved', [
-                    'types' => implode(', ', array_map(fn (DocumentType $type) => $type->value, $missing)),
+                    'types' => DocumentType::labeledList($missing),
                 ])],
             ]);
         }

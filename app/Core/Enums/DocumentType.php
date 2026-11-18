@@ -21,4 +21,24 @@ enum DocumentType: string
 
         return $required;
     }
+
+    public function label(?string $locale = null): string
+    {
+        return __('aqdar.listings.doc_type.'.$this->value, locale: $locale);
+    }
+
+    /**
+     * @param  list<self>  $types
+     */
+    public static function labeledList(array $types, ?string $locale = null): string
+    {
+        $locale ??= app()->getLocale();
+        $labels = array_map(
+            static fn (self $type): string => $type->label($locale),
+            $types,
+        );
+        $separator = $locale === 'ar' ? '، ' : ', ';
+
+        return implode($separator, $labels);
+    }
 }
