@@ -30,7 +30,7 @@
     if (session()->has('error')) {
         $flashItems[] = [
             'tone' => 'bad',
-            'icon' => 'warn',
+            'icon' => 'alert',
             'title' => __('aqdar.flash.error_title'),
             'lead' => __('aqdar.flash.error_hint'),
             'messages' => [(string) session('error')],
@@ -43,7 +43,7 @@
         $reason = (string) ($documentBlock['reason'] ?? 'not_approved');
         $flashItems[] = [
             'tone' => 'block',
-            'icon' => 'doc',
+            'icon' => 'shield-alert',
             'title' => $reason === 'missing'
                 ? __('aqdar.listings.documents_missing_title')
                 : __('aqdar.listings.documents_block_title'),
@@ -70,7 +70,7 @@
         if ($uniqueErrors !== []) {
             $flashItems[] = [
                 'tone' => 'bad',
-                'icon' => 'warn',
+                'icon' => 'alert',
                 'title' => __('aqdar.flash.validation_title'),
                 'lead' => trans_choice('aqdar.flash.validation_count', count($uniqueErrors), [
                     'count' => count($uniqueErrors),

@@ -76,6 +76,8 @@ class DashboardThemeContractTest extends TestCase
         $this->assertStringContainsString("route('dashboard.profile.show')", $header);
         $this->assertStringContainsString("['name' => 'settings']", $header);
         $this->assertStringContainsString('1.65 1.65', $icons);
+        $this->assertStringContainsString("'alert'", $icons);
+        $this->assertStringContainsString("'shield-alert'", $icons);
         $this->assertStringNotContainsString('M12 2.5v2.5M12 19v2.5', $icons);
         $this->assertStringContainsString('<x-bilingual', (string) file_get_contents(base_path('app/Modules/Dashboard/Resources/views/partials/sidebar.blade.php')));
     }
