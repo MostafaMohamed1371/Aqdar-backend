@@ -179,7 +179,28 @@ Then run queue workers:
 
 ```bash
 php artisan horizon
+# or
+php artisan queue:work
 ```
+
+### FCM push (optional locally)
+
+Default `AQDAR_PUSH_DRIVER=log` only writes to the log. For live Firebase Cloud Messaging:
+
+```env
+AQDAR_PUSH_DRIVER=fcm
+AQDAR_FCM_CREDENTIALS=/absolute/path/to/firebase-service-account.json
+# or set AQDAR_FCM_PROJECT_ID + AQDAR_FCM_CLIENT_EMAIL + AQDAR_FCM_PRIVATE_KEY
+QUEUE_CONNECTION=sync
+```
+
+`QUEUE_CONNECTION=sync` sends push inside the same request — **no** `php artisan queue:work`. Use `database`/`redis` + a worker only when traffic grows.
+
+```bash
+php artisan aqdar:fcm-status --verify
+```
+
+Dashboard: **Content → Push notifications** shows status, credential verify, and a live diagnostic send to the newest marketplace device token. Mobile must call `POST /devices` with an FCM token after login (see mobile `docs/FCM_SETUP.md`).
 
 Verify with:
 

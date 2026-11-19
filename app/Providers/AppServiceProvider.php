@@ -5,6 +5,7 @@ namespace App\Providers;
 use App\Core\Audit\AuditLogger;
 use App\Core\Console\Commands\BackupCheckCommand;
 use App\Core\Console\Commands\BackupCommand;
+use App\Core\Console\Commands\FcmStatusCommand;
 use App\Core\Console\Commands\JmeterPrepareCommand;
 use App\Core\Console\Commands\MakeModuleCommand;
 use App\Core\Console\Commands\OpenApiCommand;
@@ -53,6 +54,7 @@ class AppServiceProvider extends ServiceProvider
                 BackupCheckCommand::class,
                 BackupCommand::class,
                 OpenApiCommand::class,
+                FcmStatusCommand::class,
             ]);
         }
     }

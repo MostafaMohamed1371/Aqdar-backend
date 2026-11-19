@@ -7,7 +7,10 @@ use App\Modules\Category\Models\Category;
 use App\Modules\Notification\Database\Seeders\NotificationSeeder;
 use App\Modules\Notification\Models\InboxNotification;
 use App\Modules\Notification\Models\NotificationTemplate;
+use App\Modules\Notification\Services\Push\PushGateway;
+use App\Modules\User\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Http;
 use Tests\Concerns\CreatesStaffUsers;
 use Tests\TestCase;
 
@@ -38,6 +41,92 @@ class DashboardNotificationTest extends TestCase
             ->assertSee(__('aqdar.notifications.test_staff'))
             ->assertSee(__('aqdar.notifications.opted_in'))
             ->assertSee(route('dashboard.notifications.test-send'), false);
+    }
+
+    public function test_push_tab_shows_fcm_status_and_actions(): void
+    {
+        $this->seed(NotificationSeeder::class);
+        $this->actingAsStaff(StaffRole::SuperAdmin);
+
+        $this->get('/dashboard/content?tab=push')
+            ->assertOk()
+            ->assertSee(__('aqdar.notifications.fcm_status_title'))
+            ->assertSee(__('aqdar.notifications.fcm_verify'))
+            ->assertSee(__('aqdar.notifications.fcm_diagnostic'))
+            ->assertSee(route('dashboard.notifications.fcm-verify'), false)
+            ->assertSee(route('dashboard.notifications.fcm-diagnostic'), false);
+    }
+
+    public function test_fcm_verify_requires_fcm_driver(): void
+    {
+        config(['aqdar.notifications.push_driver' => 'log']);
+        $this->actingAsStaff(StaffRole::SuperAdmin);
+
+        $this->from('/dashboard/content?tab=push')
+            ->post('/dashboard/notifications/fcm-verify')
+            ->assertRedirect(route('dashboard.content.index', ['tab' => 'push']))
+            ->assertSessionHas('error', __('aqdar.notifications.fcm_verify_driver'));
+    }
+
+    public function test_fcm_diagnostic_sends_to_latest_device_token(): void
+    {
+        $this->configureFcm();
+        Http::fake([
+            'https://oauth2.googleapis.com/token' => Http::response([
+                'access_token' => 'ya29.desk',
+                'expires_in' => 3600,
+            ]),
+            'https://fcm.googleapis.com/v1/projects/aqdar-eg/messages:send' => Http::response([
+                'name' => 'projects/aqdar-eg/messages/desk-1',
+            ]),
+        ]);
+
+        $buyer = User::factory()->create();
+        $buyer->devices()->create([
+            'device_uuid' => 'ios-desk-diag',
+            'platform' => 'ios',
+            'push_token' => 'desk-fcm-token',
+            'last_seen_at' => now(),
+        ]);
+
+        $this->actingAsStaff(StaffRole::SuperAdmin);
+
+        $this->from('/dashboard/content?tab=push')
+            ->post('/dashboard/notifications/fcm-diagnostic', [
+                'title_ar' => 'اختبار عَقدار',
+                'title_en' => 'AQDAR test',
+                'body_ar' => 'إذا ظهرت هذه الرسالة، فإشعارات الدفع تعمل.',
+                'body_en' => 'If you see this, FCM delivery works.',
+            ])
+            ->assertRedirect(route('dashboard.content.index', ['tab' => 'push']))
+            ->assertSessionHas('status');
+
+        Http::assertSent(function ($request): bool {
+            if (! str_contains($request->url(), 'messages:send')) {
+                return false;
+            }
+
+            return ($request->data()['message']['token'] ?? null) === 'desk-fcm-token';
+        });
+    }
+
+    private function configureFcm(): void
+    {
+        $key = openssl_pkey_new([
+            'private_key_bits' => 2048,
+            'private_key_type' => OPENSSL_KEYTYPE_RSA,
+        ]);
+        $this->assertNotFalse($key);
+        openssl_pkey_export($key, $pem);
+
+        config([
+            'aqdar.notifications.push_driver' => 'fcm',
+            'aqdar.notifications.fcm.project_id' => 'aqdar-eg',
+            'aqdar.notifications.fcm.client_email' => 'firebase-adminsdk@aqdar-eg.iam.gserviceaccount.com',
+            'aqdar.notifications.fcm.private_key' => $pem,
+            'aqdar.notifications.fcm.credentials' => '',
+        ]);
+        $this->app->forgetInstance(PushGateway::class);
     }
 
     public function test_reviewer_cannot_open_notification_desk(): void

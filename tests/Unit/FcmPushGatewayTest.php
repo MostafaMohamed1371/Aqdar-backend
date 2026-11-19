@@ -104,6 +104,20 @@ class FcmPushGatewayTest extends TestCase
         Http::assertNothingSent();
     }
 
+    public function test_verify_credentials_requests_oauth_token(): void
+    {
+        $this->configureFcm();
+        Http::fake([
+            'https://oauth2.googleapis.com/token' => Http::response([
+                'access_token' => 'ya29.verify-ok',
+                'expires_in' => 3600,
+            ]),
+        ]);
+
+        $this->assertTrue($this->gateway()->verifyCredentials());
+        Http::assertSent(fn ($request): bool => $request->url() === 'https://oauth2.googleapis.com/token');
+    }
+
     private function gateway(): FcmPushGateway
     {
         return new FcmPushGateway(new ContactLeakScanner);

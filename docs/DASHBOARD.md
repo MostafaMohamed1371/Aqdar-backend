@@ -174,7 +174,7 @@ ADM-12 CSV and PDF use the same rows. PDF is staff-only Helvetica of those colum
 
 ADM-07 includes `/dashboard/support` (Sales support chat with the marketplace user). Buyer↔seller chat stays forbidden on ADM-13.
 
-ADM-13 push provider status shows the log driver or FCM HTTP v1 (credentials from env, never stored in settings).
+ADM-13 push provider status shows the log driver or FCM HTTP v1 (credentials from env, never stored in settings). ADM-11 **Content → Push** shows an FCM checklist (driver, credentials, queue, device tokens), `POST /dashboard/notifications/fcm-verify` (Google OAuth probe), and `POST /dashboard/notifications/fcm-diagnostic` (live send to the newest marketplace `push_token`). CLI: `php artisan aqdar:fcm-status --verify`.
 
 ADM-13 is a named form (not generic key/value CRUD) with General / Security / Audit tabs. Sales name/phone/hours apply immediately to `GET /config`. Assignment rule `manual` \| `round_robin` (Sales staff only). Maintenance 503s the marketplace API; the desk stays up. 2FA and IP verification are informational (DEC-07, not enabled). Buyer↔seller chat is permanently **غير مسموح**. Currency EGP is locked. Signed URL, watermark, mask, and leak scan stay on in code. Last settings change is shown on the Audit tab.
 

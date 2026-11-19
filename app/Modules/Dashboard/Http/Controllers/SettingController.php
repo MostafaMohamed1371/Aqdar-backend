@@ -9,6 +9,7 @@ use App\Core\Enums\NotificationChannel;
 use App\Core\Http\Controllers\BaseController;
 use App\Modules\Dashboard\Http\Requests\UpdatePlatformSettingsRequest;
 use App\Modules\Notification\Models\NotificationDelivery;
+use App\Modules\Notification\Services\Push\FcmConfiguration;
 use App\Modules\Setting\Services\SettingService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -38,6 +39,7 @@ class SettingController extends BaseController
     public function __construct(
         private SettingService $settingService,
         private AuditLogger $audit,
+        private FcmConfiguration $fcm,
     ) {}
 
     public function index(Request $request): View
@@ -131,15 +133,6 @@ class SettingController extends BaseController
 
     private function pushProviderStatus(): string
     {
-        $driver = (string) config('aqdar.notifications.push_driver', 'log');
-        if ($driver !== 'fcm') {
-            return __('aqdar.settings.provider_log');
-        }
-        $configured = (string) config('aqdar.notifications.fcm.project_id', '') !== ''
-            || (string) config('aqdar.notifications.fcm.credentials', '') !== '';
-
-        return $configured
-            ? __('aqdar.settings.provider_fcm')
-            : __('aqdar.settings.provider_fcm_missing');
+        return $this->fcm->status()['label'];
     }
 }

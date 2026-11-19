@@ -668,7 +668,7 @@ Staff commissions (**ADM-10**) are Blade, not this API. Finance (`edit_commissio
 
 ## Phase 8 — Notifications
 
-In-app inbox is the source of truth (F10). Push is best-effort via a queued job. `AQDAR_PUSH_DRIVER=log` (default) writes a local log. `AQDAR_PUSH_DRIVER=fcm` sends FCM HTTP v1 using a service-account JSON/env (`AQDAR_FCM_CREDENTIALS` or project id + client email + private key). No Firebase PHP SDK. Expired/UNREGISTERED tokens are cleared. Provider failures never block listing/CRM writes. Copy never includes another party’s name or phone.
+In-app inbox is the source of truth (F10). Push is best-effort via a queued job. `AQDAR_PUSH_DRIVER=log` (default) writes a local log. `AQDAR_PUSH_DRIVER=fcm` sends FCM HTTP v1 using a service-account JSON/env (`AQDAR_FCM_CREDENTIALS` or project id + client email + private key). No Firebase PHP SDK. Expired/UNREGISTERED tokens are cleared. Provider failures never block listing/CRM writes. Copy never includes another party’s name or phone. Ops: `php artisan aqdar:fcm-status --verify`; desk Content → Push can verify credentials and send a live diagnostic to the newest `POST /devices` token.
 
 - `GET /notifications` — paginated inbox + `meta.unread_count`. Each row has `event`, `category`, `title`, `body`, `context` (safe keys only: listing code, area, client label — never a name or phone), `read_at`. `?category=` listing\|inquiry\|case\|system\|marketing\|smart. `?unread=1`. APP-14 `smart` is empty while `feature_smart_notifications` is off.
 - `POST /notifications/{id}/read`

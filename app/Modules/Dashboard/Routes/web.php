@@ -114,6 +114,8 @@ Route::middleware('auth')->prefix('dashboard')->name('dashboard.')->group(functi
         Route::delete('content/{contentBlock}', [ContentController::class, 'destroy'])->name('content.destroy');
         Route::put('notifications/templates/{template}', [NotificationDeskController::class, 'updateTemplate'])->whereNumber('template')->name('notifications.templates.update');
         Route::post('notifications/test-send', [NotificationDeskController::class, 'testSend'])->name('notifications.test-send');
+        Route::post('notifications/fcm-verify', [NotificationDeskController::class, 'verifyFcm'])->name('notifications.fcm-verify');
+        Route::post('notifications/fcm-diagnostic', [NotificationDeskController::class, 'diagnosticPush'])->name('notifications.fcm-diagnostic');
     });
 
     Route::middleware('staff.can:manage_catalog,approve_broadcasts')->group(function (): void {

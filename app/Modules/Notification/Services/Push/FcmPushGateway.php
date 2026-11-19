@@ -77,6 +77,24 @@ class FcmPushGateway implements PushGateway
         return $out;
     }
 
+    public function verifyCredentials(): bool
+    {
+        $creds = $this->credentials();
+        if ($creds === null) {
+            return false;
+        }
+
+        return $this->accessToken($creds) !== '';
+    }
+
+    /**
+     * @return array{project_id: string, client_email: string, private_key: string}|null
+     */
+    public function resolvedCredentials(): ?array
+    {
+        return $this->credentials();
+    }
+
     /** @return array{project_id: string, client_email: string, private_key: string}|null */
     private function credentials(): ?array
     {

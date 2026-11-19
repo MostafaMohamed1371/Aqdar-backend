@@ -362,7 +362,7 @@ Dashboard (parallel, per phase, from the UI mockup): [DASHBOARD_PHASES.md](DASHB
 
 **Screens served:** APP-14 (behind flag), APP-35, APP-37, ADM-11.
 
-**Implemented:** in-app inbox (`notifications` + `notification_deliveries` + `notification_templates`); idempotency per event; push via queued job; log driver by default, FCM HTTP v1 when `AQDAR_PUSH_DRIVER=fcm` (no Firebase SDK); marketing opt-in separate from operational; quiet hours and smart alerts from settings (DEC-09 / APP-14 off by default). ADM-11 templates, announcements, category copy, banners (البانرات), shared test/schedule form, staff test send using visible copy, scheduled broadcast to opted-in users using stored title/body, send log. Failures never block the listing/CRM transaction. Already-sent push deliveries are not retried.
+**Implemented:** in-app inbox (`notifications` + `notification_deliveries` + `notification_templates`); idempotency per event; push via queued job; log driver by default, FCM HTTP v1 when `AQDAR_PUSH_DRIVER=fcm` (no Firebase SDK); marketing opt-in separate from operational; quiet hours and smart alerts from settings (DEC-09 / APP-14 off by default). ADM-11 templates, announcements, category copy, banners (البانرات), shared test/schedule form, staff test send using visible copy, FCM status checklist + credential verify + live diagnostic send, scheduled broadcast to opted-in users using stored title/body, send log, `aqdar:fcm-status`. Failures never block the listing/CRM transaction. Already-sent push deliveries are not retried.
 
 **Tests:**
 - UAT-14: status change persists notification and queues safe push.

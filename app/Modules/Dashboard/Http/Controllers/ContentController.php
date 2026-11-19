@@ -9,6 +9,7 @@ use App\Modules\Catalog\Services\MasterDataService;
 use App\Modules\Category\Models\Category;
 use App\Modules\Dashboard\Http\Requests\SaveCatalogRecordRequest;
 use App\Modules\Notification\Services\NotificationService;
+use App\Modules\Notification\Services\Push\FcmConfiguration;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -18,6 +19,7 @@ class ContentController extends BaseController
     public function __construct(
         private MasterDataService $masterData,
         private NotificationService $notifications,
+        private FcmConfiguration $fcm,
     ) {}
 
     public function index(Request $request): View
@@ -35,6 +37,7 @@ class ContentController extends BaseController
             'broadcasts' => $this->notifications->broadcasts(),
             'deliveries' => $this->notifications->deliveries(),
             'categories' => Category::query()->orderBy('sort_order')->orderBy('id')->get(),
+            'fcmStatus' => $this->fcm->status(),
         ]);
     }
 

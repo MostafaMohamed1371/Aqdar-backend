@@ -66,25 +66,50 @@
                 <p class="tiny" style="margin:8px 0 0">{{ __('aqdar.notifications.copy_note') }}</p>
             </div>
             @endif
+            @php($fcm = $fcmStatus ?? ['ready' => false, 'label' => '', 'driver' => 'log', 'checklist' => [], 'project_id' => null, 'devices_with_token' => 0, 'push_pending' => 0, 'push_failed' => 0, 'queue' => ''])
+            <div class="card" style="margin:0 0 16px">
+                <div class="card-h">
+                    <b>{{ __('aqdar.notifications.fcm_status_title') }}</b>
+                    <span class="badge {{ ! empty($fcm['ready']) ? 'ok' : 'warn' }}">{{ $fcm['label'] }}</span>
+                </div>
+                <div class="dl"><span>{{ __('aqdar.notifications.fcm_driver') }}</span><b class="en">{{ $fcm['driver'] }}</b></div>
+                <div class="dl"><span>{{ __('aqdar.notifications.fcm_project') }}</span><b class="en">{{ $fcm['project_id'] ?: '—' }}</b></div>
+                <div class="dl"><span>{{ __('aqdar.notifications.fcm_queue') }}</span><b class="en">{{ $fcm['queue'] }}</b></div>
+                <div class="dl"><span>{{ __('aqdar.notifications.fcm_devices') }}</span><b class="en">{{ number_format($fcm['devices_with_token']) }}</b></div>
+                <div class="dl"><span>{{ __('aqdar.settings.diag_push_pending') }}</span><b class="en">{{ number_format($fcm['push_pending']) }}</b></div>
+                <div class="dl"><span>{{ __('aqdar.settings.diag_push_failed') }}</span><b class="en" @style(['color:var(--bad)' => ($fcm['push_failed'] ?? 0) > 0])>{{ number_format($fcm['push_failed']) }}</b></div>
+                <ul class="bul" style="margin-top:10px">
+                    @foreach (($fcm['checklist'] ?? []) as $item)
+                        <li style="color:{{ $item['ok'] ? 'var(--ok)' : 'var(--warn)' }}">{{ $item['ok'] ? '✓' : '!' }} {{ $item['label'] }}</li>
+                    @endforeach
+                </ul>
+                <p class="tiny" style="margin-top:8px">{{ __('aqdar.notifications.fcm_setup_hint') }}</p>
+                @can('manage_catalog')
+                    <form method="POST" action="{{ route('dashboard.notifications.fcm-verify') }}" style="margin-top:10px">
+                        @csrf
+                        <button class="btn ghost" type="submit">{{ __('aqdar.notifications.fcm_verify') }}</button>
+                    </form>
+                @endcan
+            </div>
             <div class="card" style="margin:0" id="add-content">
                 <div class="card-h"><b>{{ __('aqdar.notifications.send_push') }}</b></div>
                 <form method="POST" action="{{ route('dashboard.notifications.broadcasts') }}">
                     @csrf
                     <div class="field">
                         <label for="broadcast-title-ar">{{ __('aqdar.notifications.title') }}</label>
-                        <div class="inp"><input id="broadcast-title-ar" name="title_ar" required value="{{ old('title_ar') }}"></div>
+                        <div class="inp"><input id="broadcast-title-ar" name="title_ar" required value="{{ old('title_ar', __('aqdar.notifications.fcm_default_title')) }}"></div>
                     </div>
                     <div class="field">
                         <label for="broadcast-title-en">{{ __('aqdar.catalog.title_en') }}</label>
-                        <div class="inp"><input id="broadcast-title-en" class="en" name="title_en" value="{{ old('title_en') }}"></div>
+                        <div class="inp"><input id="broadcast-title-en" class="en" name="title_en" value="{{ old('title_en', 'AQDAR test') }}"></div>
                     </div>
                     <div class="field">
                         <label for="broadcast-body-ar">{{ __('aqdar.notifications.body') }}</label>
-                        <div class="inp"><textarea id="broadcast-body-ar" name="body_ar" rows="3" required>{{ old('body_ar') }}</textarea></div>
+                        <div class="inp"><textarea id="broadcast-body-ar" name="body_ar" rows="3" required>{{ old('body_ar', __('aqdar.notifications.fcm_default_body')) }}</textarea></div>
                     </div>
                     <div class="field">
                         <label for="broadcast-body-en">{{ __('aqdar.catalog.body_en') }}</label>
-                        <div class="inp"><textarea id="broadcast-body-en" class="en" name="body_en" rows="2" placeholder="{{ __('aqdar.catalog.body_en') }}">{{ old('body_en') }}</textarea></div>
+                        <div class="inp"><textarea id="broadcast-body-en" class="en" name="body_en" rows="2" placeholder="{{ __('aqdar.catalog.body_en') }}">{{ old('body_en', 'If you see this, FCM delivery works.') }}</textarea></div>
                     </div>
                     <div class="field">
                         <label for="broadcast-audience">{{ __('aqdar.notifications.audience') }}</label>
@@ -98,12 +123,14 @@
                         <label for="broadcast-scheduled-at">{{ __('aqdar.notifications.scheduled_at') }}</label>
                         <div class="inp"><input id="broadcast-scheduled-at" class="en" type="datetime-local" name="scheduled_at" value="{{ old('scheduled_at') }}"></div>
                     </div>
-                    <div style="display:flex;gap:8px;margin-top:8px">
+                    <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
                         @can('manage_catalog')
                             <button class="btn ghost" type="submit" formaction="{{ route('dashboard.notifications.test-send') }}" style="flex:1;justify-content:center">{{ __('aqdar.notifications.test_staff') }}</button>
+                            <button class="btn ghost" type="submit" formaction="{{ route('dashboard.notifications.fcm-diagnostic') }}" style="flex:1;justify-content:center">{{ __('aqdar.notifications.fcm_diagnostic') }}</button>
                         @endcan
                         <button class="btn" type="submit" style="flex:1;justify-content:center">{{ __('aqdar.notifications.schedule') }}</button>
                     </div>
+                    <p class="tiny" style="margin-top:8px">{{ __('aqdar.notifications.fcm_diagnostic_hint') }}</p>
                 </form>
             </div>
         </div>

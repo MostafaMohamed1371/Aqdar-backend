@@ -21,6 +21,7 @@ use App\Modules\Notification\Services\Push\PushGateway;
 use App\Modules\Setting\Services\SettingService;
 use App\Modules\Staff\Models\StaffUser;
 use App\Modules\User\Models\User;
+use App\Modules\User\Models\UserDevice;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
@@ -219,6 +220,63 @@ class NotificationService
         $this->audit->write('notification.staff_test', $actor, null, ['count' => $count]);
 
         return $count;
+    }
+
+    /**
+     * Send one live FCM payload to the newest marketplace device that has a push token.
+     *
+     * @param  array<string, mixed>  $data
+     * @return array{ok: bool, response: string, user_id: int|null}
+     */
+    public function diagnosticDevicePush(StaffUser $actor, array $data): array
+    {
+        $this->assertSafeCopy($data['title_ar'], $data['title_en'] ?? $data['title_ar'], $data['body_ar'], $data['body_en'] ?? $data['body_ar']);
+
+        $device = UserDevice::query()
+            ->whereNotNull('push_token')
+            ->where('push_token', '!=', '')
+            ->latest('last_seen_at')
+            ->latest('id')
+            ->first();
+
+        if ($device === null) {
+            throw ValidationException::withMessages([
+                'push_token' => [__('aqdar.notifications.fcm_no_device')],
+            ]);
+        }
+
+        $locale = app()->getLocale() === 'en' ? 'en' : 'ar';
+        $title = $locale === 'en'
+            ? (string) ($data['title_en'] ?? $data['title_ar'])
+            : (string) $data['title_ar'];
+        $body = $locale === 'en'
+            ? (string) ($data['body_en'] ?? $data['body_ar'])
+            : (string) $data['body_ar'];
+
+        $result = $this->push->send((string) $device->push_token, [
+            'title' => $title,
+            'body' => $body,
+            'data' => [
+                'event' => 'fcm_diagnostic',
+                'deep_link' => '/notifications',
+            ],
+        ]);
+
+        if ($result->tokenExpired) {
+            $device->forceFill(['push_token' => null])->save();
+        }
+
+        $this->audit->write('notification.fcm_diagnostic', $actor, $device->user, [
+            'ok' => $result->ok,
+            'response' => $result->response,
+            'device_id' => $device->id,
+        ]);
+
+        return [
+            'ok' => $result->ok,
+            'response' => (string) $result->response,
+            'user_id' => $device->user_id,
+        ];
     }
 
     /** @param array<string, mixed> $data */
