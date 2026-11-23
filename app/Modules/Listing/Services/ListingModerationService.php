@@ -5,6 +5,7 @@ namespace App\Modules\Listing\Services;
 use App\Core\Audit\AuditLogger;
 use App\Core\Enums\ListingStatus;
 use App\Core\Enums\Permission;
+use App\Modules\Dashboard\Support\DeskRealtime;
 use App\Modules\Listing\Jobs\MatchSavedSearchesJob;
 use App\Modules\Listing\Models\Listing;
 use App\Modules\Listing\Models\ListingStatusHistory;
@@ -228,6 +229,11 @@ class ListingModerationService
                     'unit_type' => $fresh->unitType?->localizedName(),
                 ]);
             }
+
+            DeskRealtime::push('listings', $action, (int) $fresh->id, meta: [
+                'public_code' => $fresh->public_code,
+                'status' => $to->value,
+            ]);
 
             return $fresh;
         });

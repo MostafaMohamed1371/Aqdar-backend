@@ -28,7 +28,8 @@ class SettingService extends AbstractService
      *     maintenance: bool,
      *     sales_contact: array{name: string, phone: string, hours: string},
      *     consent: array{version: string, terms_url: string, privacy_url: string},
-     *     otp: array{resend_after: int, length: int}
+     *     otp: array{resend_after: int, length: int},
+     *     pusher: array{enabled: bool, key: string, cluster: string, auth_endpoint: string, channel_prefix: string}
      * }
      */
     public function publicConfig(): array
@@ -60,6 +61,14 @@ class SettingService extends AbstractService
             'otp' => [
                 'resend_after' => max(1, (int) config('aqdar.otp.resend_after_seconds', 45)),
                 'length' => max(4, (int) config('aqdar.otp.length', 4)),
+            ],
+            'pusher' => [
+                'enabled' => (string) config('broadcasting.default') === 'pusher'
+                    && (string) config('broadcasting.connections.pusher.key') !== '',
+                'key' => (string) config('broadcasting.connections.pusher.key', ''),
+                'cluster' => (string) config('broadcasting.connections.pusher.options.cluster', ''),
+                'auth_endpoint' => '/api/v1/broadcasting/auth',
+                'channel_prefix' => 'private-support.thread.',
             ],
         ];
     }

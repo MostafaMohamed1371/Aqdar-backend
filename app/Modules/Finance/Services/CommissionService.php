@@ -9,6 +9,7 @@ use App\Core\Enums\CommissionPayer;
 use App\Core\Enums\CommissionStatus;
 use App\Core\Services\QueueQuery;
 use App\Modules\Crm\Models\TransferCase;
+use App\Modules\Dashboard\Support\DeskRealtime;
 use App\Modules\Finance\Models\Commission;
 use App\Modules\Finance\Models\CommissionHistory;
 use App\Modules\Setting\Services\SettingService;
@@ -229,6 +230,7 @@ class CommissionService
         $this->audit->write('commission.approved', $staff, $fresh, [
             'reason' => $reason,
         ]);
+        DeskRealtime::push('commissions', 'approved', (int) $fresh->id);
 
         return $fresh;
     }

@@ -708,6 +708,7 @@ Buyer↔seller chat, payment/escrow, and OCR stay **out**. These three slices ar
 - `GET /my/support` — current open Sales-support thread, or `data: null`.
 - `POST /my/support` — `{ body, consent }` creates or appends. Contact details in `body` are rejected (same scanner as inquiries). Messages are `author: user|sales` only — no staff id, no other party's name or phone.
 - `GET /my/support/{id}` — owner only (404 otherwise).
+- Realtime (Pusher, Sales support only — never buyer↔seller): `GET /config` → `data.pusher` (`enabled`, `key`, `cluster`, `auth_endpoint`, `channel_prefix`). Subscribe to `private-support.thread.{id}` after `POST /api/v1/broadcasting/auth` with the Sanctum Bearer token. Events: `support.message.sent`, `support.thread.closed`.
 - Public listing JSON adds `share_url` (`{APP_URL}/property/{public_code}`).
 - `GET /property/{public_code}` — HTML landing for published listings (APP-40). Unpublished → 404. No seller PII. Follows maintenance 503. Not a catalog/SEO index.
 

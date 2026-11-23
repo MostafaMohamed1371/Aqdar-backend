@@ -1,4 +1,6 @@
 import { initThemeToggle } from './theme';
+import './dashboard-realtime';
+import './support-echo';
 
 document.addEventListener('DOMContentLoaded', () => {
     initThemeToggle();

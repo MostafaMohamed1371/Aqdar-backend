@@ -13,6 +13,7 @@ use App\Core\Identity\PublicCodeGenerator;
 use App\Core\Services\QueueQuery;
 use App\Modules\Crm\Models\Lead;
 use App\Modules\Crm\Models\LeadActivity;
+use App\Modules\Dashboard\Support\DeskRealtime;
 use App\Modules\Listing\Models\Listing;
 use App\Modules\Setting\Services\SettingService;
 use App\Modules\Staff\Models\StaffUser;
@@ -207,7 +208,10 @@ class LeadService
             'reason' => $reason,
         ]));
 
-        return $lead->fresh(['buyer', 'listing', 'assignee']) ?? $lead;
+        $fresh = $lead->fresh(['buyer', 'listing', 'assignee']) ?? $lead;
+        DeskRealtime::push('leads', 'assigned', (int) $fresh->id);
+
+        return $fresh;
     }
 
     /**
@@ -291,7 +295,12 @@ class LeadService
         $this->syncLinkedInquiries($lead);
         $this->audit->write('lead.status', $actor, $lead, ['status' => $status->value]);
 
-        return $lead->fresh() ?? $lead;
+        $fresh = $lead->fresh() ?? $lead;
+        DeskRealtime::push('leads', 'status', (int) $fresh->id, meta: [
+            'status' => $status->value,
+        ]);
+
+        return $fresh;
     }
 
     public function syncLinkedInquiries(Lead $lead): void

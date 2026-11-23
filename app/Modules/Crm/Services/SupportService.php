@@ -8,8 +8,12 @@ use App\Core\Enums\StaffRole;
 use App\Core\Enums\SupportAuthorType;
 use App\Core\Enums\SupportThreadStatus;
 use App\Core\Identity\PublicCodeGenerator;
+use App\Modules\Crm\Events\SupportDeskUpdated;
+use App\Modules\Crm\Events\SupportMessageSent;
+use App\Modules\Crm\Events\SupportThreadClosed;
 use App\Modules\Crm\Models\SupportMessage;
 use App\Modules\Crm\Models\SupportThread;
+use App\Modules\Dashboard\Support\DeskRealtime;
 use App\Modules\Listing\Services\ContactLeakScanner;
 use App\Modules\Notification\Services\NotificationService;
 use App\Modules\Setting\Services\SettingService;
@@ -57,7 +61,7 @@ class SupportService
         }
         $this->assertClean((string) $data['body']);
 
-        $thread = DB::transaction(function () use ($user, $data): SupportThread {
+        [$thread, $message] = DB::transaction(function () use ($user, $data): array {
             $thread = $this->currentForUser($user);
             if ($thread === null) {
                 $thread = SupportThread::query()->create([
@@ -69,7 +73,7 @@ class SupportService
                 $this->autoAssign($thread);
             }
 
-            SupportMessage::query()->create([
+            $message = SupportMessage::query()->create([
                 'thread_id' => $thread->id,
                 'author_type' => SupportAuthorType::User,
                 'user_id' => $user->id,
@@ -77,10 +81,16 @@ class SupportService
                 'created_at' => now(),
             ]);
 
-            return $thread;
+            return [$thread, $message];
         });
 
         $this->audit->write('support.message_from_user', $user, $thread, [
+            'public_code' => $thread->public_code,
+        ]);
+
+        event(new SupportMessageSent($thread, $message));
+        event(new SupportDeskUpdated($thread, $message, 'message'));
+        DeskRealtime::push('support', 'message', (int) $thread->id, meta: [
             'public_code' => $thread->public_code,
         ]);
 
@@ -130,6 +140,12 @@ class SupportService
             ], 'support_reply:'.$message->id);
         }
 
+        event(new SupportMessageSent($thread, $message));
+        event(new SupportDeskUpdated($thread, $message, 'message'));
+        DeskRealtime::push('support', 'message', (int) $thread->id, meta: [
+            'public_code' => $thread->public_code,
+        ]);
+
         return $thread->load('messages');
     }
 
@@ -141,19 +157,31 @@ class SupportService
             'public_code' => $thread->public_code,
         ]);
 
+        event(new SupportThreadClosed($thread));
+        event(new SupportDeskUpdated($thread, null, 'closed'));
+        DeskRealtime::push('support', 'closed', (int) $thread->id, meta: [
+            'public_code' => $thread->public_code,
+        ]);
+
         return $thread;
+    }
+
+    public function canAct(StaffUser $staff, SupportThread $thread): bool
+    {
+        $staff->loadMissing('role');
+        if ($this->leads->canManageAll($staff)) {
+            return true;
+        }
+
+        return $staff->role?->slug === StaffRole::Sales->value
+            && (int) $thread->assigned_to === (int) $staff->id;
     }
 
     public function assertCanAct(StaffUser $staff, SupportThread $thread): void
     {
-        $staff->loadMissing('role');
-        if ($this->leads->canManageAll($staff)) {
-            return;
+        if (! $this->canAct($staff, $thread)) {
+            abort(403, __('aqdar.http.forbidden'));
         }
-        if ($staff->role?->slug === StaffRole::Sales->value && (int) $thread->assigned_to === (int) $staff->id) {
-            return;
-        }
-        abort(403, __('aqdar.http.forbidden'));
     }
 
     private function autoAssign(SupportThread $thread): void

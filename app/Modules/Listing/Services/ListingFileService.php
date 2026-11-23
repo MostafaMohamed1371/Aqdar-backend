@@ -7,6 +7,7 @@ use App\Core\Enums\DocumentReviewStatus;
 use App\Core\Enums\DocumentType;
 use App\Core\Enums\MediaModerationStatus;
 use App\Core\Uploads\UploadScanner;
+use App\Modules\Dashboard\Support\DeskRealtime;
 use App\Modules\Listing\Exceptions\RequiredDocumentsException;
 use App\Modules\Listing\Jobs\ProcessListingMediaJob;
 use App\Modules\Listing\Models\Listing;
@@ -238,7 +239,13 @@ class ListingFileService
             'note' => $note,
         ]);
 
-        return $document->fresh() ?? $document;
+        $fresh = $document->fresh() ?? $document;
+        DeskRealtime::push('documents', 'reviewed', (int) $fresh->id, meta: [
+            'listing_id' => $fresh->listing_id,
+            'status' => $status->value,
+        ]);
+
+        return $fresh;
     }
 
     public function reviewMedia(ListingMedia $media, StaffUser $staff, MediaModerationStatus $status, ?string $note = null): ListingMedia
@@ -263,7 +270,13 @@ class ListingFileService
             'status' => $status->value,
         ]);
 
-        return $media->fresh() ?? $media;
+        $fresh = $media->fresh() ?? $media;
+        DeskRealtime::push('documents', 'media_reviewed', (int) $fresh->id, meta: [
+            'listing_id' => $fresh->listing_id,
+            'status' => $status->value,
+        ]);
+
+        return $fresh;
     }
 
     /** @return Collection<int, ListingDocument> */

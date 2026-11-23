@@ -20,6 +20,7 @@ use App\Core\Uploads\MimeUploadScanner;
 use App\Core\Uploads\UploadScanner;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Broadcast;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 
@@ -65,6 +66,17 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->configureRateLimiting();
+        $this->configureBroadcasting();
+    }
+
+    protected function configureBroadcasting(): void
+    {
+        Broadcast::routes(['middleware' => ['web', 'auth']]);
+
+        Broadcast::routes([
+            'prefix' => 'api/v1',
+            'middleware' => ['api', 'auth:sanctum', 'marketplace.active'],
+        ]);
     }
 
     protected function configureRateLimiting(): void

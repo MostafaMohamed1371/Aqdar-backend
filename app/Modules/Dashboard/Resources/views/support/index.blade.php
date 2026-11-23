@@ -29,9 +29,9 @@
                     <th></th>
                 </tr>
             </thead>
-            <tbody>
+            <tbody data-support-rows>
                 @forelse ($threads as $thread)
-                    <tr>
+                    <tr data-thread-id="{{ $thread->id }}">
                         <td class="en"><b>{{ $thread->public_code }}</b></td>
                         <td class="en">USR-{{ $thread->user_id }}</td>
                         <td>{{ $thread->assignee?->name ?? '—' }}</td>
@@ -39,7 +39,7 @@
                         <td><a class="btn ghost sm" href="{{ route('dashboard.support.show', $thread) }}">{{ __('aqdar.listings.desk.view') }}</a></td>
                     </tr>
                 @empty
-                    <tr><td colspan="5">{{ __('aqdar.support.empty') }}</td></tr>
+                    <tr data-support-empty><td colspan="5">{{ __('aqdar.support.empty') }}</td></tr>
                 @endforelse
             </tbody>
         </table>

@@ -16,8 +16,9 @@
                 <th>{{ __('aqdar.cases.updated') }}</th>
                 <th>{{ __('structer.actions') }}</th>
             </tr>
+            <tbody data-inbox-rows>
             @forelse ($rows as $row)
-                <tr>
+                <tr data-inbox-id="{{ $row->id }}">
                     <td>
                         <b>{{ $row->localizedTitle() }}</b>
                         @if ($row->read_at === null)
@@ -36,8 +37,9 @@
                     </td>
                 </tr>
             @empty
-                <tr><td colspan="4">{{ __('aqdar.notifications.empty_inbox') }}</td></tr>
+                <tr data-inbox-empty><td colspan="4">{{ __('aqdar.notifications.empty_inbox') }}</td></tr>
             @endforelse
+            </tbody>
         </table>
     </div>
     {{ $rows->links() }}

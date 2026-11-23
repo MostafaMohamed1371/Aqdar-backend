@@ -27,11 +27,16 @@
     <div class="locale-mini">
         @include('dashboard::partials.locale-switcher')
     </div>
-    <a href="{{ route('dashboard.inbox') }}" class="icon-btn" aria-label="{{ __('aqdar.notifications.inbox') }}">
+    @php($inboxUnread = app(\App\Modules\Notification\Services\NotificationService::class)->unreadCount(auth()->user()))
+    <a
+        href="{{ route('dashboard.inbox') }}"
+        class="icon-btn"
+        data-inbox-bell
+        data-unread="{{ $inboxUnread }}"
+        aria-label="{{ __('aqdar.notifications.inbox') }}"
+    >
         @include('dashboard::partials.icon', ['name' => 'bell'])
-        @if (app(\App\Modules\Notification\Services\NotificationService::class)->unreadCount(auth()->user()) > 0)
-            <span class="dot"></span>
-        @endif
+        <span class="dot" data-inbox-dot @if ($inboxUnread < 1) hidden @endif></span>
     </a>
     @can('manage_catalog')
         <a href="{{ route('dashboard.settings.index') }}" class="icon-btn" aria-label="{{ __('structer.settings') }}">

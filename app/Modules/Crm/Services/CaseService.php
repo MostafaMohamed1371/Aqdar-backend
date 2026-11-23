@@ -16,6 +16,7 @@ use App\Modules\Crm\Models\CaseDocument;
 use App\Modules\Crm\Models\Lead;
 use App\Modules\Crm\Models\RequestMatch;
 use App\Modules\Crm\Models\TransferCase;
+use App\Modules\Dashboard\Support\DeskRealtime;
 use App\Modules\Listing\Models\Listing;
 use App\Modules\Notification\Services\NotificationService;
 use App\Modules\Staff\Models\StaffUser;
@@ -225,7 +226,10 @@ class CaseService
             'reason' => $reason,
         ]));
 
-        return $case->fresh(['assignee']) ?? $case;
+        $fresh = $case->fresh(['assignee']) ?? $case;
+        DeskRealtime::push('cases', 'assigned', (int) $fresh->id);
+
+        return $fresh;
     }
 
     public function setStage(TransferCase $case, StaffUser $actor, CaseStage $stage, string $reason, ?string $note = null): TransferCase
@@ -250,7 +254,12 @@ class CaseService
         ]);
         $this->notifyParties($case, __('aqdar.cases.client.'.$stage->clientLabel()));
 
-        return $case->fresh(['history']) ?? $case;
+        $fresh = $case->fresh(['history']) ?? $case;
+        DeskRealtime::push('cases', 'stage', (int) $fresh->id, meta: [
+            'stage' => $stage->value,
+        ]);
+
+        return $fresh;
     }
 
     public function setLifecycle(TransferCase $case, StaffUser $actor, CaseStatus $status, string $reason): TransferCase
@@ -269,7 +278,12 @@ class CaseService
         ]);
         $this->notifyParties($case, __('aqdar.cases.lifecycle.'.$status->value));
 
-        return $case->fresh(['history']) ?? $case;
+        $fresh = $case->fresh(['history']) ?? $case;
+        DeskRealtime::push('cases', 'status', (int) $fresh->id, meta: [
+            'status' => $status->value,
+        ]);
+
+        return $fresh;
     }
 
     public function requestBuyerDocument(TransferCase $case, StaffUser $actor, string $note): TransferCase

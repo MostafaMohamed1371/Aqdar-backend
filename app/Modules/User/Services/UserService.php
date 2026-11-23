@@ -8,6 +8,7 @@ use App\Core\Enums\IdentityStatus;
 use App\Core\Enums\ListingStatus;
 use App\Core\Identity\EgyptianPhone;
 use App\Core\Services\AbstractService;
+use App\Modules\Dashboard\Support\DeskRealtime;
 use App\Modules\Listing\Models\Listing;
 use App\Modules\Listing\Models\ListingStatusHistory;
 use App\Modules\Listing\Services\ListingStateMachine;
@@ -222,6 +223,7 @@ class UserService extends AbstractService
         $this->auditLogger->write('user.suspended', $actor, $user, [
             'reason' => $reason,
         ]);
+        DeskRealtime::push('users', 'suspended', (int) $user->id);
     }
 
     public function reactivate(User $user, StaffUser $actor): void
@@ -232,6 +234,7 @@ class UserService extends AbstractService
         ])->save();
 
         $this->auditLogger->write('user.reactivated', $actor, $user);
+        DeskRealtime::push('users', 'reactivated', (int) $user->id);
     }
 
     public function revealPhone(User $user, StaffUser $actor): string

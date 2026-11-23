@@ -14,6 +14,7 @@ use App\Modules\Crm\Models\BuyerRequest;
 use App\Modules\Crm\Models\Lead;
 use App\Modules\Crm\Models\RequestMatch;
 use App\Modules\Crm\Models\TransferCase;
+use App\Modules\Dashboard\Support\DeskRealtime;
 use App\Modules\Listing\Models\Listing;
 use App\Modules\Listing\Services\ContactLeakScanner;
 use App\Modules\Notification\Services\NotificationService;
@@ -286,7 +287,10 @@ class BuyerRequestService
         $this->setStatus($request, $actor, BuyerRequestStatus::Assigned, $reason ?? 'assigned');
         $request->forceFill(['assigned_to' => $assigneeId])->save();
 
-        return $request->fresh(['assignee', 'lead']) ?? $request;
+        $fresh = $request->fresh(['assignee', 'lead']) ?? $request;
+        DeskRealtime::push('requests', 'assigned', (int) $fresh->id);
+
+        return $fresh;
     }
 
     public function setStatus(BuyerRequest $request, StaffUser $actor, BuyerRequestStatus $status, string $reason): BuyerRequest
@@ -305,7 +309,12 @@ class BuyerRequestService
             ]);
         }
 
-        return $request->fresh() ?? $request;
+        $fresh = $request->fresh() ?? $request;
+        DeskRealtime::push('requests', 'status', (int) $fresh->id, meta: [
+            'status' => $status->value,
+        ]);
+
+        return $fresh;
     }
 
     public function refreshMatches(BuyerRequest $request, StaffUser $actor): BuyerRequest

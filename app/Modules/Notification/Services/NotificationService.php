@@ -9,7 +9,9 @@ use App\Core\Enums\NotificationChannel;
 use App\Core\Enums\Permission;
 use App\Core\Enums\StaffRole;
 use App\Modules\Crm\Models\Lead;
+use App\Modules\Dashboard\Support\DeskRealtime;
 use App\Modules\Listing\Services\ContactLeakScanner;
+use App\Modules\Notification\Events\StaffInboxReceived;
 use App\Modules\Notification\Jobs\SendBroadcastJob;
 use App\Modules\Notification\Jobs\SendPushJob;
 use App\Modules\Notification\Models\InboxNotification;
@@ -104,6 +106,18 @@ class NotificationService
             'provider_response' => 'in-app',
         ]);
         $this->queuePush($notification, $notifiable);
+
+        if ($notifiable instanceof StaffUser) {
+            event(new StaffInboxReceived(
+                $notifiable,
+                $notification,
+                $this->unreadCount($notifiable),
+            ));
+            DeskRealtime::push('inbox', 'received', (int) $notification->id, meta: [
+                'staff_id' => $notifiable->id,
+                'event_key' => $notification->event_key,
+            ]);
+        }
 
         return $notification;
     }

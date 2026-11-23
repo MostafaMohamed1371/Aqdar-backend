@@ -172,7 +172,7 @@ ADM-01 date range defaults to start of year → today. Presets: this year, this 
 
 ADM-12 CSV and PDF use the same rows. PDF is staff-only Helvetica of those columns (Arabic cells fall back to English/slug). Default files have no phone/email. `include_phones=1` requires `reveal_phone` and writes `report.exported_with_phones`. Users export as `USR-{id}`. Reviewer and Sales get 403. Rate KPIs include average first reply. Overview uses SVG bars (listings / requests / users). Owner filter is a Sales staff dropdown (`assigned_to` on requests and sales). Date presets match ADM-01; volume KPIs show period-over-period %.
 
-ADM-07 includes `/dashboard/support` (Sales support chat with the marketplace user). Buyer↔seller chat stays forbidden on ADM-13.
+ADM-07 includes `/dashboard/support` (Sales support chat with the marketplace user). The **whole staff desk** is realtime over Pusher: every signed-in staff page listens on `private-desk` (`desk.updated`) and soft-reloads when listings, documents, leads, requests, cases, commissions, users, support, or inbox change. Header bell uses `private-staff.{id}`; support list uses `private-support.desk`; thread pages use `private-support.thread.{id}`. Buyer↔seller chat stays forbidden on ADM-13.
 
 ADM-13 push provider status shows the log driver or FCM HTTP v1 (credentials from env, never stored in settings). ADM-11 **Content → Push** shows an FCM checklist (driver, credentials, queue, device tokens), `POST /dashboard/notifications/fcm-verify` (Google OAuth probe), and `POST /dashboard/notifications/fcm-diagnostic` (live send to the newest marketplace `push_token`). CLI: `php artisan aqdar:fcm-status --verify`.
 
