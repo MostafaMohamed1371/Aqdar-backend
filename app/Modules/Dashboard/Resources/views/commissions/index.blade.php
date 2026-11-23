@@ -149,7 +149,7 @@
                 <th></th>
             </tr>
             @forelse ($commissions as $item)
-                <tr>
+                <tr data-live-row="commissions" data-live-id="{{ $item->id }}">
                     <td class="en">{{ $item->created_at?->format('Y/m/d') }}</td>
                     <td>
                         @if ($item->transferCase && (auth()->user()?->can('manage_crm') || auth()->user()?->can('advance_finance_stages')))
@@ -167,7 +167,7 @@
                     <td><b class="en">{{ number_format((float) $item->amount) }}</b></td>
                     <td class="en">{{ $item->invoice_reference ?? '—' }}</td>
                     <td>
-                        <span class="badge {{ $item->status === CommissionStatus::Paid ? 'ok' : ($item->status === CommissionStatus::Due ? 'warn' : (in_array($item->status, [CommissionStatus::Waived, CommissionStatus::Reversed], true) ? 'grey' : 'gold')) }}">{{ __('aqdar.commissions.status.'.$item->status?->value) }}</span>
+                        <span class="badge {{ $item->status === CommissionStatus::Paid ? 'ok' : ($item->status === CommissionStatus::Due ? 'warn' : (in_array($item->status, [CommissionStatus::Waived, CommissionStatus::Reversed], true) ? 'grey' : 'gold')) }}" data-live-field="status">{{ __('aqdar.commissions.status.'.$item->status?->value) }}</span>
                         @unless ($item->isApproved())
                             <span class="badge warn">{{ __('aqdar.commissions.pending') }}</span>
                         @endunless

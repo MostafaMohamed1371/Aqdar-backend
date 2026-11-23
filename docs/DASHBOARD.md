@@ -54,7 +54,7 @@ Roles: `super_admin`, `operations`, `reviewer`, `sales`, `finance`.
 | ADM-15 | Amenities | `/dashboard/amenities` | `manage_catalog` |
 | ADM-15 | Tags | `/dashboard/tags` | `manage_catalog` |
 
-Distressed A/B (and other protected slugs) cannot be deleted or deactivated. Category create/edit stores `name_ar` / `name_en` and `help_ar` / `help_en` for APP-05. Reference rows are **retired** (`is_active=false`), not hard-deleted; the controlled «other» developer/project cannot be retired. ADM-05 is catalog lookup (edit, retire, project count) — company CRM fields from the mockup wait for a later phase. Notification templates on ADM-11 wait for Phase 8. Banner images store on the `public_media` disk.
+Distressed A/B (and other protected slugs) cannot be deleted or deactivated. Category create/edit stores `name_ar` / `name_en` and `help_ar` / `help_en` for APP-05. Reference rows are **retired** (`is_active=false`), not hard-deleted; the controlled «other» developer/project cannot be retired. ADM-05 is catalog lookup (edit, retire, project count) plus staff-only company CRM fields on developers (contact person, phone, email, website, internal notes). Those fields never appear in any marketplace API. Notification templates on ADM-11 wait for Phase 8. Banner images store on the `public_media` disk.
 
 Settings Blade is ADM-13 (Phase 9). Marketplace **API** writes stay 403.
 
@@ -124,6 +124,9 @@ ADM-01 `inquiries_this_month`, `custom_buy_requests`, `overdue_followups`, `acti
 | ADM-09 | Case detail | `/dashboard/cases/{id}` | `manage_crm` (Sales: assigned only) or Finance (all, finance stages only) |
 | ADM-09 | Stage / lifecycle / developer letter | `POST /dashboard/cases/{id}/stage` etc. | Assigned Sales or ops (`advance_case` for stage). Finance: stage only, `schedule_transfer` / `completed` after developer approval. |
 | ADM-09 | Signed document download | `GET /dashboard/cases/documents/{id}/download` | Signed URL + `manage_crm`; watermarked; `access_logs.document.opened` |
+| ADM-09 | Title transfer checklist | `POST /dashboard/cases/{id}/checklist/{item}` | `manage_crm` (not Finance-only). Eight steps, from `aqdar.transfer_checklist` |
+| ADM-09 | Escrow / payments (offline) | `POST /dashboard/cases/{id}/escrow`, `POST /dashboard/escrow/{id}/settle` | Record: `edit_commissions`. Release or refund with a reason: `approve_commissions` |
+| ADM-09 | Suggested values review | `POST /dashboard/cases/documents/{id}/extraction` | `manage_crm`. Manual driver by default; staff confirm or reject each upload |
 
 Type tabs on ADM-08: apartments / villas / land / investment. Table columns: code (link), buyer, unit type, region, price, area, status, owner. Pipeline chevrons are filters; the last step combines converted + closed. Request detail lists market (distressed / non-distressed), asking price, score, sent date, and a refresh-matches action. Convert opens a transfer case. ADM-09 KPI uses the building icon for awaiting developer. Table columns: code (link), listing, buyer, seller, internal stage, **lifecycle**, client sees, owner, missing docs, last update. Lifecycle filter: open / waiting for information / on hold / cancelled / lost / completed. Waiting-for-information is a lifecycle badge (`warn`), not an extra pipeline stage (BRD §9.2). Hold, cancel, lost, and waiting-for-information write `case_history` (actor, time, old/new status, reason). Completing via the stage form also writes status history. Chevrons filter by internal stage. Developer approval and title transfer are uploaded by hand — no government integration. Missing-documents count and a request-document note are staff tools; the app only sees the safe label.
 
@@ -139,7 +142,7 @@ Type tabs on ADM-08: apartments / villas / land / investment. Table columns: cod
 | ADM-10 | Approve | `POST /dashboard/commissions/{id}/approve` | Operations (`approve_commissions`) |
 | ADM-10 | CSV | `GET /dashboard/commissions/export` | view permission + `export_csv`; no phones |
 
-KPIs: total (non-waived), due, deal count, average percent rate. Month dropdown (`YYYY-MM`, last 12 months) filters KPIs, table, CSV, and the donut. SVG monthly grouped bars (last 6 months ending at the selected month, or now): teal sale value vs gold commission amount — no chart library. Donut splits recorded sale value into apartment / villa / land / investment (same buckets as ADM-08). Table: date, case code (link to ADM-09 when the staff has `manage_crm` or `advance_finance_stages`), payer (`buyer` / `seller` / `both`), listing as unit type · area, sale value, basis/rate, amount, invoice, status (`earned` / `due` / `paid` / `waived`) with inline update for Finance. Pending rows show a badge until Operations approve. Last change shows old → new status, reason, and date. Create uses a completed-case dropdown, not a raw numeric id. Reviewer PATCH is **403** (UAT-16). Operations approve and cannot edit amounts. Sales view assigned-case rows only. Default rate comes from setting `commission_default_rate` (config fallback 2.5). CMS disclaimer `exit_estimate` is seeded. The platform does not collect money or act as escrow.
+KPIs: total (non-waived), due, deal count, average percent rate. Month dropdown (`YYYY-MM`, last 12 months) filters KPIs, table, CSV, and the donut. SVG monthly grouped bars (last 6 months ending at the selected month, or now): teal sale value vs gold commission amount — no chart library. Donut splits recorded sale value into apartment / villa / land / investment (same buckets as ADM-08). Table: date, case code (link to ADM-09 when the staff has `manage_crm` or `advance_finance_stages`), payer (`buyer` / `seller` / `both`), listing as unit type · area, sale value, basis/rate, amount, invoice, status (`earned` / `due` / `paid` / `waived`) with inline update for Finance. Pending rows show a badge until Operations approve. Last change shows old → new status, reason, and date. Create uses a completed-case dropdown, not a raw numeric id. Reviewer PATCH is **403** (UAT-16). Operations approve and cannot edit amounts. Sales view assigned-case rows only. Default rate comes from setting `commission_default_rate` (config fallback 2.5). CMS disclaimer `exit_estimate` is seeded. The platform does not collect money. Staff can record offline payments against a case (ADM-09 escrow), which are held until released to the seller or refunded to the buyer, with a reason on each step. No payment gateway is connected.
 
 ---
 
@@ -164,19 +167,21 @@ Header bell opens **`/dashboard/inbox`** (all signed-in staff). Rows are this st
 |----|--------|-------|------------|
 | ADM-01 | Executive KPIs, funnel, needs-action, `from`/`to` | `GET /dashboard` | Any signed-in staff |
 | ADM-12 | Reports | `/dashboard/reports` | `export_csv` |
-| ADM-12 | CSV | `/dashboard/reports/export?type=` listings\|users\|requests\|revenue\|sales | `export_csv`; phones need `reveal_phone` |
+| ADM-12 | CSV | `/dashboard/reports/export?type=` listings\|users\|requests\|revenue\|sales\|ledger | `export_csv`; phones need `reveal_phone`; `ledger` also needs a commission permission (`view_commissions`, `edit_commissions` or `approve_commissions`) |
 | ADM-13 | Platform settings | `GET/PUT /dashboard/settings` | `manage_catalog` (super admin) |
 | ADM-14 | Activity log | `/dashboard/audit` | `manage_staff` (super admin) |
 
 ADM-01 date range defaults to start of year → today. Presets: this year, this month (أشهر), last 30 days, last 6 months. Queue counters (in review, overdue, unassigned) are current, not date-filtered. Period KPIs (including inquiries in range) and the funnel use `from`/`to`. KPI % deltas compare the same-length previous window. “Leads without an owner” opens ADM-07 with `assigned_to=unassigned`. SVG monthly bars (3/6/12 months) + approved/in-review/rejected/hold donut + Egypt governorate map (Cairo, Giza, North Coast, other) from live listing counts. Failed jobs / failed pushes always show on ADM-01.
 
+FR-073 basics on ADM-12: lead and request funnels (records created in range, by current stage), a commission ledger (by status and month; net revenue counts earned, due and paid, not waived or reversed; receivable is earned + due all time) and a flat run-rate forecast (average net revenue of the last 3 full months, projected 3 months; an estimate, not a commitment). Ledger and forecast are hidden from staff without a commission permission. No external BI tool and no ML.
+
 ADM-12 CSV and PDF use the same rows. PDF is staff-only Helvetica of those columns (Arabic cells fall back to English/slug). Default files have no phone/email. `include_phones=1` requires `reveal_phone` and writes `report.exported_with_phones`. Users export as `USR-{id}`. Reviewer and Sales get 403. Rate KPIs include average first reply. Overview uses SVG bars (listings / requests / users). Owner filter is a Sales staff dropdown (`assigned_to` on requests and sales). Date presets match ADM-01; volume KPIs show period-over-period %.
 
-ADM-07 includes `/dashboard/support` (Sales support chat with the marketplace user). The **whole staff desk** is realtime over Pusher: every signed-in staff page listens on `private-desk` (`desk.updated`) and soft-reloads when listings, documents, leads, requests, cases, commissions, users, support, or inbox change. Header bell uses `private-staff.{id}`; support list uses `private-support.desk`; thread pages use `private-support.thread.{id}`. Buyer↔seller chat stays forbidden on ADM-13.
+ADM-07 includes `/dashboard/support` (Sales support chat with the marketplace user). The **whole staff desk** is realtime via a Cubit-style JS store (`window.deskCubit`): Pusher events `emit()` into one shared state and **patch DOM fields in place** (`data-live-row` / `data-live-field` / `data-live-kpi`) — no page reload and no HTML refetch. Inbox bell, support list/thread, listing/lead/request/case/user/commission status, and home KPIs update dynamically. Buyer↔seller chat stays forbidden on ADM-13.
 
 ADM-13 push provider status shows the log driver or FCM HTTP v1 (credentials from env, never stored in settings). ADM-11 **Content → Push** shows an FCM checklist (driver, credentials, queue, device tokens), `POST /dashboard/notifications/fcm-verify` (Google OAuth probe), and `POST /dashboard/notifications/fcm-diagnostic` (live send to the newest marketplace `push_token`). CLI: `php artisan aqdar:fcm-status --verify`.
 
-ADM-13 is a named form (not generic key/value CRUD) with General / Security / Audit tabs. Sales name/phone/hours apply immediately to `GET /config`. Assignment rule `manual` \| `round_robin` (Sales staff only). Maintenance 503s the marketplace API; the desk stays up. 2FA and IP verification are informational (DEC-07, not enabled). Buyer↔seller chat is permanently **غير مسموح**. Currency EGP is locked. Signed URL, watermark, mask, and leak scan stay on in code. Last settings change is shown on the Audit tab.
+ADM-13 is a named form (not generic key/value CRUD) with General / Security / Audit tabs. Sales name/phone/hours apply immediately to `GET /config`. Assignment rule `manual` \| `round_robin` (Sales staff only). Maintenance 503s the marketplace API; the desk stays up. Staff 2FA (emailed code) and the IP allowlist are enforced only when `AQDAR_STAFF_TWO_FACTOR` / `AQDAR_STAFF_IP_ALLOWLIST` are set (off by default). Buyer↔seller chat is permanently **غير مسموح**. Currency EGP is locked. Signed URL, watermark, mask, and leak scan stay on in code. Last settings change is shown on the Audit tab.
 
 ADM-14 searches `audit_logs` / `access_logs`. No delete route. Retention default 24 months (`aqdar:prune-audit`).
 
@@ -187,6 +192,7 @@ ADM-14 searches `audit_logs` / `access_logs`. No delete route. Retention default
 | ADM-02 | Assign reviewer + unit code / phase / parking / offer expiry / installments | `/dashboard/listings/{id}` | `approve_listing` |
 | ADM-02 | Save assigned reviewer | `POST /dashboard/listings/{id}/assign-reviewer` | `approve_listing` |
 | ADM-15 | Category commission policy code (reference only) | create/edit/index categories | `manage_catalog` |
+| ADM-15 | Listing fields per category (FR-051) | `GET/PUT /dashboard/categories/{id}/form` | `manage_catalog`. Saving publishes a new form version |
 
 Queue search includes `unit_code`. Installment evidence links to ADM-03 (document type + original filename), not a raw id. `unit_code` is shown to staff and returned to the owner API; it is never public. Commission policy on a category is copied onto the listing; public `GET /categories` does not expose the code.
 
@@ -200,7 +206,7 @@ Queue search includes `unit_code`. Installment evidence links to ADM-03 (documen
 | ADM-10 | Approve commission | `POST /dashboard/commissions/{id}/approve` | `approve_commissions` (Operations) |
 | ADM-10 | View own commissions | `GET /dashboard/commissions` | `view_commissions` (Sales, assigned cases) |
 
-Staff teams and team-scoped Sales numbers stay out (DEC-05). Reviewer remains listing review-only.
+Staff teams (DEC-05) live on ADM-06: managers (`manage_staff`) create, edit, and retire teams and set each member's team. A team may own a Sales number and hours; buyer-facing `sales_contact` then shows the team's number for records assigned to its members (leads, buyer requests, cases, support threads, appointments). Unassigned records, members without a team, retired teams, and teams without a number use the platform number from ADM-13. Reviewer remains listing review-only.
 
 ---
 

@@ -6,6 +6,7 @@ use App\Core\Enums\CaseStage;
 use App\Core\Enums\CaseStatus;
 use App\Modules\Crm\Database\Factories\TransferCaseFactory;
 use App\Modules\Finance\Models\Commission;
+use App\Modules\Finance\Models\EscrowPayment;
 use App\Modules\Listing\Models\Listing;
 use App\Modules\Staff\Models\StaffUser;
 use App\Modules\User\Models\User;
@@ -91,6 +92,21 @@ class TransferCase extends Model
     public function documents(): HasMany
     {
         return $this->hasMany(CaseDocument::class, 'case_id')->latest('id');
+    }
+
+    public function checklistItems(): HasMany
+    {
+        return $this->hasMany(CaseChecklistItem::class, 'case_id');
+    }
+
+    public function escrowPayments(): HasMany
+    {
+        return $this->hasMany(EscrowPayment::class, 'case_id')->latest('id');
+    }
+
+    public function maskedCalls(): HasMany
+    {
+        return $this->hasMany(MaskedCall::class, 'case_id')->latest('id');
     }
 
     public function commission(): HasOne

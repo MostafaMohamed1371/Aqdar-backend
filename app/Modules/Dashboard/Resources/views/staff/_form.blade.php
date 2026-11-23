@@ -33,6 +33,19 @@
     </div>
 
     <div class="field">
+        <label for="team_id">{{ __('aqdar.staff.team') }}</label>
+        <div class="inp">
+            <select id="team_id" name="team_id">
+                <option value="">{{ __('aqdar.staff.no_team') }}</option>
+                @foreach ($teams ?? [] as $team)
+                    <option value="{{ $team->id }}" @selected(old('team_id', $staffUser?->team_id) == $team->id)>{{ $team->localizedName() }}</option>
+                @endforeach
+            </select>
+        </div>
+        @error('team_id')<span class="err">{{ $message }}</span>@enderror
+    </div>
+
+    <div class="field">
         <label for="branch">{{ __('aqdar.staff.branch') }}</label>
         <div class="inp">
             <input id="branch" name="branch" type="text" maxlength="80" list="staff-branches" value="{{ old('branch', $staffUser?->branch) }}" placeholder="{{ __('aqdar.staff.branch_placeholder') }}">

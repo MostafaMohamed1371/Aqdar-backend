@@ -195,7 +195,7 @@ class ListingModerationService
             $listing->status = $to;
             $listing->save();
 
-            ListingStatusHistory::query()->create([
+            $history = ListingStatusHistory::query()->create([
                 'listing_id' => $listing->id,
                 'from_status' => $from,
                 'to_status' => $to,
@@ -214,10 +214,14 @@ class ListingModerationService
 
             $fresh = $listing->fresh(['financials', 'owner', 'area', 'unitType']) ?? $listing;
             $event = match ($action) {
+                'listing.approved' => 'listing_approved',
+                'listing.reopened', 'listing.returned_to_review' => 'listing_submitted',
                 'listing.needs_changes' => 'listing_needs_changes',
                 'listing.published' => 'listing_published',
                 'listing.rejected' => 'listing_rejected',
                 'listing.held' => 'listing_held',
+                'listing.under_offer' => 'listing_under_offer',
+                'listing.closed' => 'listing_closed',
                 'listing.unpublished', 'listing.archived' => 'listing_suspended',
                 default => null,
             };
@@ -227,7 +231,8 @@ class ListingModerationService
                     'listing_id' => $fresh->id,
                     'area' => $fresh->area?->localizedName(),
                     'unit_type' => $fresh->unitType?->localizedName(),
-                ]);
+                    'status' => $to->value,
+                ], $event.':listing:'.$fresh->id.':history:'.$history->id);
             }
 
             DeskRealtime::push('listings', $action, (int) $fresh->id, meta: [

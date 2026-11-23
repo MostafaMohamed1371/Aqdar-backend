@@ -3,6 +3,7 @@
 namespace App\Modules\Crm\Services;
 
 use App\Core\Audit\AuditLogger;
+use App\Core\Enums\Permission;
 use App\Core\Enums\PublicCodePrefix;
 use App\Core\Enums\StaffRole;
 use App\Core\Enums\SupportAuthorType;
@@ -13,7 +14,6 @@ use App\Modules\Crm\Events\SupportMessageSent;
 use App\Modules\Crm\Events\SupportThreadClosed;
 use App\Modules\Crm\Models\SupportMessage;
 use App\Modules\Crm\Models\SupportThread;
-use App\Modules\Dashboard\Support\DeskRealtime;
 use App\Modules\Listing\Services\ContactLeakScanner;
 use App\Modules\Notification\Services\NotificationService;
 use App\Modules\Setting\Services\SettingService;
@@ -88,11 +88,27 @@ class SupportService
             'public_code' => $thread->public_code,
         ]);
 
+        $thread->loadMissing('assignee');
+        $context = ['public_code' => $thread->public_code];
+        if ($thread->assignee !== null && $thread->assignee->is_active) {
+            $this->notifications->notifySafely(
+                $thread->assignee,
+                'staff_support_message',
+                $context,
+                'staff_support_message:'.$message->id.':'.$thread->assignee->id,
+            );
+        } else {
+            $this->notifications->notifyStaffQueue(
+                'staff_support_message',
+                $context,
+                Permission::ManageCrm,
+                true,
+                'staff_support_message:'.$message->id,
+            );
+        }
+
         event(new SupportMessageSent($thread, $message));
         event(new SupportDeskUpdated($thread, $message, 'message'));
-        DeskRealtime::push('support', 'message', (int) $thread->id, meta: [
-            'public_code' => $thread->public_code,
-        ]);
 
         return $thread->load('messages');
     }
@@ -142,9 +158,6 @@ class SupportService
 
         event(new SupportMessageSent($thread, $message));
         event(new SupportDeskUpdated($thread, $message, 'message'));
-        DeskRealtime::push('support', 'message', (int) $thread->id, meta: [
-            'public_code' => $thread->public_code,
-        ]);
 
         return $thread->load('messages');
     }
@@ -157,11 +170,15 @@ class SupportService
             'public_code' => $thread->public_code,
         ]);
 
+        $thread->loadMissing('user');
+        if ($thread->user !== null) {
+            $this->notifications->notifySafely($thread->user, 'support_closed', [
+                'public_code' => $thread->public_code,
+            ], 'support_closed:'.$thread->id);
+        }
+
         event(new SupportThreadClosed($thread));
         event(new SupportDeskUpdated($thread, null, 'closed'));
-        DeskRealtime::push('support', 'closed', (int) $thread->id, meta: [
-            'public_code' => $thread->public_code,
-        ]);
 
         return $thread;
     }

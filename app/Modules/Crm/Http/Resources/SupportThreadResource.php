@@ -17,7 +17,7 @@ class SupportThreadResource extends JsonResource
             'id' => $this->id,
             'public_code' => $this->public_code,
             'status' => $this->status?->value,
-            'sales_contact' => app(SettingService::class)->publicConfig()['sales_contact'],
+            'sales_contact' => app(SettingService::class)->salesContactFor($this->assignee),
             'messages' => $this->whenLoaded('messages', function () {
                 return $this->messages->map(fn ($message) => [
                     'id' => $message->id,

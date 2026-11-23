@@ -39,6 +39,14 @@
         <env name="AQDAR_UI_MOCKUP_PATH" value=""/>
         <env name="SANCTUM_EXPIRATION_MINUTES" value="43200"/>
         <env name="AQDAR_SMS_DRIVER" value="log"/>
+        <env name="AQDAR_PUSH_DRIVER" value="log"/>
+        <env name="AQDAR_FCM_PROJECT_ID" value=""/>
+        <env name="AQDAR_FCM_CLIENT_EMAIL" value=""/>
+        <env name="AQDAR_FCM_PRIVATE_KEY" value=""/>
+        <env name="AQDAR_FCM_CREDENTIALS" value=""/>
+        <env name="AQDAR_SMART_NOTIFICATIONS" value="false"/>
+        <env name="AQDAR_STAFF_TWO_FACTOR" value="false"/>
+        <env name="AQDAR_STAFF_IP_ALLOWLIST" value=""/>
         <env name="AQDAR_UPLOAD_SCAN_DRIVER" value="null"/>
     </php>
 </phpunit>

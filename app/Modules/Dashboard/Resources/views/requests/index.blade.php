@@ -99,7 +99,7 @@
                 @include('dashboard::partials.sort-th', ['key' => 'created', 'label' => __('aqdar.queue.created')])
             </tr>
             @forelse ($requests as $item)
-                <tr>
+                <tr data-live-row="requests" data-live-id="{{ $item->id }}">
                     <td>
                         <a class="en" href="{{ route('dashboard.requests.show', $item) }}"><b>{{ $item->public_code }}</b></a>
                         @if ($item->is_duplicate)<span class="badge warn">{{ __('aqdar.requests.duplicate') }}</span>@endif
@@ -109,7 +109,7 @@
                     <td>{{ $item->area?->name_ar ?? $item->governorate?->name_ar ?? '—' }}</td>
                     <td class="en">{{ $item->budgetLabel() }}</td>
                     <td class="en">{{ $item->areaRangeLabel() }}</td>
-                    <td><span class="badge {{ $item->statusBadgeTone() }}">{{ __('aqdar.requests.status.'.$item->status?->value) }}</span></td>
+                    <td><span class="badge {{ $item->statusBadgeTone() }}" data-live-field="status">{{ __('aqdar.requests.status.'.$item->status?->value) }}</span></td>
                     <td>{{ $item->assignee?->name ?? __('aqdar.crm.unassigned') }}</td>
                     <td class="en tiny">{{ $item->created_at?->format('Y/m/d') }}</td>
                 </tr>

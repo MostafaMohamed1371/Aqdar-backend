@@ -5,11 +5,14 @@ namespace App\Modules\Crm\Services;
 use App\Core\Audit\AuditLogger;
 use App\Core\Enums\AppointmentStatus;
 use App\Core\Enums\LeadStatus;
+use App\Core\Enums\Permission;
 use App\Core\Enums\PublicCodePrefix;
 use App\Core\Identity\PublicCodeGenerator;
 use App\Modules\Crm\Models\Appointment;
+use App\Modules\Dashboard\Support\DeskRealtime;
 use App\Modules\Listing\Models\Listing;
 use App\Modules\Listing\Services\ContactLeakScanner;
+use App\Modules\Notification\Services\NotificationService;
 use App\Modules\Staff\Models\StaffUser;
 use App\Modules\User\Models\User;
 use Carbon\CarbonInterface;
@@ -25,6 +28,7 @@ class AppointmentService
         private PublicCodeGenerator $codes,
         private ContactLeakScanner $scanner,
         private AuditLogger $audit,
+        private NotificationService $notifications,
     ) {}
 
     /** @return array{date: string, open: bool, slots: list<array{value: string, available: bool}>} */
@@ -104,7 +108,40 @@ class AppointmentService
             'listing_id' => $listing->id,
         ]);
 
-        return $appointment->load(['listing.media', 'lead']);
+        $appointment->loadMissing(['listing.media', 'lead.assignee']);
+        $context = [
+            'public_code' => $appointment->public_code,
+            'listing_code' => $listing->public_code,
+            'listing_id' => $listing->id,
+            'lead_code' => $appointment->lead?->public_code,
+            'status' => AppointmentStatus::Requested->value,
+        ];
+        $this->notifications->notifySafely($buyer, 'appointment_created', $context, 'appointment_created:'.$appointment->id);
+        $assignee = $appointment->lead?->assignee;
+        if ($assignee !== null) {
+            $this->notifications->notifySafely(
+                $assignee,
+                'staff_new_appointment',
+                $context,
+                'staff_new_appointment:'.$appointment->id.':'.$assignee->id,
+            );
+        } else {
+            $this->notifications->notifyStaffQueue(
+                'staff_new_appointment',
+                $context,
+                Permission::ManageCrm,
+                true,
+                'staff_new_appointment:'.$appointment->id,
+            );
+        }
+        if ($appointment->lead_id) {
+            DeskRealtime::push('leads', 'appointment', (int) $appointment->lead_id, meta: [
+                'public_code' => $appointment->lead?->public_code,
+                'status' => $appointment->lead?->status?->value,
+            ]);
+        }
+
+        return $appointment;
     }
 
     public function forBuyer(User $buyer): LengthAwarePaginator
@@ -143,6 +180,22 @@ class AppointmentService
             'status' => $status->value,
         ]);
 
-        return $appointment->fresh(['lead']) ?? $appointment;
+        $fresh = $appointment->fresh(['buyer', 'listing', 'lead']) ?? $appointment;
+        if ($fresh->buyer !== null) {
+            $this->notifications->notifySafely($fresh->buyer, 'appointment_updated', [
+                'public_code' => $fresh->public_code,
+                'listing_code' => $fresh->listing?->public_code,
+                'listing_id' => $fresh->listing_id,
+                'status' => $status->value,
+            ], 'appointment_updated:'.$fresh->id.':'.$status->value);
+        }
+        if ($fresh->lead_id) {
+            DeskRealtime::push('leads', 'appointment_status', (int) $fresh->lead_id, meta: [
+                'public_code' => $fresh->lead?->public_code,
+                'status' => $fresh->lead?->status?->value,
+            ]);
+        }
+
+        return $fresh;
     }
 }

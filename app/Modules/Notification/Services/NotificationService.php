@@ -9,7 +9,6 @@ use App\Core\Enums\NotificationChannel;
 use App\Core\Enums\Permission;
 use App\Core\Enums\StaffRole;
 use App\Modules\Crm\Models\Lead;
-use App\Modules\Dashboard\Support\DeskRealtime;
 use App\Modules\Listing\Services\ContactLeakScanner;
 use App\Modules\Notification\Events\StaffInboxReceived;
 use App\Modules\Notification\Jobs\SendBroadcastJob;
@@ -35,7 +34,7 @@ class NotificationService
     /** @var list<string> */
     private const SAFE_KEYS = [
         'listing_code', 'listing_id', 'area', 'unit_type', 'client_label',
-        'public_code', 'lead_code', 'event', 'price',
+        'public_code', 'lead_code', 'event', 'price', 'status',
     ];
 
     public function __construct(
@@ -113,10 +112,6 @@ class NotificationService
                 $notification,
                 $this->unreadCount($notifiable),
             ));
-            DeskRealtime::push('inbox', 'received', (int) $notification->id, meta: [
-                'staff_id' => $notifiable->id,
-                'event_key' => $notification->event_key,
-            ]);
         }
 
         return $notification;
@@ -477,7 +472,11 @@ class NotificationService
         $payload = [
             'title' => $notification?->localizedTitle(),
             'body' => $notification?->localizedBody(),
-            'data' => $this->safeContext((array) ($notification?->data ?? [])),
+            'data' => array_filter([
+                ...$this->safeContext((array) ($notification?->data ?? [])),
+                'notification_id' => $notification?->id,
+                'event' => $notification?->event_key,
+            ], fn ($value) => $value !== null && $value !== ''),
         ];
         try {
             $result = $this->push->send($token, $payload);
@@ -541,6 +540,13 @@ class NotificationService
 
             return;
         }
+        if ($notifiable->suspended_at !== null && ! in_array($notification->event_key, ['account_suspended', 'account_reactivated'], true)) {
+            $this->recordDelivery($notification, NotificationChannel::Push, DeliveryStatus::Skipped, [
+                'skip_reason' => 'account_suspended',
+            ]);
+
+            return;
+        }
         $prefs = $this->preferences($notifiable);
         if (! $prefs->push_enabled) {
             $this->recordDelivery($notification, NotificationChannel::Push, DeliveryStatus::Skipped, [
@@ -556,7 +562,11 @@ class NotificationService
 
             return;
         }
-        $devices = $notifiable->devices()->whereNotNull('push_token')->where('push_token', '!=', '')->get();
+        $devices = $notifiable->devices()
+            ->whereNotNull('push_token')
+            ->where('push_token', '!=', '')
+            ->get()
+            ->unique(fn (UserDevice $device): string => (string) $device->push_token);
         if ($devices->isEmpty()) {
             $this->recordDelivery($notification, NotificationChannel::Push, DeliveryStatus::Skipped, [
                 'skip_reason' => 'no_device',
@@ -636,8 +646,12 @@ class NotificationService
     {
         return match (true) {
             str_starts_with($eventKey, 'listing_') => NotificationCategory::Listing,
-            in_array($eventKey, ['inquiry_created', 'seller_interest', 'support_reply'], true) => NotificationCategory::Inquiry,
-            in_array($eventKey, ['buyer_request_created', 'buyer_request_updated', 'case_stage_changed'], true) => NotificationCategory::Case,
+            str_starts_with($eventKey, 'inquiry_')
+                || str_starts_with($eventKey, 'seller_')
+                || str_starts_with($eventKey, 'support_')
+                || str_starts_with($eventKey, 'appointment_') => NotificationCategory::Inquiry,
+            str_starts_with($eventKey, 'buyer_request_')
+                || str_starts_with($eventKey, 'case_') => NotificationCategory::Case,
             $eventKey === 'marketing_broadcast' => NotificationCategory::Marketing,
             str_starts_with($eventKey, 'smart_') => NotificationCategory::Smart,
             default => NotificationCategory::System,
@@ -646,9 +660,16 @@ class NotificationService
 
     private function idempotencyKey(string $eventKey, Model $notifiable, array $context): string
     {
-        $entity = (string) ($context['public_code'] ?? $context['listing_id'] ?? $context['lead_code'] ?? $notifiable->getKey());
+        $parts = [
+            $eventKey,
+            $notifiable->getMorphClass(),
+            (string) $notifiable->getKey(),
+            (string) ($context['public_code'] ?? $context['listing_code'] ?? $context['listing_id'] ?? $context['lead_code'] ?? ''),
+            (string) ($context['client_label'] ?? ''),
+            (string) ($context['status'] ?? ''),
+        ];
 
-        return $eventKey.':'.$notifiable->getMorphClass().':'.$notifiable->getKey().':'.$entity;
+        return implode(':', array_filter($parts, fn (string $part): bool => $part !== ''));
     }
 
     private function inQuietHours(): bool

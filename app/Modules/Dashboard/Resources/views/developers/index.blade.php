@@ -40,6 +40,11 @@
                 <input class="en" name="name_en" placeholder="{{ __('aqdar.catalog.name_en') }}" required>
                 <input class="en" name="commercial_register" placeholder="{{ __('aqdar.catalog.commercial_register') }}" maxlength="32">
                 <label class="tiny">{{ __('aqdar.catalog.registered_on') }} <input type="date" name="registered_on"></label>
+                <input name="contact_name" placeholder="{{ __('aqdar.catalog.contact_name') }}" maxlength="120">
+                <input class="en" name="contact_phone" placeholder="{{ __('aqdar.catalog.contact_phone') }}" maxlength="32">
+                <input class="en" type="email" name="contact_email" placeholder="{{ __('aqdar.catalog.contact_email') }}" maxlength="190">
+                <input class="en" type="url" name="website" placeholder="https://" maxlength="255">
+                <textarea name="internal_notes" placeholder="{{ __('aqdar.catalog.internal_notes') }}" maxlength="2000" rows="1"></textarea>
                 <label class="tiny">{{ __('aqdar.catalog.logo') }} <input type="file" name="logo" accept="image/jpeg,image/png,image/webp"></label>
                 <input type="hidden" name="is_verified" value="1">
                 <label class="check"><input type="checkbox" name="is_verified" value="0"> {{ __('aqdar.catalog.developer_status.pending') }}</label>
@@ -105,6 +110,7 @@
                     <th>{{ __('aqdar.catalog.logo') }}</th>
                     <th>{{ __('structer.name') }}</th>
                     <th>{{ __('aqdar.catalog.commercial_register') }}</th>
+                    <th>{{ __('aqdar.catalog.contact') }}</th>
                     <th>{{ __('aqdar.catalog.projects') }}</th>
                     <th>{{ __('aqdar.catalog.registered_on') }}</th>
                     <th>{{ __('structer.status') }}</th>
@@ -122,6 +128,16 @@
                         </td>
                         <td><b>{{ $developer->localizedName() }}</b></td>
                         <td class="en">{{ $developer->commercial_register ?? '—' }}</td>
+                        <td>
+                            @if ($developer->contact_name || $developer->contact_phone || $developer->contact_email || $developer->website)
+                                @if ($developer->contact_name)<div>{{ $developer->contact_name }}</div>@endif
+                                @if ($developer->contact_phone)<div class="tiny en">{{ $developer->contact_phone }}</div>@endif
+                                @if ($developer->contact_email)<div class="tiny en">{{ $developer->contact_email }}</div>@endif
+                                @if ($developer->website)<div class="tiny en"><a href="{{ $developer->website }}" target="_blank" rel="noopener noreferrer">{{ parse_url($developer->website, PHP_URL_HOST) ?: $developer->website }}</a></div>@endif
+                            @else
+                                —
+                            @endif
+                        </td>
                         <td class="en">{{ $developer->projects_count }}</td>
                         <td class="en">{{ $developer->registered_on?->toDateString() ?? '—' }}</td>
                         <td>
@@ -138,6 +154,11 @@
                                     <input class="en" name="name_en" value="{{ $developer->name_en }}" required>
                                     <input class="en" name="commercial_register" value="{{ $developer->commercial_register }}" placeholder="{{ __('aqdar.catalog.commercial_register') }}" maxlength="32">
                                     <input type="date" name="registered_on" value="{{ $developer->registered_on?->toDateString() }}">
+                                    <input name="contact_name" value="{{ $developer->contact_name }}" placeholder="{{ __('aqdar.catalog.contact_name') }}" maxlength="120">
+                                    <input class="en" name="contact_phone" value="{{ $developer->contact_phone }}" placeholder="{{ __('aqdar.catalog.contact_phone') }}" maxlength="32">
+                                    <input class="en" type="email" name="contact_email" value="{{ $developer->contact_email }}" placeholder="{{ __('aqdar.catalog.contact_email') }}" maxlength="190">
+                                    <input class="en" type="url" name="website" value="{{ $developer->website }}" placeholder="https://" maxlength="255">
+                                    <textarea name="internal_notes" placeholder="{{ __('aqdar.catalog.internal_notes') }}" maxlength="2000" rows="1">{{ $developer->internal_notes }}</textarea>
                                     <input type="file" name="logo" accept="image/jpeg,image/png,image/webp">
                                     <button class="btn sm" type="submit">{{ __('structer.save') }}</button>
                                 </form>
@@ -159,7 +180,7 @@
                         </td>
                     </tr>
                 @empty
-                    <tr><td colspan="7" class="tiny">{{ __('aqdar.catalog.empty') }}</td></tr>
+                    <tr><td colspan="8" class="tiny">{{ __('aqdar.catalog.empty') }}</td></tr>
                 @endforelse
             </table>
         @endif

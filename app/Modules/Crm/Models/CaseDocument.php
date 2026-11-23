@@ -8,6 +8,7 @@ use App\Modules\User\Models\User;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Facades\Storage;
 
 #[Fillable([
@@ -34,6 +35,11 @@ class CaseDocument extends Model
     public function transferCase(): BelongsTo
     {
         return $this->belongsTo(TransferCase::class, 'case_id');
+    }
+
+    public function extraction(): HasOne
+    {
+        return $this->hasOne(DocumentExtraction::class, 'case_document_id');
     }
 
     public function uploader(): BelongsTo

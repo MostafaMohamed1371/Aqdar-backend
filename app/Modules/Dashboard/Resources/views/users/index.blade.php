@@ -76,7 +76,7 @@
                     $revealedEmail = $revealedEmails[$user->id] ?? null;
                     $duplicateReasons = $duplicates[$user->id] ?? [];
                 @endphp
-                <tr>
+                <tr data-live-row="users" data-live-id="{{ $user->id }}">
                     <td>
                         <div class="who">
                             <span class="av s c{{ ($user->id % 6) + 1 }}">{{ mb_substr($user->name, 0, 1) }}</span>
@@ -102,13 +102,13 @@
                     <td>{{ $user->activityLabel() }}</td>
                     <td>
                         @if ($user->isClosed())
-                            <span class="badge bad">{{ __('aqdar.users.closed_badge') }}</span>
+                            <span class="badge bad" data-live-field="status">{{ __('aqdar.users.closed_badge') }}</span>
                         @elseif ($user->isClosePending())
-                            <span class="badge gold">{{ __('aqdar.users.close_requested_badge') }}</span>
+                            <span class="badge gold" data-live-field="status">{{ __('aqdar.users.close_requested_badge') }}</span>
                         @elseif ($user->isSuspended())
-                            <span class="badge bad">{{ __('aqdar.users.suspended_badge') }}</span>
+                            <span class="badge bad" data-live-field="status">{{ __('aqdar.users.suspended_badge') }}</span>
                         @else
-                            <span class="badge ok">{{ __('aqdar.users.active_badge') }}</span>
+                            <span class="badge ok" data-live-field="status">{{ __('aqdar.users.active_badge') }}</span>
                         @endif
                         @if ($duplicateReasons !== [])
                             <span class="badge warn" title="{{ collect($duplicateReasons)->map(fn ($reason) => __('aqdar.users.duplicate_reasons.'.$reason))->implode(' · ') }}">{{ __('aqdar.users.possible_duplicate') }}</span>

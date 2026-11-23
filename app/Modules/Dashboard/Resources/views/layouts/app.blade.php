@@ -13,10 +13,12 @@
         @vite(['resources/css/app.css', 'resources/js/app.js'])
     @endif
 </head>
+@php($inboxUnread = app(\App\Modules\Notification\Services\NotificationService::class)->unreadCount(auth()->user()))
 <body
     class="aqdar-desk"
     data-staff-id="{{ auth()->id() }}"
     data-can-crm="{{ auth()->user()?->can('manage_crm') ? '1' : '0' }}"
+    data-unread="{{ $inboxUnread }}"
     data-label-unread="{{ __('aqdar.notifications.unread') }}"
     data-label-view="{{ __('aqdar.listings.desk.view') }}"
 >

@@ -20,7 +20,7 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 class ReportService
 {
     /** @var list<string> */
-    public const TYPES = ['listings', 'users', 'requests', 'revenue', 'sales'];
+    public const TYPES = ['listings', 'users', 'requests', 'revenue', 'sales', 'ledger'];
 
     public function __construct(private AuditLogger $audit) {}
 
@@ -212,6 +212,7 @@ class ReportService
             'requests' => $this->requestTable($filters, $includePhones),
             'revenue' => $this->revenueTable($filters),
             'sales' => $this->salesTable($filters, $includePhones),
+            'ledger' => app(ReportAnalyticsService::class)->ledgerTable($filters),
         };
     }
 
@@ -391,7 +392,7 @@ class ReportService
     }
 
     /** @param array<string, mixed> $filters */
-    private function requestQuery(array $filters): Builder
+    public function requestQuery(array $filters): Builder
     {
         [$start, $end] = $this->range($filters);
 
@@ -407,7 +408,7 @@ class ReportService
     }
 
     /** @param array<string, mixed> $filters */
-    private function leadQuery(array $filters): Builder
+    public function leadQuery(array $filters): Builder
     {
         [$start, $end] = $this->range($filters);
 

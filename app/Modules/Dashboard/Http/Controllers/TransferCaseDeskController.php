@@ -6,13 +6,18 @@ use App\Core\Audit\AuditLogger;
 use App\Core\Enums\CaseDocumentKind;
 use App\Core\Enums\CaseStage;
 use App\Core\Enums\CaseStatus;
+use App\Core\Enums\ExtractionStatus;
+use App\Core\Enums\Permission;
 use App\Core\Http\Controllers\BaseController;
 use App\Core\Services\QueueQuery;
 use App\Modules\Crm\Http\Requests\UploadCaseDocumentRequest;
 use App\Modules\Crm\Models\CaseDocument;
 use App\Modules\Crm\Models\TransferCase;
+use App\Modules\Crm\Services\CaseChecklistService;
 use App\Modules\Crm\Services\CaseService;
+use App\Modules\Crm\Services\Ocr\DocumentExtractionService;
 use App\Modules\Dashboard\Http\Requests\AssignLeadRequest;
+use App\Modules\Dashboard\Http\Requests\ReviewDocumentExtractionRequest;
 use App\Modules\Dashboard\Http\Requests\StoreDeskCaseRequest;
 use App\Modules\Dashboard\Http\Requests\UpdateCaseStageRequest;
 use App\Modules\Listing\Services\DocumentWatermarker;
@@ -28,6 +33,8 @@ class TransferCaseDeskController extends BaseController
         private CaseService $cases,
         private DocumentWatermarker $watermarker,
         private AuditLogger $audit,
+        private CaseChecklistService $checklist,
+        private DocumentExtractionService $extractions,
     ) {}
 
     public function index(Request $request): View
@@ -64,6 +71,8 @@ class TransferCaseDeskController extends BaseController
         $case = $this->cases->showForStaff($staff, $transferCase);
         $financeOnly = $this->cases->isFinanceOnly($staff);
 
+        $case->load(['documents.extraction', 'escrowPayments.recordedBy', 'escrowPayments.settledBy']);
+
         return view('dashboard::cases.show', [
             'caseModel' => $case,
             'assignable' => $this->cases->assignableStaff(),
@@ -71,6 +80,15 @@ class TransferCaseDeskController extends BaseController
             'financeOnly' => $financeOnly,
             'allowedStages' => $this->cases->allowedStagesFor($staff, $case),
             'canAdvanceFinance' => ! $financeOnly || $this->cases->isReadyForFinance($case),
+            'checklist' => $financeOnly ? collect() : $this->checklist->itemsFor($case),
+            'canManageEscrow' => $staff->canAny([
+                Permission::ViewCommissions->value,
+                Permission::EditCommissions->value,
+                Permission::ApproveCommissions->value,
+            ]),
+            'canRecordEscrow' => $staff->hasPermission(Permission::EditCommissions),
+            'canApproveEscrow' => $staff->hasPermission(Permission::ApproveCommissions),
+            'canReviewDocuments' => ! $financeOnly,
         ]);
     }
 
@@ -135,6 +153,36 @@ class TransferCaseDeskController extends BaseController
         $this->cases->storeDocument($transferCase, $request->file('file'), $kind, null, $staff);
 
         return back()->with('status', __('aqdar.cases.document_uploaded'));
+    }
+
+    public function checklist(Request $request, TransferCase $transferCase, string $item): RedirectResponse
+    {
+        /** @var StaffUser $staff */
+        $staff = $request->user();
+        $data = $request->validate(['done' => ['required', 'boolean']]);
+        $this->checklist->setDone($transferCase, $staff, $item, (bool) $data['done']);
+
+        return back()->with('status', __('aqdar.checklist.updated'));
+    }
+
+    public function reviewExtraction(ReviewDocumentExtractionRequest $request, CaseDocument $caseDocument): RedirectResponse
+    {
+        /** @var StaffUser $staff */
+        $staff = $request->user();
+        $case = $caseDocument->transferCase;
+        abort_if($case === null, 404);
+        $this->cases->assertCanAct($staff, $case);
+
+        $data = $request->validated();
+        $extraction = $caseDocument->extraction ?? $this->extractions->queue($caseDocument);
+        $this->extractions->review(
+            $extraction,
+            $staff,
+            ExtractionStatus::from($data['status']),
+            (array) ($data['fields'] ?? []),
+        );
+
+        return back()->with('status', __('aqdar.extraction.reviewed'));
     }
 
     public function download(Request $request, CaseDocument $caseDocument): StreamedResponse

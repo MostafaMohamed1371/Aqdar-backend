@@ -31,20 +31,20 @@ class DashboardCatalogCrudTest extends TestCase
         $this->actingAsStaff();
 
         $this->post(route('dashboard.developers.store'), [
-            'slug' => 'palm-hills',
+            'slug' => 'crud-developer',
             'name_ar' => 'بالم هيلز',
             'name_en' => 'Palm Hills',
         ])->assertRedirect(route('dashboard.developers.index'))
             ->assertSessionHas('status');
 
-        $developer = Developer::query()->where('slug', 'palm-hills')->firstOrFail();
+        $developer = Developer::query()->where('slug', 'crud-developer')->firstOrFail();
 
         $this->put(route('dashboard.developers.update', $developer), [
             'name_en' => 'Palm Hills Developments',
         ])->assertRedirect(route('dashboard.developers.index'));
 
         $this->assertDatabaseHas('developers', [
-            'slug' => 'palm-hills',
+            'slug' => 'crud-developer',
             'name_en' => 'Palm Hills Developments',
             'is_active' => true,
         ]);
@@ -64,7 +64,7 @@ class DashboardCatalogCrudTest extends TestCase
 
         $this->delete(route('dashboard.developers.destroy', $developer))
             ->assertRedirect(route('dashboard.developers.index'));
-        $this->assertDatabaseHas('developers', ['slug' => 'palm-hills', 'is_active' => false]);
+        $this->assertDatabaseHas('developers', ['slug' => 'crud-developer', 'is_active' => false]);
     }
 
     public function test_master_data_tabs_search_and_project_tab(): void

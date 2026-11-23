@@ -3,6 +3,7 @@
 namespace App\Modules\Listing\Http\Requests;
 
 use App\Core\Http\Requests\BaseFormRequest;
+use App\Modules\Listing\Services\ListingSearchService;
 
 class ListingSearchRequest extends BaseFormRequest
 {
@@ -22,6 +23,14 @@ class ListingSearchRequest extends BaseFormRequest
             'developer_id' => ['sometimes', 'integer'],
             'project_id' => ['sometimes', 'integer'],
             'unit_type_id' => ['sometimes', 'integer'],
+            'property_type' => ['sometimes', 'string', 'max:64'],
+            'category_id' => ['sometimes', 'integer'],
+            'featured' => ['sometimes', 'boolean'],
+            'bbox' => ['sometimes', 'string', 'max:100', function (string $attribute, mixed $value, \Closure $fail): void {
+                if (ListingSearchService::parseBoundingBox((string) $value) === null) {
+                    $fail(__('aqdar.listings.bbox_invalid'));
+                }
+            }],
             'bedrooms' => ['sometimes', 'integer', 'min:0', 'max:30'],
             'finishing' => ['sometimes', 'string', 'max:64'],
             'neighborhood' => ['sometimes', 'string', 'max:120'],
@@ -47,6 +56,15 @@ class ListingSearchRequest extends BaseFormRequest
 
         if ($this->exists('q')) {
             $this->merge(['q' => trim((string) $this->input('q'))]);
+        }
+
+        if ($this->exists('featured')) {
+            $featured = filter_var($this->input('featured'), FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
+            $this->merge(['featured' => $featured ?? $this->input('featured')]);
+        }
+
+        if ($this->exists('bbox')) {
+            $this->merge(['bbox' => trim((string) $this->input('bbox'))]);
         }
     }
 }

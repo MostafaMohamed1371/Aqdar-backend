@@ -28,6 +28,7 @@ class StoreStaffRequest extends BaseFormRequest
             'password' => ValidationRules::password(),
             'role_id' => ['required', 'integer', Rule::exists('roles', 'id')],
             'branch' => ['nullable', 'string', 'max:80'],
+            'team_id' => ['nullable', 'integer', Rule::exists('staff_teams', 'id')->where('is_active', true)],
         ];
     }
 

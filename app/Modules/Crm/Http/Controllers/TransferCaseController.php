@@ -8,6 +8,7 @@ use App\Modules\Crm\Http\Requests\UploadCaseDocumentRequest;
 use App\Modules\Crm\Http\Resources\TransferCaseResource;
 use App\Modules\Crm\Models\TransferCase;
 use App\Modules\Crm\Services\CaseService;
+use App\Modules\Crm\Services\MaskedCallService;
 use App\Modules\User\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -52,6 +53,21 @@ class TransferCaseController extends BaseController
                 'id' => $document->id,
                 'kind' => $document->kind?->value,
                 'original_name' => $document->original_name,
+            ],
+        ], 201);
+    }
+
+    public function startCall(Request $request, TransferCase $transferCase, MaskedCallService $calls): JsonResponse
+    {
+        /** @var User $user */
+        $user = $request->user();
+        $call = $calls->start($transferCase, $user);
+
+        return response()->json([
+            'data' => [
+                'id' => $call->id,
+                'status' => $call->status?->value,
+                'proxy_number' => $call->proxy_number,
             ],
         ], 201);
     }

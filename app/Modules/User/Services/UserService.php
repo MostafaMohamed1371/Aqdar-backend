@@ -12,6 +12,7 @@ use App\Modules\Dashboard\Support\DeskRealtime;
 use App\Modules\Listing\Models\Listing;
 use App\Modules\Listing\Models\ListingStatusHistory;
 use App\Modules\Listing\Services\ListingStateMachine;
+use App\Modules\Notification\Services\NotificationService;
 use App\Modules\Staff\Models\StaffUser;
 use App\Modules\User\Models\User;
 use App\Modules\User\Models\UserDevice;
@@ -25,6 +26,7 @@ class UserService extends AbstractService
     public function __construct(
         UserRepository $repository,
         private AuditLogger $auditLogger,
+        private NotificationService $notifications,
     ) {
         parent::__construct($repository);
     }
@@ -223,6 +225,7 @@ class UserService extends AbstractService
         $this->auditLogger->write('user.suspended', $actor, $user, [
             'reason' => $reason,
         ]);
+        $this->notifications->notifySafely($user, 'account_suspended', [], 'account_suspended:'.$user->id.':'.$user->suspended_at?->timestamp);
         DeskRealtime::push('users', 'suspended', (int) $user->id);
     }
 
@@ -234,6 +237,7 @@ class UserService extends AbstractService
         ])->save();
 
         $this->auditLogger->write('user.reactivated', $actor, $user);
+        $this->notifications->notifySafely($user, 'account_reactivated', [], 'account_reactivated:'.$user->id.':'.now()->timestamp);
         DeskRealtime::push('users', 'reactivated', (int) $user->id);
     }
 

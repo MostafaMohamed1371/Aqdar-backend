@@ -14,6 +14,9 @@ use Illuminate\Database\Eloquent\Collection;
 
 class ListingSearchService
 {
+    /** Half of the 0.001° step that map pins are rounded to. */
+    private const PIN_HALF_STEP = 0.0005;
+
     /** @param array<string, mixed> $filters */
     public function search(array $filters): LengthAwarePaginator
     {
@@ -119,10 +122,26 @@ class ListingSearchService
             'developer_id' => 'listings.developer_id',
             'project_id' => 'listings.project_id',
             'unit_type_id' => 'listings.unit_type_id',
+            'category_id' => 'listings.category_id',
         ] as $filter => $column) {
             if (! empty($filters[$filter])) {
                 $query->where($column, $filters[$filter]);
             }
+        }
+
+        if (empty($filters['unit_type_id']) && ! empty($filters['property_type'])) {
+            $query->where('listings.unit_type_id', $this->resolveUnitTypeId((string) $filters['property_type']));
+        }
+
+        $box = isset($filters['bbox']) ? self::parseBoundingBox((string) $filters['bbox']) : null;
+
+        if ($box !== null) {
+            [$minLng, $minLat, $maxLng, $maxLat] = $box;
+
+            $query->whereNotNull('listings.lat')
+                ->whereNotNull('listings.lng')
+                ->whereBetween('listings.lat', [$minLat - self::PIN_HALF_STEP, $maxLat + self::PIN_HALF_STEP])
+                ->whereBetween('listings.lng', [$minLng - self::PIN_HALF_STEP, $maxLng + self::PIN_HALF_STEP]);
         }
 
         if (isset($filters['bedrooms']) && $filters['bedrooms'] !== '') {
@@ -195,11 +214,47 @@ class ListingSearchService
         return $query;
     }
 
+    /**
+     * Parses `min_lng,min_lat,max_lng,max_lat`. Matching uses coordinates rounded to 3 decimals, like map pins, so a box can never narrow down an exact location.
+     *
+     * @return array{0: float, 1: float, 2: float, 3: float}|null
+     */
+    public static function parseBoundingBox(string $bbox): ?array
+    {
+        $parts = array_map('trim', explode(',', $bbox));
+
+        if (count($parts) !== 4 || count(array_filter($parts, 'is_numeric')) !== 4) {
+            return null;
+        }
+
+        [$minLng, $minLat, $maxLng, $maxLat] = array_map('floatval', $parts);
+
+        $valid = $minLng >= -180 && $maxLng <= 180 && $minLat >= -90 && $maxLat <= 90
+            && $minLng <= $maxLng && $minLat <= $maxLat;
+
+        return $valid ? [$minLng, $minLat, $maxLng, $maxLat] : null;
+    }
+
+    private function resolveUnitTypeId(string $propertyType): int
+    {
+        $propertyType = trim($propertyType);
+
+        if (ctype_digit($propertyType)) {
+            return (int) $propertyType;
+        }
+
+        return (int) UnitType::query()->where('slug', $propertyType)->where('is_active', true)->value('id');
+    }
+
     /** @param array<string, mixed> $filters */
     private function resolveTagId(array $filters): ?int
     {
         if (! empty($filters['tag_id'])) {
             return (int) $filters['tag_id'];
+        }
+
+        if (empty($filters['tag']) && ! empty($filters['featured'])) {
+            $filters['tag'] = 'featured';
         }
 
         if (empty($filters['tag'])) {

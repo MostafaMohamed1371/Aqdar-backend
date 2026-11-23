@@ -43,6 +43,11 @@ return [
         'hours_en' => env('SALES_HOURS_EN', 'Daily 10am – 10pm'),
     ],
 
+    'staff' => [
+        'two_factor' => (bool) env('AQDAR_STAFF_TWO_FACTOR', false),
+        'ip_allowlist' => array_values(array_filter(array_map('trim', explode(',', (string) env('AQDAR_STAFF_IP_ALLOWLIST', ''))), 'strlen')),
+    ],
+
     'crm' => [
         'sla_hours' => (int) env('AQDAR_CRM_SLA_HOURS', 2),
         'assignment_rule' => env('AQDAR_LEAD_ASSIGNMENT_RULE', 'manual'),
@@ -116,6 +121,27 @@ return [
         'avatars' => [
             'disk' => 'public_media',
         ],
+    ],
+
+    'telephony' => [
+        'driver' => env('AQDAR_TELEPHONY_DRIVER', 'log'),
+        'calls_per_hour' => (int) env('AQDAR_CALLS_PER_HOUR', 5),
+    ],
+
+    'ocr' => [
+        'driver' => env('AQDAR_OCR_DRIVER', 'manual'),
+        'fields' => ['full_name', 'national_id', 'title_deed_number', 'amount'],
+    ],
+
+    'transfer_checklist' => [
+        'buyer_identity_verified',
+        'seller_identity_verified',
+        'contract_signed',
+        'developer_noc',
+        'fees_paid',
+        'title_deed_submitted',
+        'title_transfer_filed',
+        'title_transferred',
     ],
 
 ];

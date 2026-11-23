@@ -37,6 +37,11 @@ class SaveCatalogRecordRequest extends BaseFormRequest
             'logo' => ['nullable', 'image', 'max:1024', 'mimes:jpeg,jpg,png,webp'],
             'commercial_register' => ['nullable', 'string', 'max:32', 'regex:/^[0-9A-Za-z-]+$/'],
             'registered_on' => ['nullable', 'date', 'before_or_equal:today'],
+            'contact_name' => ['nullable', 'string', 'max:120'],
+            'contact_phone' => ['nullable', 'string', 'max:32', 'regex:/^\+?[0-9][0-9 \-()]{5,30}$/'],
+            'contact_email' => ['nullable', 'email:rfc', 'max:190'],
+            'website' => ['nullable', 'url:http,https', 'max:255'],
+            'internal_notes' => ['nullable', 'string', 'max:2000'],
             'is_verified' => ['sometimes', 'boolean'],
             'code' => [
                 'nullable', 'string', 'min:2', 'max:8', 'regex:/^[A-Z0-9]+$/',
@@ -81,6 +86,6 @@ class SaveCatalogRecordRequest extends BaseFormRequest
     /** @return list<string> */
     protected function fieldsToTrim(): array
     {
-        return ['name_ar', 'name_en', 'slug', 'key', 'title_ar', 'title_en', 'body_ar', 'body_en', 'link_url', 'commercial_register'];
+        return ['name_ar', 'name_en', 'slug', 'key', 'title_ar', 'title_en', 'body_ar', 'body_en', 'link_url', 'commercial_register', 'contact_name', 'contact_phone', 'contact_email', 'website', 'internal_notes'];
     }
 }

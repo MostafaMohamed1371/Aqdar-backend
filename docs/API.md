@@ -60,6 +60,7 @@ When a phase ships, append a section here. Process: [DOCUMENTATION_PROCESS.md](D
 | 6 | POST | `/my/buyer-requests/{id}/callback` | Bearer |
 | 6 | GET | `/my/cases`, `/my/cases/{id}` | Bearer (client-safe labels only) |
 | 6 | POST | `/my/cases/{id}/documents` | Bearer (requested document upload) |
+| 6 | POST | `/my/cases/{id}/calls` | Bearer (buyer or seller; masked call) |
 | 7 | GET | `/listings/{id}/estimate` | Bearer (owner: full estimate; others: published listings only, without the seller's cancellation terms) |
 | 17 | POST | `/estimates` | Bearer (manual contract inputs; BRD APP-17) |
 
@@ -331,6 +332,10 @@ Public. **200**. `sales_contact.name` and `hours` follow `Accept-Language` (`ar`
 
 Public. Active **tree**: roots with nested `children`. Distressed has exactly two children (`a`, `b`). `name` follows `Accept-Language`.
 
+### GET `/categories/{id}/form`
+
+Listing fields for an active category (FR-051), from the category's current form version. Returns `data` (each field: `key`, `label_ar`, `label_en`, `type` = `text|number|select|boolean`, `options`, `is_required`) and `form_version`. Sellers send answers in the `specs` step as `custom_attributes` (an object keyed by field `key`). Unknown keys return 422. Required fields are enforced on submit. Changing a listing's category clears its answers.
+
 ### GET `/categories/slug/{slug}`
 
 Public. **404** if missing.
@@ -459,7 +464,7 @@ Specs may also send `furnished` (`unfurnished`|`furnished`), `handover_date`, `n
 
 ### Public
 
-- `GET /listings` — filters: `q` (title / public code / area / unit type), `segment` (`distressed` | `non_distressed`; `voluntary` is invalid), `distressed_child`, `governorate_id`, `area_id`, `developer_id`, `project_id`, `unit_type_id`, `bedrooms`, `finishing` (case-insensitive exact match), `tag` or `tag_id`, `area_min`/`area_max`, `price_min`/`price_max`, `down_payment_min`/`down_payment_max` (remaining), `installment_min`/`installment_max`, `neighborhood` (case-insensitive exact match), `sort=newest|price_asc|price_desc|area_asc|area_desc`, pagination. Optional Bearer sets `is_favorited`. Price, down-payment and installment filters and price sorting use the value buyers see (staff-verified when verified, else declared), stored in `listing_financials.public_*`.
+- `GET /listings` — filters: `q` (title / public code / area / unit type), `segment` (`distressed` | `non_distressed`; `voluntary` is invalid), `distressed_child`, `governorate_id`, `area_id`, `developer_id`, `project_id`, `unit_type_id` (or `property_type` = unit type id or slug), `category_id`, `featured=true` (same as `tag=featured`), `bbox=min_lng,min_lat,max_lng,max_lat` (422 when malformed; matches on pin-rounded coordinates, also accepted by `GET /map`), `bedrooms`, `finishing` (case-insensitive exact match), `tag` or `tag_id`, `area_min`/`area_max`, `price_min`/`price_max`, `down_payment_min`/`down_payment_max` (remaining), `installment_min`/`installment_max`, `neighborhood` (case-insensitive exact match), `sort=newest|price_asc|price_desc|area_asc|area_desc`, pagination. Optional Bearer sets `is_favorited`. Price, down-payment and installment filters and price sorting use the value buyers see (staff-verified when verified, else declared), stored in `listing_financials.public_*`.
 - `GET /listings/counts` — published totals for home cards: `non_distressed`, `distressed`, `distressed_a`, `distressed_b`, plus `unit_types: [{ id, slug, count }]` (only types with published listings) and `tags: [{ id, slug, count }]` (every active tag, count may be 0).
 - `GET /listings/compare?ids=1,2,3` (or `ids[]=`) — 2–3 ids, returns the public DTO for each published listing in the requested order; unpublished ids are dropped.
 - `GET /listings/{id}` — public DTO + labelled `financial_summary` + `installment_items` (`sequence`, `due_date`, `amount`, `paid` — no evidence document ids) + amenities/tags + `sales_contact`. Increments `view_count` (not returned on the public DTO). With a Bearer token the view is also stored for recently viewed.
@@ -635,6 +640,7 @@ Created (trimmed):
 - `POST /my/buyer-requests/{id}/callback` — sets linked lead `next_action=callback`.
 - `GET /my/cases` · `GET /my/cases/{id}` — **buyer or seller** of the case. `status` is the client stage label; `lifecycle` is `open|waiting_for_information|on_hold|cancelled|lost|completed`. `timeline[].key` uses client labels (never `internal_stage`); `timeline[].at` is when that milestone was recorded. `viewer` is `buyer` or `seller`. No counterparty name/phone/email.
 - `POST /my/cases/{id}/documents` — buyer or seller upload (`kind` default `buyer_requested`). Decrements `missing_documents_count`.
+- `POST /my/cases/{id}/calls` — buyer or seller only (404 for anyone else; 422 on a closed case). Returns `201` with `data.status` (`pending_provider` | `connected` | `failed`) and `data.proxy_number` (null until a telephony provider is configured). Neither party's phone number is ever returned. Limited to `AQDAR_CALLS_PER_HOUR` (default 5) per caller per case; over the limit returns `429`.
 
 Staff desks **ADM-08** / **ADM-09** are Blade, not this API. Assigned Sales can act; others get 403 on private case actions (UAT-13). Finance may open ADM-09 and advance `schedule_transfer` / `completed` only (BRD §8.2); they cannot open leads, requests, lifecycle, assign, or documents.
 
@@ -720,7 +726,7 @@ No new routes. `POST /auth/otp/send` and `POST /auth/register` require consent t
 
 ## Phase 11 — Session and audit hardening
 
-No new marketplace routes. Sanctum tokens expire (config, default 30 days). Staff remember-me no longer stores a password cookie. Staff deactivate, role change, or password change invalidates the session (`session_version`). Staff and marketplace logins are audited without the password. Staff 2FA / IP allowlist stay out (DEC-07).
+No new marketplace routes. Sanctum tokens expire (config, default 30 days). Staff remember-me no longer stores a password cookie. Staff deactivate, role change, or password change invalidates the session (`session_version`). Staff and marketplace logins are audited without the password. Staff 2FA and the IP allowlist are opt-in via env: `AQDAR_STAFF_TWO_FACTOR=true` emails a 6-digit code after the password (`/dashboard/two-factor`, attempts limited by `AQDAR_OTP_MAX_ATTEMPTS`), and `AQDAR_STAFF_IP_ALLOWLIST=ip,cidr,…` returns 403 on the dashboard from other addresses (audited as `auth.ip_blocked`). Both are off by default.
 
 ## Phase 12 — Listing publish gate and lifecycle
 
@@ -777,7 +783,7 @@ No new marketplace routes. Blade RBAC only:
 - **Finance** advances ADM-09 finance stages (`schedule_transfer`, `completed`) after developer approval. Not the full pipeline. Still 403 on listing approve, leads, requests, case create/assign/lifecycle/documents.
 - **Operations** open ADM-10 and **approve** pending commission changes. They cannot create or PATCH amounts.
 - **Sales** open ADM-10 for **assigned cases only**. No edit, no approve, no CSV.
-- **Reviewer** remains review-only on commissions (UAT-16). Staff teams / team-scoped Sales numbers stay out (DEC-05).
+- **Reviewer** remains review-only on commissions (UAT-16). Staff teams (DEC-05): `sales_contact` on inquiries, appointments, buyer requests, cases, and support threads returns the assignee's team Sales number when the team is active and owns one, otherwise the platform number. No staff name or phone is exposed.
 
 New permissions: `advance_finance_stages`, `approve_commissions`, `view_commissions`. Finance create/update sets `approved_at` null unless Super Admin. Existing commission rows are backfilled as approved.
 

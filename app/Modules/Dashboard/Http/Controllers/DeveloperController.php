@@ -27,7 +27,9 @@ class DeveloperController extends BaseController
             ->when($search !== '', fn (Builder $query) => $query->where(fn (Builder $inner) => $inner
                 ->where('name_ar', 'like', $pattern)
                 ->orWhere('name_en', 'like', $pattern)
-                ->orWhere('commercial_register', 'like', $pattern)))
+                ->orWhere('commercial_register', 'like', $pattern)
+                ->orWhere('contact_name', 'like', $pattern)
+                ->orWhere('contact_email', 'like', $pattern)))
             ->orderBy('is_other')
             ->orderBy('sort_order')
             ->orderBy('id');

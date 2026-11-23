@@ -48,7 +48,7 @@
             <span class="ic warn">@include('dashboard::partials.icon', ['name' => 'clock'])</span>
             <div>
                 <span>{{ __('structer.status') }}</span>
-                <b>{{ __('aqdar.listings.status.'.$status) }}</b>
+                <b data-live-row="listings" data-live-id="{{ $listing->id }}" data-live-field="status">{{ __('aqdar.listings.status.'.$status) }}</b>
             </div>
         </div>
         <div class="kpi">

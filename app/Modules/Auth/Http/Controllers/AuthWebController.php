@@ -6,6 +6,7 @@ use App\Core\Http\Controllers\BaseController;
 use App\Modules\Auth\Http\Requests\ForgotPasswordRequest;
 use App\Modules\Auth\Http\Requests\LoginRequest;
 use App\Modules\Auth\Http\Requests\ResetPasswordRequest;
+use App\Modules\Auth\Http\Requests\StaffTwoFactorRequest;
 use App\Modules\Auth\Services\AuthService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -17,11 +18,31 @@ class AuthWebController extends BaseController
 
     public function login(LoginRequest $request): RedirectResponse
     {
-        $this->authService->webLogin(
+        $staff = $this->authService->webLogin(
             $request->validated('email'),
             $request->validated('password'),
             $request->boolean('remember'),
         );
+
+        if ($staff === null) {
+            return redirect()->route('dashboard.two-factor');
+        }
+
+        return redirect()->intended(route('dashboard'));
+    }
+
+    public function showTwoFactor(): View|RedirectResponse
+    {
+        if (! $this->authService->hasPendingStaffTwoFactor()) {
+            return redirect()->route('dashboard');
+        }
+
+        return view('dashboard::two-factor');
+    }
+
+    public function verifyTwoFactor(StaffTwoFactorRequest $request): RedirectResponse
+    {
+        $this->authService->completeStaffTwoFactorLogin($request->validated('code'));
 
         return redirect()->intended(route('dashboard'));
     }

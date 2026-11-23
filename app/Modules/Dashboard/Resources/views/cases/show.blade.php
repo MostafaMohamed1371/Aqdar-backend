@@ -2,10 +2,18 @@
     use App\Core\Enums\CaseDocumentKind;
     use App\Core\Enums\CaseStage;
     use App\Core\Enums\CaseStatus;
+    use App\Core\Enums\EscrowMethod;
+    use App\Core\Enums\EscrowStatus;
+    use App\Core\Enums\ExtractionStatus;
     $item = $caseModel;
     $financeOnly = $financeOnly ?? false;
     $allowedStages = $allowedStages ?? CaseStage::cases();
     $canAdvanceFinance = $canAdvanceFinance ?? true;
+    $checklist = $checklist ?? collect();
+    $canManageEscrow = $canManageEscrow ?? false;
+    $canRecordEscrow = $canRecordEscrow ?? false;
+    $canApproveEscrow = $canApproveEscrow ?? false;
+    $canReviewDocuments = $canReviewDocuments ?? false;
 @endphp
 @extends('dashboard::layouts.app')
 
@@ -17,8 +25,8 @@
         <h2>{{ $item->public_code }} · {{ $item->buyer?->name }}</h2>
         <div class="acts">
             <a class="btn ghost" href="{{ route('dashboard.cases.index') }}">{{ __('aqdar.listings.desk.back') }}</a>
-            <span class="badge {{ $item->stageBadgeTone() }}">{{ __('aqdar.cases.stage.'.$item->internal_stage?->value) }}</span>
-            <span class="badge {{ $item->lifecycleBadgeTone() }}">{{ __('aqdar.cases.lifecycle.'.$item->status?->value) }}</span>
+            <span class="badge {{ $item->stageBadgeTone() }}" data-live-row="cases" data-live-id="{{ $item->id }}" data-live-field="stage">{{ __('aqdar.cases.stage.'.$item->internal_stage?->value) }}</span>
+            <span class="badge {{ $item->lifecycleBadgeTone() }}" data-live-row="cases" data-live-id="{{ $item->id }}" data-live-field="status">{{ __('aqdar.cases.lifecycle.'.$item->status?->value) }}</span>
         </div>
     </div>
     <p class="tiny">{{ __('aqdar.cases.client_sees') }}: {{ __('aqdar.cases.client.'.$item->client_label) }} · {{ __('aqdar.cases.missing_docs') }}: {{ $item->missing_documents_count }}</p>
@@ -102,6 +110,24 @@
                             <td>{{ __('aqdar.cases.doc_kind.'.$doc->kind?->value) }} · {{ $doc->original_name }}</td>
                             <td>
                                 <a class="btn ghost sm" href="{{ URL::temporarySignedRoute('dashboard.cases.documents.download', now()->addMinutes(config('aqdar.files.signed_url_minutes', 10)), ['caseDocument' => $doc]) }}">{{ __('aqdar.listings.docs.open') }}</a>
+                                @if ($canReviewDocuments && $doc->extraction?->status === ExtractionStatus::PendingReview)
+                                    <p class="tiny" style="margin:6px 0 2px">{{ __('aqdar.extraction.title') }} · {{ __('aqdar.extraction.pending') }}</p>
+                                    <form method="POST" action="{{ route('dashboard.cases.documents.extraction', $doc) }}" class="toolbar">
+                                        @csrf
+                                        <input type="hidden" name="status" value="confirmed">
+                                        @foreach ((array) config('aqdar.ocr.fields') as $field)
+                                            <input name="fields[{{ $field }}]" placeholder="{{ __('aqdar.extraction.fields.'.$field) }}" class="en">
+                                        @endforeach
+                                        <button class="btn sm" type="submit">{{ __('aqdar.extraction.confirm') }}</button>
+                                    </form>
+                                    <form method="POST" action="{{ route('dashboard.cases.documents.extraction', $doc) }}" class="toolbar">
+                                        @csrf
+                                        <input type="hidden" name="status" value="rejected">
+                                        <button class="btn ghost sm" type="submit">{{ __('aqdar.extraction.reject') }}</button>
+                                    </form>
+                                @elseif ($doc->extraction)
+                                    <span class="tiny">{{ $doc->extraction->status === ExtractionStatus::Confirmed ? __('aqdar.extraction.confirmed') : __('aqdar.extraction.rejected') }}</span>
+                                @endif
                             </td>
                         </tr>
                     @empty
@@ -111,6 +137,83 @@
             </div>
         </div>
     @endunless
+
+    @unless ($financeOnly)
+        <div class="card" style="margin-top:14px" data-section="checklist">
+            <div class="card-h"><b>{{ __('aqdar.checklist.title') }}</b></div>
+            <table class="t">
+                @foreach ($checklist as $row)
+                    <tr>
+                        <td>{{ __('aqdar.checklist.items.'.$row->item_key) }}</td>
+                        <td>
+                            <span class="badge {{ $row->isDone() ? 'ok' : 'grey' }}">{{ $row->isDone() ? __('aqdar.checklist.done') : __('aqdar.checklist.pending') }}</span>
+                        </td>
+                        <td>
+                            <form method="POST" action="{{ route('dashboard.cases.checklist', ['transferCase' => $item, 'item' => $row->item_key]) }}">
+                                @csrf
+                                <input type="hidden" name="done" value="{{ $row->isDone() ? 0 : 1 }}">
+                                <button class="btn ghost sm" type="submit">{{ $row->isDone() ? __('aqdar.checklist.undo') : __('aqdar.checklist.mark_done') }}</button>
+                            </form>
+                        </td>
+                    </tr>
+                @endforeach
+            </table>
+        </div>
+    @endunless
+
+    @if ($canManageEscrow)
+        <div class="card" style="margin-top:14px" data-section="escrow">
+            <div class="card-h"><b>{{ __('aqdar.escrow.title') }}</b><span class="tiny">{{ __('aqdar.escrow.intro') }}</span></div>
+            <div class="tw">
+                <table class="t">
+                    <tr>
+                        <th>{{ __('aqdar.escrow.col_when') }}</th>
+                        <th>{{ __('aqdar.escrow.amount') }}</th>
+                        <th>{{ __('aqdar.escrow.method') }}</th>
+                        <th>{{ __('aqdar.escrow.col_status') }}</th>
+                        <th>{{ __('aqdar.escrow.col_by') }}</th>
+                        <th>{{ __('aqdar.escrow.col_actions') }}</th>
+                    </tr>
+                    @forelse ($item->escrowPayments as $payment)
+                        <tr>
+                            <td class="en">{{ $payment->received_at?->format('Y-m-d') }}</td>
+                            <td class="en">{{ number_format((float) $payment->amount, 2) }}</td>
+                            <td>{{ __('aqdar.escrow.methods.'.$payment->method->value) }}{{ $payment->reference ? ' · '.$payment->reference : '' }}</td>
+                            <td><span class="badge {{ $payment->status === EscrowStatus::Held ? 'gold' : 'ok' }}">{{ __('aqdar.escrow.statuses.'.$payment->status->value) }}</span></td>
+                            <td>{{ $payment->recordedBy?->name ?? '—' }}</td>
+                            <td>
+                                @if ($canApproveEscrow && ! $payment->status->isSettled())
+                                    <form method="POST" action="{{ route('dashboard.escrow.settle', $payment) }}" class="toolbar">
+                                        @csrf
+                                        <input name="note" required minlength="3" maxlength="500" placeholder="{{ __('aqdar.escrow.settle_note') }}">
+                                        <button class="btn sm" name="status" value="released" type="submit">{{ __('aqdar.escrow.release') }}</button>
+                                        <button class="btn ghost sm" name="status" value="refunded" type="submit">{{ __('aqdar.escrow.refund') }}</button>
+                                    </form>
+                                @endif
+                            </td>
+                        </tr>
+                    @empty
+                        <tr><td colspan="6" class="tiny">{{ __('aqdar.escrow.empty') }}</td></tr>
+                    @endforelse
+                </table>
+            </div>
+            @if ($canRecordEscrow)
+                <form method="POST" action="{{ route('dashboard.cases.escrow.store', $item) }}" class="toolbar" style="margin-top:12px">
+                    @csrf
+                    <input name="amount" type="number" step="0.01" min="0.01" required placeholder="{{ __('aqdar.escrow.amount') }}" class="en">
+                    <select name="method">
+                        @foreach (EscrowMethod::cases() as $method)
+                            <option value="{{ $method->value }}">{{ __('aqdar.escrow.methods.'.$method->value) }}</option>
+                        @endforeach
+                    </select>
+                    <input name="reference" maxlength="128" placeholder="{{ __('aqdar.escrow.reference') }}" class="en">
+                    <input name="received_at" type="date" class="en">
+                    <input name="note" maxlength="500" placeholder="{{ __('aqdar.escrow.note') }}">
+                    <button class="btn sm" type="submit">{{ __('aqdar.escrow.record') }}</button>
+                </form>
+            @endif
+        </div>
+    @endif
 
     <div class="card" style="margin-top:14px">
         <div class="card-h"><b>{{ __('aqdar.crm.activity') }}</b></div>

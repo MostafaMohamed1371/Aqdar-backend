@@ -11,8 +11,10 @@ use App\Core\Enums\ListingStatus;
 use App\Core\Enums\StaffRole;
 use App\Modules\Crm\Models\BuyerRequest;
 use App\Modules\Crm\Models\Lead;
+use App\Modules\Crm\Models\SupportThread;
 use App\Modules\Crm\Models\TransferCase;
 use App\Modules\Listing\Models\Listing;
+use App\Modules\Listing\Models\ListingDocument;
 use App\Modules\Listing\Services\ListingService;
 use App\Modules\Notification\Models\InboxNotification;
 use App\Modules\Notification\Models\NotificationDelivery;
@@ -224,16 +226,17 @@ class NotificationPhase8Test extends TestCase
     public function test_duplicate_event_does_not_create_a_second_row(): void
     {
         $seller = User::factory()->seller()->create();
-        $listing = Listing::factory()->create([
-            'user_id' => $seller->id,
-            'status' => ListingStatus::Approved,
-        ]);
-        $this->seedApprovedRequiredDocuments($listing);
-        $this->actingAsStaff(StaffRole::Operations);
-        $this->post('/dashboard/listings/'.$listing->id.'/publish', ['reason' => 'نشر'])->assertRedirect();
-        $listing->forceFill(['status' => ListingStatus::Approved])->save();
-        $this->post('/dashboard/listings/'.$listing->id.'/publish', ['reason' => 'نشر مرة أخرى'])->assertRedirect();
+        $service = app(NotificationService::class);
+        $first = $service->notify($seller, 'listing_published', [
+            'listing_code' => 'AQ-1',
+            'listing_id' => 1,
+        ], 'listing_published:listing:1:history:99');
+        $second = $service->notify($seller, 'listing_published', [
+            'listing_code' => 'AQ-1',
+            'listing_id' => 1,
+        ], 'listing_published:listing:1:history:99');
 
+        $this->assertSame($first->id, $second->id);
         $this->assertSame(1, InboxNotification::query()->where('event_key', 'listing_published')->count());
     }
 
@@ -341,6 +344,149 @@ class NotificationPhase8Test extends TestCase
             ])->assertRedirect();
         $this->assertTrue(
             InboxNotification::query()->where('event_key', 'buyer_request_updated')->where('notifiable_id', $buyer->id)->exists()
+        );
+
+        $this->from('/dashboard/requests/'.$request->id)
+            ->post('/dashboard/requests/'.$request->id.'/status', [
+                'status' => BuyerRequestStatus::OptionsShared->value,
+                'reason' => 'تم إرسال الخيارات',
+            ])->assertRedirect();
+        $this->assertSame(
+            2,
+            InboxNotification::query()->where('event_key', 'buyer_request_updated')->where('notifiable_id', $buyer->id)->count()
+        );
+    }
+
+    public function test_listing_approve_and_republish_each_queue_owner_push(): void
+    {
+        $seller = User::factory()->seller()->create();
+        $seller->devices()->create([
+            'device_uuid' => 'ios-approve',
+            'platform' => 'ios',
+            'push_token' => 'fcm-token-approve',
+        ]);
+        $listing = Listing::factory()->create([
+            'user_id' => $seller->id,
+            'status' => ListingStatus::InReview,
+        ]);
+        $this->seedApprovedRequiredDocuments($listing);
+        $this->actingAsStaff(StaffRole::Operations);
+
+        $this->post('/dashboard/listings/'.$listing->id.'/approve', ['reason' => 'المستندات مكتملة'])->assertRedirect();
+        $approved = InboxNotification::query()->where('event_key', 'listing_approved')->where('notifiable_id', $seller->id)->first();
+        $this->assertNotNull($approved);
+        $this->assertDatabaseHas('notification_deliveries', [
+            'notification_id' => $approved->id,
+            'channel' => 'push',
+            'status' => 'sent',
+        ]);
+
+        $this->post('/dashboard/listings/'.$listing->id.'/publish', ['reason' => 'نشر'])->assertRedirect();
+        $this->post('/dashboard/listings/'.$listing->id.'/unpublish', ['reason' => 'إيقاف مؤقت'])->assertRedirect();
+        $this->post('/dashboard/listings/'.$listing->id.'/publish', ['reason' => 'إعادة النشر'])->assertRedirect();
+
+        $this->assertSame(
+            2,
+            InboxNotification::query()->where('event_key', 'listing_published')->where('notifiable_id', $seller->id)->count()
+        );
+        $this->assertTrue(
+            InboxNotification::query()->where('event_key', 'listing_suspended')->where('notifiable_id', $seller->id)->exists()
+        );
+    }
+
+    public function test_repeated_case_stages_each_notify_both_parties(): void
+    {
+        $this->actingAsStaff(StaffRole::Operations);
+        $case = TransferCase::factory()->create(['status' => CaseStatus::Open]);
+
+        $this->from('/dashboard/cases/'.$case->id)
+            ->post('/dashboard/cases/'.$case->id.'/stage', [
+                'stage' => CaseStage::QualifyBuyer->value,
+                'reason' => 'تم التأهيل',
+            ])->assertRedirect();
+        $this->from('/dashboard/cases/'.$case->id)
+            ->post('/dashboard/cases/'.$case->id.'/stage', [
+                'stage' => CaseStage::ContactSeller->value,
+                'reason' => 'تم التواصل مع البائع',
+            ])->assertRedirect();
+
+        $this->assertSame(4, InboxNotification::query()->where('event_key', 'case_stage_changed')->count());
+    }
+
+    public function test_document_review_and_support_close_notify_marketplace_user(): void
+    {
+        $seller = User::factory()->seller()->create();
+        $seller->devices()->create([
+            'device_uuid' => 'ios-doc',
+            'platform' => 'ios',
+            'push_token' => 'fcm-token-doc',
+        ]);
+        $listing = Listing::factory()->create(['user_id' => $seller->id]);
+        $document = ListingDocument::factory()->create(['listing_id' => $listing->id]);
+        $this->actingAsStaff(StaffRole::Reviewer);
+        $this->from('/dashboard/documents/listing/'.$listing->id)
+            ->post('/dashboard/documents/'.$document->id.'/approve', ['reason' => 'واضح ومقروء'])
+            ->assertRedirect();
+
+        $docNote = InboxNotification::query()
+            ->where('event_key', 'listing_document_reviewed')
+            ->where('notifiable_id', $seller->id)
+            ->first();
+        $this->assertNotNull($docNote);
+        $this->assertDatabaseHas('notification_deliveries', [
+            'notification_id' => $docNote->id,
+            'channel' => 'push',
+            'status' => 'sent',
+        ]);
+
+        $user = User::factory()->create(['is_buyer' => true]);
+        $user->devices()->create([
+            'device_uuid' => 'ios-support',
+            'platform' => 'ios',
+            'push_token' => 'fcm-token-support',
+        ]);
+        $thread = SupportThread::factory()->create(['user_id' => $user->id]);
+        $this->actingAsStaff(StaffRole::Operations);
+        $this->post(route('dashboard.support.close', $thread))->assertRedirect();
+
+        $closed = InboxNotification::query()
+            ->where('event_key', 'support_closed')
+            ->where('notifiable_id', $user->id)
+            ->first();
+        $this->assertNotNull($closed);
+        $this->assertDatabaseHas('notification_deliveries', [
+            'notification_id' => $closed->id,
+            'channel' => 'push',
+            'status' => 'sent',
+        ]);
+    }
+
+    public function test_duplicate_push_tokens_queue_one_delivery(): void
+    {
+        $seller = User::factory()->seller()->create();
+        $seller->devices()->create([
+            'device_uuid' => 'ios-a',
+            'platform' => 'ios',
+            'push_token' => 'same-fcm-token',
+        ]);
+        $seller->devices()->create([
+            'device_uuid' => 'ios-b',
+            'platform' => 'ios',
+            'push_token' => 'same-fcm-token',
+        ]);
+        $listing = Listing::factory()->create([
+            'user_id' => $seller->id,
+            'status' => ListingStatus::Approved,
+        ]);
+        $this->seedApprovedRequiredDocuments($listing);
+        $this->actingAsStaff(StaffRole::Operations);
+        $this->post('/dashboard/listings/'.$listing->id.'/publish', ['reason' => 'نشر'])->assertRedirect();
+
+        $row = InboxNotification::query()->where('event_key', 'listing_published')->where('notifiable_id', $seller->id)->first();
+        $this->assertNotNull($row);
+        $this->assertSame(
+            1,
+            NotificationDelivery::query()->where('notification_id', $row->id)->where('channel', 'push')->count()
         );
     }
 

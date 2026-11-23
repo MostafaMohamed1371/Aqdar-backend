@@ -45,6 +45,7 @@ class SaveListingStepRequest extends BaseFormRequest
                 'amenity_ids.*' => ['integer', 'exists:amenities,id'],
                 'tag_ids' => ['sometimes', 'array'],
                 'tag_ids.*' => ['integer', 'exists:tags,id'],
+                'custom_attributes' => ['sometimes', 'nullable', 'array', 'max:40'],
             ],
             'financials' => [
                 'declared_contract_price' => ['sometimes', 'numeric', 'min:0'],

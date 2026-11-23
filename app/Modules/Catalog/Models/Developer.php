@@ -10,7 +10,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-#[Fillable(['slug', 'name_ar', 'name_en', 'commercial_register', 'logo_path', 'registered_on', 'is_other', 'is_verified', 'is_active', 'sort_order'])]
+#[Fillable(['slug', 'name_ar', 'name_en', 'commercial_register', 'logo_path', 'registered_on', 'contact_name', 'contact_phone', 'contact_email', 'website', 'internal_notes', 'is_other', 'is_verified', 'is_active', 'sort_order'])]
 class Developer extends Model
 {
     /** @use HasFactory<DeveloperFactory> */

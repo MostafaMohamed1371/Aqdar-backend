@@ -17,7 +17,7 @@
         <h2>{{ $lead->public_code }} · {{ $lead->buyer?->name }}</h2>
         <div class="acts">
             <a class="btn ghost" href="{{ route('dashboard.leads.index') }}">{{ __('aqdar.listings.desk.back') }}</a>
-            <span class="badge {{ $lead->statusBadgeTone() }}">{{ __('aqdar.crm.status.'.$lead->status?->value) }}</span>
+            <span class="badge {{ $lead->statusBadgeTone() }}" data-live-row="leads" data-live-id="{{ $lead->id }}" data-live-field="status">{{ __('aqdar.crm.status.'.$lead->status?->value) }}</span>
         </div>
     </div>
 

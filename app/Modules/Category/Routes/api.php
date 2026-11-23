@@ -1,12 +1,15 @@
 <?php
 
 use App\Modules\Category\Http\Controllers\CategoryController;
+use App\Modules\Category\Http\Controllers\CategoryFormApiController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware('throttle:api')->group(function (): void {
     Route::get('categories', [CategoryController::class, 'index']);
     Route::get('categories/slug/{slug}', [CategoryController::class, 'showBySlug'])
         ->where('slug', '[a-z0-9\-]+');
+    Route::get('categories/{category}/form', [CategoryFormApiController::class, 'show'])
+        ->whereNumber('category');
 });
 
 /*

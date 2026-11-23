@@ -12,6 +12,7 @@ use Illuminate\Auth\Events\PasswordReset;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -208,9 +209,14 @@ class AuthService
         $user->currentAccessToken()?->delete();
     }
 
-    public function webLogin(string $email, string $password, bool $remember = false): StaffUser
+    /**
+     * Returns the signed-in staff member, or null when a one-time code was emailed and must be verified first.
+     */
+    public function webLogin(string $email, string $password, bool $remember = false): ?StaffUser
     {
-        if (! Auth::guard('web')->attempt(['email' => $email, 'password' => $password], $remember)) {
+        $twoFactor = (bool) config('aqdar.staff.two_factor', false);
+
+        if (! Auth::guard('web')->attempt(['email' => $email, 'password' => $password], $twoFactor ? false : $remember)) {
             $this->auditLogger->write('auth.login_failed', null, null, [
                 'email' => $email,
                 'guard' => 'web',
@@ -237,14 +243,116 @@ class AuthService
             ]);
         }
 
+        if ($twoFactor) {
+            Auth::guard('web')->logout();
+            $this->startStaffTwoFactorChallenge($staff, $remember);
+
+            return null;
+        }
+
+        $this->finishWebLogin($staff, $email);
+
+        return $staff;
+    }
+
+    public function hasPendingStaffTwoFactor(): bool
+    {
+        $challenge = request()->session()->get('staff_two_factor_challenge');
+
+        return is_string($challenge) && Cache::has($this->staffTwoFactorCacheKey($challenge));
+    }
+
+    public function completeStaffTwoFactorLogin(string $code): StaffUser
+    {
+        $session = request()->session();
+        $challenge = $session->get('staff_two_factor_challenge');
+        $state = is_string($challenge) ? Cache::get($this->staffTwoFactorCacheKey($challenge)) : null;
+        $staff = is_array($state) ? StaffUser::query()->find($state['staff_id'] ?? null) : null;
+
+        if (! is_array($state) || $staff === null || ! $staff->is_active) {
+            $session->forget('staff_two_factor_challenge');
+
+            throw ValidationException::withMessages([
+                'code' => [__('aqdar.auth.two_factor_expired')],
+            ]);
+        }
+
+        $key = $this->staffTwoFactorCacheKey($challenge);
+        $maxAttempts = max(1, (int) config('aqdar.otp.max_attempts', 5));
+
+        if ((int) ($state['attempts'] ?? 0) >= $maxAttempts) {
+            Cache::forget($key);
+            $session->forget('staff_two_factor_challenge');
+
+            throw ValidationException::withMessages([
+                'code' => [__('aqdar.auth.staff_two_factor_locked')],
+            ]);
+        }
+
+        if (! hash_equals((string) $state['code_hash'], $this->staffTwoFactorHash($challenge, $code))) {
+            $state['attempts'] = (int) ($state['attempts'] ?? 0) + 1;
+            Cache::put($key, $state, max(1, (int) config('aqdar.otp.ttl_seconds', 300)));
+            $this->auditLogger->write('auth.login_failed', $staff, $staff, [
+                'email' => $staff->email,
+                'guard' => 'web',
+                'reason' => 'two_factor_invalid',
+            ]);
+
+            throw ValidationException::withMessages([
+                'code' => [__('aqdar.auth.staff_two_factor_invalid')],
+            ]);
+        }
+
+        Cache::forget($key);
+        $session->forget('staff_two_factor_challenge');
+        $session->regenerate();
+        Auth::guard('web')->login($staff, (bool) ($state['remember'] ?? false));
+        $this->finishWebLogin($staff, $staff->email, twoFactor: true);
+
+        return $staff;
+    }
+
+    private function startStaffTwoFactorChallenge(StaffUser $staff, bool $remember): void
+    {
+        $challenge = Str::random(64);
+        $code = str_pad((string) random_int(0, 999999), 6, '0', STR_PAD_LEFT);
+        $ttl = max(1, (int) config('aqdar.otp.ttl_seconds', 300));
+
+        Cache::put($this->staffTwoFactorCacheKey($challenge), [
+            'staff_id' => $staff->id,
+            'code_hash' => $this->staffTwoFactorHash($challenge, $code),
+            'remember' => $remember,
+            'attempts' => 0,
+        ], $ttl);
+        request()->session()->put('staff_two_factor_challenge', $challenge);
+
+        Mail::raw(
+            __('aqdar.auth.staff_two_factor_body', ['code' => $code, 'minutes' => (int) ceil($ttl / 60)]),
+            fn ($message) => $message->to($staff->email)->subject(__('aqdar.auth.staff_two_factor_subject')),
+        );
+
+        $this->auditLogger->write('auth.two_factor_challenged', $staff, $staff, ['guard' => 'web']);
+    }
+
+    private function finishWebLogin(StaffUser $staff, string $email, bool $twoFactor = false): void
+    {
         $staff->forceFill(['last_login_at' => now()])->save();
         request()->session()->put('staff_session_version', (int) $staff->session_version);
         $this->auditLogger->write('auth.login', $staff, $staff, [
             'email' => $email,
             'guard' => 'web',
+            'two_factor' => $twoFactor,
         ]);
+    }
 
-        return $staff;
+    private function staffTwoFactorCacheKey(string $challenge): string
+    {
+        return 'aqdar:staff:2fa:'.hash('sha256', $challenge);
+    }
+
+    private function staffTwoFactorHash(string $challenge, string $code): string
+    {
+        return hash_hmac('sha256', $code, $challenge);
     }
 
     public function webLogout(): void

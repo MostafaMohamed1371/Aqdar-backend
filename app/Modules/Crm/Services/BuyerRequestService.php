@@ -11,6 +11,7 @@ use App\Core\Enums\SegmentPreference;
 use App\Core\Identity\PublicCodeGenerator;
 use App\Core\Services\QueueQuery;
 use App\Modules\Crm\Models\BuyerRequest;
+use App\Modules\Crm\Models\BuyerRequestHistory;
 use App\Modules\Crm\Models\Lead;
 use App\Modules\Crm\Models\RequestMatch;
 use App\Modules\Crm\Models\TransferCase;
@@ -95,12 +96,18 @@ class BuyerRequestService
         ]);
         $this->notifications->notifySafely($buyer, 'buyer_request_created', [
             'public_code' => $request->public_code,
-        ]);
+        ], 'buyer_request_created:'.$request->id);
         $this->notifications->notifyStaffQueue(
             'staff_new_buyer_request',
             ['public_code' => $request->public_code],
             Permission::ManageCrm,
+            false,
+            'staff_new_buyer_request:'.$request->id,
         );
+        DeskRealtime::push('requests', 'created', (int) $request->id, meta: [
+            'public_code' => $request->public_code,
+            'status' => $request->status?->value,
+        ]);
 
         return $request->fresh(['matches' => fn ($query) => $query->whereNotNull('sent_at')->with(['listing.media', 'listing.financials']), 'lead', 'assignee']) ?? $request;
     }
@@ -287,10 +294,7 @@ class BuyerRequestService
         $this->setStatus($request, $actor, BuyerRequestStatus::Assigned, $reason ?? 'assigned');
         $request->forceFill(['assigned_to' => $assigneeId])->save();
 
-        $fresh = $request->fresh(['assignee', 'lead']) ?? $request;
-        DeskRealtime::push('requests', 'assigned', (int) $fresh->id);
-
-        return $fresh;
+        return $request->fresh(['assignee', 'lead']) ?? $request;
     }
 
     public function setStatus(BuyerRequest $request, StaffUser $actor, BuyerRequestStatus $status, string $reason): BuyerRequest
@@ -299,14 +303,15 @@ class BuyerRequestService
         $this->leads->assertCanAct($actor, $lead);
         $old = $request->status;
         $request->forceFill(['status' => $status])->save();
-        $this->recordHistory($request, $old, $status, $actor, $reason);
+        $history = $this->recordHistory($request, $old, $status, $actor, $reason);
         $this->audit->write('buyer_request.status', $actor, $request, [
             'status' => $status->value,
         ]);
         if ($request->buyer !== null) {
             $this->notifications->notifySafely($request->buyer, 'buyer_request_updated', [
                 'public_code' => $request->public_code,
-            ]);
+                'status' => $status->value,
+            ], 'buyer_request_updated:'.$request->id.':'.$history->id);
         }
 
         $fresh = $request->fresh() ?? $request;
@@ -441,8 +446,8 @@ class BuyerRequestService
         BuyerRequestStatus $new,
         ?StaffUser $actor,
         string $reason,
-    ): void {
-        $request->history()->create([
+    ): BuyerRequestHistory {
+        return $request->history()->create([
             'actor_id' => $actor?->id,
             'old_status' => $old?->value,
             'new_status' => $new->value,

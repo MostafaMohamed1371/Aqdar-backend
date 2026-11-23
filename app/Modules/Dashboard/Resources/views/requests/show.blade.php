@@ -13,7 +13,7 @@
         <h2>{{ __('aqdar.requests.matches') }} {{ $item->public_code }} · {{ $item->buyer?->name }}</h2>
         <div class="acts">
             <a class="btn ghost" href="{{ route('dashboard.requests.index') }}">{{ __('aqdar.listings.desk.back') }}</a>
-            <span class="badge {{ $item->statusBadgeTone() }}">{{ __('aqdar.requests.status.'.$item->status?->value) }}</span>
+            <span class="badge {{ $item->statusBadgeTone() }}" data-live-row="requests" data-live-id="{{ $item->id }}" data-live-field="status">{{ __('aqdar.requests.status.'.$item->status?->value) }}</span>
         </div>
     </div>
     <p class="tiny">

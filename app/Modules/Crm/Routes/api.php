@@ -26,6 +26,7 @@ Route::middleware(['auth:sanctum', 'marketplace.active', 'throttle:api'])->group
     Route::get('my/cases', [TransferCaseController::class, 'index']);
     Route::get('my/cases/{transferCase}', [TransferCaseController::class, 'show'])->whereNumber('transferCase');
     Route::post('my/cases/{transferCase}/documents', [TransferCaseController::class, 'storeDocument'])->whereNumber('transferCase');
+    Route::post('my/cases/{transferCase}/calls', [TransferCaseController::class, 'startCall'])->whereNumber('transferCase');
     Route::get('my/support', [SupportController::class, 'showCurrent']);
     Route::post('my/support', [SupportController::class, 'store']);
     Route::get('my/support/{supportThread}', [SupportController::class, 'show'])->whereNumber('supportThread');

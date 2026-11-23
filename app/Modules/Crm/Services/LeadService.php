@@ -255,6 +255,9 @@ class LeadService
         $this->syncLinkedInquiries($lead);
 
         $this->audit->write('lead.activity', $actor, $lead, ['type' => $data['type']]);
+        DeskRealtime::push('leads', 'activity', (int) $lead->id, meta: [
+            'status' => $lead->status?->value,
+        ]);
 
         return $activity;
     }
@@ -269,7 +272,12 @@ class LeadService
         $this->syncLinkedInquiries($lead);
         $this->audit->write('lead.lost', $actor, $lead, ['reason' => $reason]);
 
-        return $lead->fresh() ?? $lead;
+        $fresh = $lead->fresh() ?? $lead;
+        DeskRealtime::push('leads', 'lost', (int) $fresh->id, meta: [
+            'status' => LeadStatus::Lost->value,
+        ]);
+
+        return $fresh;
     }
 
     public function convert(Lead $lead, StaffUser $actor, string $reason, bool $createCase = true): Lead
@@ -285,7 +293,12 @@ class LeadService
         }
         $this->audit->write('lead.converted', $actor, $lead, ['reason' => $reason]);
 
-        return $lead->fresh(['transferCases']) ?? $lead;
+        $fresh = $lead->fresh(['transferCases']) ?? $lead;
+        DeskRealtime::push('leads', 'converted', (int) $fresh->id, meta: [
+            'status' => LeadStatus::Converted->value,
+        ]);
+
+        return $fresh;
     }
 
     public function setStatus(Lead $lead, StaffUser $actor, LeadStatus $status): Lead

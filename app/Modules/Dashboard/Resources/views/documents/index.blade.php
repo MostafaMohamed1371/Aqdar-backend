@@ -42,13 +42,13 @@
                 <th>{{ __('structer.actions') }}</th>
             </tr>
             @forelse ($documents as $document)
-                <tr>
+                <tr data-live-row="documents" data-live-id="{{ $document->id }}">
                     <td>{{ $document->listing?->owner?->name ?? '—' }}</td>
                     <td>{{ __('aqdar.listings.doc_type.'.$document->type->value) }}</td>
                     <td class="en">{{ $document->original_name }}</td>
                     <td class="en">{{ $document->listing?->public_code }}</td>
                     <td class="en">{{ $document->created_at?->toDateString() }}</td>
-                    <td><span class="badge">{{ __('aqdar.listings.doc_status.'.$document->review_status->value) }}</span></td>
+                    <td><span class="badge" data-live-field="status">{{ __('aqdar.listings.doc_status.'.$document->review_status->value) }}</span></td>
                     <td style="white-space:nowrap">
                         <a class="btn ghost sm" href="{{ URL::temporarySignedRoute('dashboard.documents.download', now()->addMinutes(config('aqdar.files.signed_url_minutes', 10)), ['document' => $document]) }}">{{ __('aqdar.listings.docs.open') }}</a>
                         @if ($document->listing)

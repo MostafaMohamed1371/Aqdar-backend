@@ -21,7 +21,7 @@ class AppointmentResource extends JsonResource
             'requested_slot' => $this->requested_slot,
             'listing' => $this->listing?->publicCard(),
             'lead_code' => $this->whenLoaded('lead', fn () => $this->lead?->public_code),
-            'sales_contact' => app(SettingService::class)->publicConfig()['sales_contact'],
+            'sales_contact' => app(SettingService::class)->salesContactFor($this->lead?->assignee),
             'created_at' => $this->created_at,
         ];
     }

@@ -30,7 +30,7 @@ class InquiryResource extends JsonResource
                 'name' => $this->lead->assignee->name,
                 'role' => __('aqdar.requests.consultant_role'),
             ] : null),
-            'sales_contact' => app(SettingService::class)->publicConfig()['sales_contact'],
+            'sales_contact' => app(SettingService::class)->salesContactFor($this->lead?->assignee),
             'next_steps' => [
                 __('aqdar.crm.next_steps.assign'),
                 __('aqdar.crm.next_steps.call'),

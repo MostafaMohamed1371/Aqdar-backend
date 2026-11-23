@@ -67,7 +67,7 @@
             </tr>
             @forelse ($listings as $listing)
                 @php $reviewable = in_array($listing->status->value, ['submitted', 'in_review', 'resubmitted'], true); @endphp
-                <tr>
+                <tr data-live-row="listings" data-live-id="{{ $listing->id }}">
                     <td>
                         @if ($reviewable)
                             <input type="checkbox" name="ids[]" value="{{ $listing->id }}" form="bulk-form" aria-label="{{ $listing->public_code }}">
@@ -102,7 +102,7 @@
                             —
                         @endif
                     </td>
-                    <td><span class="badge {{ $listing->statusBadgeTone() }}">{{ __('aqdar.listings.status.'.$listing->status->value) }}</span></td>
+                    <td><span class="badge {{ $listing->statusBadgeTone() }}" data-live-field="status">{{ __('aqdar.listings.status.'.$listing->status->value) }}</span></td>
                     <td style="white-space:nowrap">
                         <a class="btn ghost sm" href="{{ route('dashboard.listings.show', $listing) }}">{{ __('aqdar.listings.desk.view') }}</a>
                         @if ($reviewable)

@@ -46,6 +46,7 @@ class PublicListingResource extends JsonResource
             'phase' => $this->phase,
             'parking' => $this->parking,
             'offer_expires_at' => $this->offer_expires_at?->toIso8601String(),
+            'custom_attributes' => $this->custom_attributes ?? [],
             'amenities' => $this->namedAmenities($this->amenity_ids),
             'tags' => $this->namedTags($this->tag_ids),
             'asking_price' => $this->publicAskingPrice() !== null ? (float) $this->publicAskingPrice() : null,

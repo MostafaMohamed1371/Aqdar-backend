@@ -95,7 +95,7 @@
                 <span class="ic {{ $tone }}">@include('dashboard::partials.icon', ['name' => $icon])</span>
                 <div style="flex:1">
                     <span>{{ __($label) }}</span>
-                    <b>{{ number_format((float) ($stats[$key] ?? 0)) }}</b>
+                    <b data-live-kpi="{{ $key }}">{{ number_format((float) ($stats[$key] ?? 0)) }}</b>
                     @include('dashboard::partials.kpi-delta', ['key' => $key, 'deltas' => $deltas])
                 </div>
             </a>
@@ -114,7 +114,7 @@
                 <span class="ic {{ $tone }}">@include('dashboard::partials.icon', ['name' => $icon])</span>
                 <div style="flex:1">
                     <span>{{ __($label) }}</span>
-                    <b>{{ $key === 'recorded_commissions' ? \App\Modules\Dashboard\Services\DashboardService::compactEgp((float) ($stats[$key] ?? 0)) : number_format((float) ($stats[$key] ?? 0)) }}</b>
+                    <b data-live-kpi="{{ $key }}">{{ $key === 'recorded_commissions' ? \App\Modules\Dashboard\Services\DashboardService::compactEgp((float) ($stats[$key] ?? 0)) : number_format((float) ($stats[$key] ?? 0)) }}</b>
                     @include('dashboard::partials.kpi-delta', ['key' => $key, 'deltas' => $deltas])
                 </div>
             </a>
@@ -218,9 +218,9 @@
                         <a href="{{ route($route, $query) }}" class="en" @style([
                             'color:var(--bad)' => in_array($key, $alertBad, true) && $count > 0,
                             'color:var(--warn)' => in_array($key, $alertWarn, true) && $count > 0,
-                        ])><b>{{ number_format($count) }}</b></a>
+                        ])><b data-live-kpi="{{ $key }}">{{ number_format($count) }}</b></a>
                     @else
-                        <b class="en">{{ number_format($count) }}</b>
+                        <b class="en" data-live-kpi="{{ $key }}">{{ number_format($count) }}</b>
                     @endcan
                 </div>
             @endforeach

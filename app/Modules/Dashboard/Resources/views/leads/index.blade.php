@@ -119,7 +119,7 @@
                 @php
                     $buyerPhone = $revealed[$lead->id]['buyer'] ?? null;
                 @endphp
-                <tr>
+                <tr data-live-row="leads" data-live-id="{{ $lead->id }}">
                     <td>
                         <b class="en">{{ $lead->public_code }}</b>
                         @if ($lead->is_duplicate)
@@ -142,7 +142,7 @@
                     </td>
                     <td>{{ __('aqdar.crm.source.'.$lead->source?->value) }}</td>
                     <td class="en">{{ $lead->listing?->public_code ?? '—' }}</td>
-                    <td><span class="badge {{ $lead->statusBadgeTone() }}">{{ __('aqdar.crm.status.'.$lead->status?->value) }}</span></td>
+                    <td><span class="badge {{ $lead->statusBadgeTone() }}" data-live-field="status">{{ __('aqdar.crm.status.'.$lead->status?->value) }}</span></td>
                     <td>
                         @if ($canAssign)
                             @include('dashboard::partials.assign-select', ['action' => route('dashboard.leads.assign', $lead), 'current' => $lead->assigned_to, 'assignable' => $assignable, 'style' => 'min-width:130px'])

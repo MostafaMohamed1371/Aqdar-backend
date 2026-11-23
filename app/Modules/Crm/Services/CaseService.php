@@ -16,6 +16,7 @@ use App\Modules\Crm\Models\CaseDocument;
 use App\Modules\Crm\Models\Lead;
 use App\Modules\Crm\Models\RequestMatch;
 use App\Modules\Crm\Models\TransferCase;
+use App\Modules\Crm\Services\Ocr\DocumentExtractionService;
 use App\Modules\Dashboard\Support\DeskRealtime;
 use App\Modules\Listing\Models\Listing;
 use App\Modules\Notification\Services\NotificationService;
@@ -35,6 +36,7 @@ class CaseService
         private LeadService $leads,
         private NotificationService $notifications,
         private UploadScanner $uploads,
+        private DocumentExtractionService $extractions,
     ) {}
 
     public function openFromLead(Lead $lead, StaffUser $actor, string $reason): TransferCase
@@ -122,6 +124,12 @@ class CaseService
         ]);
         $this->recordHistory($case, null, $stage, $actor, $reason, null);
         $this->audit->write('case.opened', $actor, $case, ['reason' => $reason]);
+        $this->notifyParties($case, __('aqdar.cases.client.'.$stage->clientLabel()), $stage->value);
+        DeskRealtime::push('cases', 'opened', (int) $case->id, meta: [
+            'public_code' => $case->public_code,
+            'status' => CaseStatus::Open->value,
+            'stage' => $stage->value,
+        ]);
 
         return $case;
     }
@@ -252,7 +260,7 @@ class CaseService
             'from' => $old?->value,
             'to' => $stage->value,
         ]);
-        $this->notifyParties($case, __('aqdar.cases.client.'.$stage->clientLabel()));
+        $this->notifyParties($case, __('aqdar.cases.client.'.$stage->clientLabel()), $stage->value);
 
         $fresh = $case->fresh(['history']) ?? $case;
         DeskRealtime::push('cases', 'stage', (int) $fresh->id, meta: [
@@ -276,7 +284,7 @@ class CaseService
             'to' => $status->value,
             'reason' => $reason,
         ]);
-        $this->notifyParties($case, __('aqdar.cases.lifecycle.'.$status->value));
+        $this->notifyParties($case, __('aqdar.cases.lifecycle.'.$status->value), 'lifecycle:'.$status->value);
 
         $fresh = $case->fresh(['history']) ?? $case;
         DeskRealtime::push('cases', 'status', (int) $fresh->id, meta: [
@@ -294,8 +302,19 @@ class CaseService
             'missing_documents_count' => max(1, (int) $case->missing_documents_count),
         ])->save();
         $this->audit->write('case.document_requested', $actor, $case, []);
+        $fresh = $case->fresh(['buyer']) ?? $case;
+        if ($fresh->buyer !== null) {
+            $this->notifications->notifySafely($fresh->buyer, 'case_document_requested', [
+                'public_code' => $fresh->public_code,
+            ], 'case_document_requested:'.$fresh->id.':'.sha1((string) $note));
+        }
+        DeskRealtime::push('cases', 'document_requested', (int) $fresh->id, meta: [
+            'public_code' => $fresh->public_code,
+            'status' => $fresh->status?->value,
+            'stage' => $fresh->internal_stage?->value,
+        ]);
 
-        return $case->fresh() ?? $case;
+        return $fresh;
     }
 
     public function storeDocument(TransferCase $case, UploadedFile $file, CaseDocumentKind $kind, ?User $user, ?StaffUser $staff): CaseDocument
@@ -323,6 +342,8 @@ class CaseService
             'mime' => $file->getMimeType() ?: $file->getClientMimeType(),
             'size_bytes' => $file->getSize(),
         ]);
+
+        $this->extractions->queue($document);
 
         if ($kind === CaseDocumentKind::BuyerRequested && (int) $case->missing_documents_count > 0) {
             $case->forceFill([
@@ -421,7 +442,7 @@ class CaseService
             || ($case->seller_id !== null && (int) $case->seller_id === (int) $user->id);
     }
 
-    private function notifyParties(TransferCase $case, string $clientLabel): void
+    private function notifyParties(TransferCase $case, string $clientLabel, string $occurrence): void
     {
         $case->loadMissing(['buyer', 'seller']);
         $seen = [];
@@ -433,7 +454,7 @@ class CaseService
             $this->notifications->notifySafely($user, 'case_stage_changed', [
                 'public_code' => $case->public_code,
                 'client_label' => $clientLabel,
-            ]);
+            ], 'case_stage_changed:'.$case->id.':'.$occurrence.':'.$user->id);
         }
     }
 

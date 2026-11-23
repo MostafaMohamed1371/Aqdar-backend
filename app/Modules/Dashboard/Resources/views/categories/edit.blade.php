@@ -8,6 +8,8 @@
         <h2>{{ __('structer.edit_category') }}</h2>
     </div>
 
+    <p style="margin-bottom:12px"><a class="btn ghost sm" href="{{ route('dashboard.categories.form.edit', $category) }}">{{ __('aqdar.forms.edit_link') }}</a></p>
+
     <div class="card" style="max-width:640px">
         <form method="POST" action="{{ route('dashboard.categories.update', $category) }}">
             @csrf

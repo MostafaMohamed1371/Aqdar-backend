@@ -24,6 +24,7 @@ class StaffController extends BaseController
 
         return view('dashboard::staff.index', [
             'staffUsers' => $this->staffService->paginate($search),
+            'teams' => $this->staffService->teams(),
             'roles' => $this->staffService->roles(),
             'stats' => $this->staffService->stats(),
             'matrix' => $this->staffService->permissionMatrix(),
@@ -37,6 +38,7 @@ class StaffController extends BaseController
     {
         return view('dashboard::staff.create', [
             'roles' => $this->staffService->roles(),
+            'teams' => $this->staffService->teams(activeOnly: true),
             'branches' => $this->staffService->branches(),
         ]);
     }
@@ -56,6 +58,7 @@ class StaffController extends BaseController
     {
         return view('dashboard::staff.edit', [
             'staffUser' => $staffUser,
+            'teams' => $this->staffService->teams(activeOnly: true),
             'roles' => $this->staffService->roles(),
             'branches' => $this->staffService->branches(),
         ]);

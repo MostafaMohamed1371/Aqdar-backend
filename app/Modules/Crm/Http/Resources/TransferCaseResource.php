@@ -42,7 +42,7 @@ class TransferCaseResource extends JsonResource
                     'at' => $this->reachedAt($stage),
                 ];
             })->values(),
-            'sales_contact' => app(SettingService::class)->publicConfig()['sales_contact'],
+            'sales_contact' => app(SettingService::class)->salesContactFor($this->assignee),
             'created_at' => $this->created_at,
         ];
     }

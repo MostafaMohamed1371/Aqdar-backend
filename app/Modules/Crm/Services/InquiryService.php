@@ -10,6 +10,7 @@ use App\Core\Enums\PublicCodePrefix;
 use App\Core\Identity\PublicCodeGenerator;
 use App\Modules\Crm\Models\Inquiry;
 use App\Modules\Crm\Models\Lead;
+use App\Modules\Dashboard\Support\DeskRealtime;
 use App\Modules\Listing\Models\Listing;
 use App\Modules\Listing\Services\ContactLeakScanner;
 use App\Modules\Notification\Services\NotificationService;
@@ -86,13 +87,18 @@ class InquiryService
             'lead_code' => $inquiry->lead?->public_code,
             'public_code' => $inquiry->public_code,
         ];
-        $this->notifications->notifySafely($buyer, 'inquiry_created', $context);
+        $this->notifications->notifySafely($buyer, 'inquiry_created', $context, 'inquiry_created:'.$inquiry->id);
         if ($listing->owner !== null) {
-            $this->notifications->notifySafely($listing->owner, 'seller_interest', $context);
+            $this->notifications->notifySafely($listing->owner, 'seller_interest', $context, 'seller_interest:'.$inquiry->id);
         }
         $assignee = $inquiry->lead?->assignee;
         if ($assignee !== null) {
-            $this->notifications->notifySafely($assignee, 'staff_inquiry_assigned', $context);
+            $this->notifications->notifySafely(
+                $assignee,
+                'staff_inquiry_assigned',
+                $context,
+                'staff_inquiry_assigned:'.$inquiry->id.':'.$assignee->id,
+            );
         } else {
             $this->notifications->notifyStaffQueue(
                 'staff_unassigned_lead',
@@ -103,7 +109,14 @@ class InquiryService
                 ],
                 Permission::ManageCrm,
                 true,
+                'staff_unassigned_lead:'.$inquiry->id,
             );
+        }
+        if ($inquiry->lead_id) {
+            DeskRealtime::push('leads', 'inquiry', (int) $inquiry->lead_id, meta: [
+                'public_code' => $inquiry->lead?->public_code,
+                'status' => $inquiry->lead?->status?->value,
+            ]);
         }
 
         return $inquiry->fresh(['listing.media', 'lead']) ?? $inquiry;

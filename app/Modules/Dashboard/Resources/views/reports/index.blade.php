@@ -151,4 +151,111 @@
             <p class="tiny" style="margin:8px 0 0">{{ __('aqdar.reports.privacy_note') }}</p>
         </div>
     </div>
+
+    <div class="cols2" data-section="funnel">
+        @foreach ([
+            ['leads', 'aqdar.reports.analytics.funnel_leads', 'aqdar.crm.status.'],
+            ['requests', 'aqdar.reports.analytics.funnel_requests', 'aqdar.requests.status.'],
+        ] as [$funnelKey, $funnelTitle, $statusPrefix])
+            <div class="card">
+                <div class="card-h"><b>{{ __($funnelTitle) }}</b><span class="tiny">{{ __('aqdar.reports.analytics.funnel_note') }}</span></div>
+                @foreach ($funnel[$funnelKey] as $stage)
+                    <div style="padding:6px 0">
+                        <div style="display:flex;justify-content:space-between;gap:8px">
+                            <span>{{ __($statusPrefix.$stage['key']) }}</span>
+                            <b class="en">{{ number_format($stage['count']) }} <span class="tiny">({{ $stage['percent'] }}%)</span></b>
+                        </div>
+                        <div style="height:6px;border-radius:3px;background:var(--line, #eef0ee)">
+                            <div style="height:6px;border-radius:3px;background:#087e82;width:{{ min(100, $stage['percent']) }}%"></div>
+                        </div>
+                    </div>
+                @endforeach
+            </div>
+        @endforeach
+    </div>
+
+    @if ($ledger !== null)
+        <div class="kpis" style="grid-template-columns:repeat(3,1fr)" data-section="ledger-kpis">
+            <div class="kpi">
+                <span class="ic ok">@include('dashboard::partials.icon', ['name' => 'check'])</span>
+                <div><span>{{ __('aqdar.reports.analytics.net_revenue') }}</span><b class="en">{{ number_format($ledger['net_revenue'], 2) }}</b></div>
+            </div>
+            <div class="kpi">
+                <span class="ic gold">@include('dashboard::partials.icon', ['name' => 'clock'])</span>
+                <div><span>{{ __('aqdar.reports.analytics.receivable') }}</span><b class="en">{{ number_format($ledger['receivable'], 2) }}</b></div>
+            </div>
+            <div class="kpi">
+                <span class="ic info">@include('dashboard::partials.icon', ['name' => 'target'])</span>
+                <div><span>{{ __('aqdar.reports.analytics.run_rate') }}</span><b class="en">{{ number_format($forecast['run_rate'], 2) }}</b></div>
+            </div>
+        </div>
+
+        <div class="cols2" data-section="ledger">
+            <div class="card">
+                <div class="card-h"><b>{{ __('aqdar.reports.analytics.ledger') }}</b><span class="tiny">{{ __('aqdar.reports.analytics.ledger_note') }}</span></div>
+                <table class="t">
+                    <tr>
+                        <th>{{ __('structer.status') }}</th>
+                        <th>{{ __('aqdar.reports.analytics.count') }}</th>
+                        <th>{{ __('aqdar.reports.analytics.amount') }}</th>
+                        <th>{{ __('aqdar.reports.analytics.tax') }}</th>
+                    </tr>
+                    @foreach ($ledger['by_status'] as $line)
+                        <tr>
+                            <td>{{ __('aqdar.commissions.status.'.$line['status']) }}</td>
+                            <td class="en">{{ number_format($line['count']) }}</td>
+                            <td class="en">{{ number_format($line['amount'], 2) }}</td>
+                            <td class="en">{{ number_format($line['tax_amount'], 2) }}</td>
+                        </tr>
+                    @endforeach
+                </table>
+
+                <div class="card-h" style="margin-top:12px"><b>{{ __('aqdar.reports.analytics.by_month') }}</b></div>
+                <table class="t">
+                    <tr>
+                        <th>{{ __('aqdar.reports.analytics.month') }}</th>
+                        <th>{{ __('aqdar.reports.analytics.count') }}</th>
+                        <th>{{ __('aqdar.reports.analytics.amount') }}</th>
+                        <th>{{ __('aqdar.reports.analytics.net') }}</th>
+                    </tr>
+                    @forelse ($ledger['months'] as $month)
+                        <tr>
+                            <td class="en">{{ $month['key'] }}</td>
+                            <td class="en">{{ number_format($month['count']) }}</td>
+                            <td class="en">{{ number_format($month['amount'], 2) }}</td>
+                            <td class="en">{{ number_format($month['net'], 2) }}</td>
+                        </tr>
+                    @empty
+                        <tr><td colspan="4" class="tiny">{{ __('aqdar.reports.analytics.empty') }}</td></tr>
+                    @endforelse
+                </table>
+            </div>
+
+            <div class="card" data-section="forecast">
+                <div class="card-h"><b>{{ __('aqdar.reports.analytics.forecast') }}</b></div>
+                <p class="tiny">{{ __('aqdar.reports.analytics.forecast_note', ['months' => \App\Modules\Dashboard\Services\ReportAnalyticsService::FORECAST_LOOKBACK_MONTHS]) }}</p>
+                @unless ($forecast['enough_history'])
+                    <p class="hint">{{ __('aqdar.reports.analytics.no_history') }}</p>
+                @endunless
+                <table class="t">
+                    <tr>
+                        <th>{{ __('aqdar.reports.analytics.month') }}</th>
+                        <th>{{ __('aqdar.reports.analytics.net') }}</th>
+                    </tr>
+                    @foreach ($forecast['basis'] as $month)
+                        <tr><td class="en">{{ $month['key'] }}</td><td class="en">{{ number_format($month['net'], 2) }}</td></tr>
+                    @endforeach
+                </table>
+                <table class="t" style="margin-top:12px">
+                    <tr>
+                        <th>{{ __('aqdar.reports.analytics.month') }}</th>
+                        <th>{{ __('aqdar.reports.analytics.projected') }}</th>
+                    </tr>
+                    @foreach ($forecast['projection'] as $month)
+                        <tr><td class="en">{{ $month['key'] }}</td><td class="en">{{ number_format($month['amount'], 2) }}</td></tr>
+                    @endforeach
+                </table>
+            </div>
+        </div>
+    @endif
 @endsection

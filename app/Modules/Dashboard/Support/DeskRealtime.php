@@ -37,7 +37,24 @@ final class DeskRealtime
             $action,
             $id,
             $screens === [] ? $defaultScreens : $screens,
-            $meta,
+            array_merge($meta, [
+                'label' => $meta['label'] ?? self::label($meta),
+            ]),
         ));
+    }
+
+    /**
+     * @param  array<string, mixed>  $meta
+     */
+    private static function label(array $meta): string
+    {
+        foreach (['status', 'stage', 'public_code'] as $key) {
+            $value = $meta[$key] ?? null;
+            if (is_string($value) && $value !== '') {
+                return $value;
+            }
+        }
+
+        return '';
     }
 }

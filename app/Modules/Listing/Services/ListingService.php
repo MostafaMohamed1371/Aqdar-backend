@@ -36,6 +36,7 @@ class ListingService
         private ListingFileService $files,
         private NotificationService $notifications,
         private ListingModerationService $moderation,
+        private DynamicFormService $dynamicForms,
     ) {}
 
     public function start(User $user, array $data = []): Listing
@@ -171,7 +172,11 @@ class ListingService
             return $listing->fresh(['financials', 'installmentItems', 'statusHistory', 'fieldSnapshots', 'assignedReviewer']) ?? $listing;
         });
 
-        $this->notifyStaffOfSubmission($listing);
+        $this->notifyListingSubmitted($listing, $user);
+        DeskRealtime::push('listings', 'resubmitted', (int) $listing->id, meta: [
+            'public_code' => $listing->public_code,
+            'status' => $listing->status?->value,
+        ]);
 
         return $listing;
     }
@@ -184,7 +189,12 @@ class ListingService
             'area' => $listing->area?->localizedName(),
             'unit_type' => $listing->unitType?->localizedName(),
         ];
-        $this->notifications->notifySafely($user, 'listing_submitted', $context);
+        $this->notifications->notifySafely(
+            $user,
+            'listing_submitted',
+            $context,
+            'listing_submitted:'.$listing->id.':v'.$listing->version,
+        );
         $this->notifyStaffOfSubmission($listing, $context);
     }
 
@@ -254,12 +264,18 @@ class ListingService
             $child = null;
         }
 
+        $categoryChanged = (int) $listing->category_id !== (int) $category->id;
+
         $listing->fill([
             'category_id' => $category->id,
             'segment' => $segment,
             'distressed_child' => $child,
             'commission_policy_code' => $category->commission_policy_code,
-        ])->save();
+        ]);
+        if ($categoryChanged) {
+            $listing->forceFill(['custom_attributes' => null, 'form_version' => null]);
+        }
+        $listing->save();
     }
 
     /** @param array<string, mixed> $data */
@@ -293,6 +309,14 @@ class ListingService
 
         if (isset($data['unit_type_id'])) {
             $this->assertActive(UnitType::class, (int) $data['unit_type_id'], 'unit_type_id');
+        }
+
+        if (array_key_exists('custom_attributes', $data)) {
+            $custom = $this->dynamicForms->attributesFor($listing, (array) ($data['custom_attributes'] ?? []));
+            $listing->forceFill([
+                'custom_attributes' => $custom['attributes'],
+                'form_version' => $custom['form_version'],
+            ]);
         }
 
         $listing->fill(collect($data)->only([
@@ -413,6 +437,8 @@ class ListingService
                 'category_id' => [__('aqdar.listings.category_required')],
             ]);
         }
+
+        $this->dynamicForms->assertComplete($listing);
 
         if ($listing->segment === MarketSegment::Distressed && $listing->distressed_child === null) {
             throw ValidationException::withMessages([
@@ -548,6 +574,7 @@ class ListingService
             'developer_id' => $listing->developer_id,
             'project_id' => $listing->project_id,
             'unit_type_id' => $listing->unit_type_id,
+            'custom_attributes' => $listing->custom_attributes,
             'area_sqm' => $listing->area_sqm !== null ? (string) $listing->area_sqm : null,
             'bedrooms' => $listing->bedrooms,
             'bathrooms' => $listing->bathrooms,

@@ -52,6 +52,8 @@ class OwnerListingResource extends JsonResource
             'lat' => $this->lat !== null ? (float) $this->lat : null,
             'lng' => $this->lng !== null ? (float) $this->lng : null,
             'amenity_ids' => $this->amenity_ids ?? [],
+            'custom_attributes' => $this->custom_attributes ?? [],
+            'form_version' => $this->form_version,
             'tag_ids' => $this->tag_ids ?? [],
             'amenities' => $this->namedAmenities($this->amenity_ids),
             'tags' => $this->namedTags($this->tag_ids),

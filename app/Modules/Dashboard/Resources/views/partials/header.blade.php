@@ -27,7 +27,6 @@
     <div class="locale-mini">
         @include('dashboard::partials.locale-switcher')
     </div>
-    @php($inboxUnread = app(\App\Modules\Notification\Services\NotificationService::class)->unreadCount(auth()->user()))
     <a
         href="{{ route('dashboard.inbox') }}"
         class="icon-btn"

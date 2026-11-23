@@ -6,6 +6,7 @@ use App\Core\Cache\CachedRepository;
 use App\Core\Services\AbstractService;
 use App\Modules\Setting\Models\Setting;
 use App\Modules\Setting\Repositories\SettingRepository;
+use App\Modules\Staff\Models\StaffUser;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 
@@ -70,6 +71,28 @@ class SettingService extends AbstractService
                 'auth_endpoint' => '/api/v1/broadcasting/auth',
                 'channel_prefix' => 'private-support.thread.',
             ],
+        ];
+    }
+
+    /**
+     * The Sales number buyers see. An active team that owns a number overrides the platform default for records
+     * assigned to its members; everything else (including unassigned records) falls back to the platform number.
+     *
+     * @return array{name: string, phone: string, hours: string}
+     */
+    public function salesContactFor(?StaffUser $assignee): array
+    {
+        $contact = $this->publicConfig()['sales_contact'];
+        $team = $assignee?->team;
+
+        if ($team === null || ! $team->hasOwnSalesNumber()) {
+            return $contact;
+        }
+
+        return [
+            'name' => $team->localizedName(),
+            'phone' => (string) $team->sales_phone,
+            'hours' => $team->localizedHours() ?? $contact['hours'],
         ];
     }
 

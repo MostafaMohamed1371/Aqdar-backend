@@ -24,6 +24,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
     'help_ar',
     'help_en',
     'commission_policy_code',
+    'form_version',
     'parent_id',
     'is_active',
     'sort_order',
@@ -55,6 +56,7 @@ class Category extends Model
             'distressed_child' => DistressedChild::class,
             'is_active' => 'boolean',
             'sort_order' => 'integer',
+            'form_version' => 'integer',
         ];
     }
 

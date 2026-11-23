@@ -13,6 +13,7 @@ use App\Modules\Listing\Jobs\ProcessListingMediaJob;
 use App\Modules\Listing\Models\Listing;
 use App\Modules\Listing\Models\ListingDocument;
 use App\Modules\Listing\Models\ListingMedia;
+use App\Modules\Notification\Services\NotificationService;
 use App\Modules\Staff\Models\StaffUser;
 use App\Modules\User\Models\User;
 use Illuminate\Http\UploadedFile;
@@ -30,6 +31,7 @@ class ListingFileService
         private AuditLogger $audit,
         private ListingModerationService $moderation,
         private UploadScanner $uploads,
+        private NotificationService $notifications,
     ) {}
 
     public function storeDocument(Listing $listing, User $user, DocumentType $type, UploadedFile $file): ListingDocument
@@ -240,6 +242,7 @@ class ListingFileService
         ]);
 
         $fresh = $document->fresh() ?? $document;
+        $this->notifyListingOwner($fresh, 'listing_document_reviewed', $status->value);
         DeskRealtime::push('documents', 'reviewed', (int) $fresh->id, meta: [
             'listing_id' => $fresh->listing_id,
             'status' => $status->value,
@@ -271,6 +274,9 @@ class ListingFileService
         ]);
 
         $fresh = $media->fresh() ?? $media;
+        if ($status !== MediaModerationStatus::Approved) {
+            $this->notifyListingOwner($fresh, 'listing_media_reviewed', $status->value);
+        }
         DeskRealtime::push('documents', 'media_reviewed', (int) $fresh->id, meta: [
             'listing_id' => $fresh->listing_id,
             'status' => $status->value,
@@ -327,5 +333,20 @@ class ListingFileService
         }
 
         Storage::disk((string) config('aqdar.files.media.public_disk'))->delete($media->public_path);
+    }
+
+    private function notifyListingOwner(ListingDocument|ListingMedia $file, string $event, string $status): void
+    {
+        $file->loadMissing('listing.owner');
+        $owner = $file->listing?->owner;
+        if ($owner === null) {
+            return;
+        }
+
+        $this->notifications->notifySafely($owner, $event, [
+            'listing_code' => $file->listing?->public_code,
+            'listing_id' => $file->listing_id,
+            'status' => $status,
+        ], $event.':'.$file->getMorphClass().':'.$file->id.':'.$status);
     }
 }

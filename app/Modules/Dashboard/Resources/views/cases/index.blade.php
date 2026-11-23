@@ -100,13 +100,13 @@
                 @include('dashboard::partials.sort-th', ['key' => 'updated', 'label' => __('aqdar.cases.updated')])
             </tr>
             @forelse ($cases as $item)
-                <tr>
+                <tr data-live-row="cases" data-live-id="{{ $item->id }}">
                     <td><a class="en" href="{{ route('dashboard.cases.show', $item) }}"><b>{{ $item->public_code }}</b></a></td>
                     <td>{{ $item->listing?->localizedTitle() ?? '—' }}</td>
                     <td>{{ $item->buyer?->name }}</td>
                     <td>{{ $item->seller?->name ?? '—' }}</td>
-                    <td><span class="badge {{ $item->stageBadgeTone() }}">{{ __('aqdar.cases.stage.'.$item->internal_stage?->value) }}</span></td>
-                    <td><span class="badge {{ $item->lifecycleBadgeTone() }}">{{ __('aqdar.cases.lifecycle.'.$item->status?->value) }}</span></td>
+                    <td><span class="badge {{ $item->stageBadgeTone() }}" data-live-field="stage">{{ __('aqdar.cases.stage.'.$item->internal_stage?->value) }}</span></td>
+                    <td><span class="badge {{ $item->lifecycleBadgeTone() }}" data-live-field="status">{{ __('aqdar.cases.lifecycle.'.$item->status?->value) }}</span></td>
                     <td>{{ __('aqdar.cases.client.'.$item->client_label) }}</td>
                     <td>{{ $item->assignee?->name ?? __('aqdar.crm.unassigned') }}</td>
                     <td class="en">{{ $item->missing_documents_count }}</td>

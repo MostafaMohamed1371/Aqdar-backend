@@ -4,11 +4,13 @@ use App\Modules\Auth\Http\Controllers\AuthWebController;
 use App\Modules\Dashboard\Http\Controllers\AuditDeskController;
 use App\Modules\Dashboard\Http\Controllers\BuyerRequestDeskController;
 use App\Modules\Dashboard\Http\Controllers\CategoryController;
+use App\Modules\Dashboard\Http\Controllers\CategoryFormController;
 use App\Modules\Dashboard\Http\Controllers\CommissionDeskController;
 use App\Modules\Dashboard\Http\Controllers\ContentController;
 use App\Modules\Dashboard\Http\Controllers\DashboardController;
 use App\Modules\Dashboard\Http\Controllers\DeveloperController;
 use App\Modules\Dashboard\Http\Controllers\DocumentDeskController;
+use App\Modules\Dashboard\Http\Controllers\EscrowDeskController;
 use App\Modules\Dashboard\Http\Controllers\LeadDeskController;
 use App\Modules\Dashboard\Http\Controllers\ListingDeskController;
 use App\Modules\Dashboard\Http\Controllers\NotificationDeskController;
@@ -18,17 +20,24 @@ use App\Modules\Dashboard\Http\Controllers\ReportDeskController;
 use App\Modules\Dashboard\Http\Controllers\SettingController;
 use App\Modules\Dashboard\Http\Controllers\StaffController;
 use App\Modules\Dashboard\Http\Controllers\StaffInboxController;
+use App\Modules\Dashboard\Http\Controllers\StaffTeamController;
 use App\Modules\Dashboard\Http\Controllers\SupportDeskController;
 use App\Modules\Dashboard\Http\Controllers\TransferCaseDeskController;
 use App\Modules\Dashboard\Http\Controllers\UserController;
 use Illuminate\Support\Facades\Route;
 
-Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
-Route::post('/dashboard/login', [AuthWebController::class, 'login'])
-    ->middleware('throttle:login')
-    ->name('dashboard.login');
+Route::middleware('staff.ip')->group(function (): void {
+    Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+    Route::post('/dashboard/login', [AuthWebController::class, 'login'])
+        ->middleware('throttle:login')
+        ->name('dashboard.login');
+    Route::get('/dashboard/two-factor', [AuthWebController::class, 'showTwoFactor'])->name('dashboard.two-factor');
+    Route::post('/dashboard/two-factor', [AuthWebController::class, 'verifyTwoFactor'])
+        ->middleware('throttle:login')
+        ->name('dashboard.two-factor.verify');
+});
 
-Route::middleware('auth')->prefix('dashboard')->name('dashboard.')->group(function (): void {
+Route::middleware(['staff.ip', 'auth'])->prefix('dashboard')->name('dashboard.')->group(function (): void {
     Route::get('inbox', [StaffInboxController::class, 'index'])->name('inbox');
     Route::post('inbox/{notification}/read', [StaffInboxController::class, 'read'])->whereNumber('notification')->name('inbox.read');
     Route::get('profile', [ProfileController::class, 'show'])->name('profile.show');
@@ -76,6 +85,8 @@ Route::middleware('auth')->prefix('dashboard')->name('dashboard.')->group(functi
     Route::middleware('staff.can:manage_catalog')->group(function (): void {
         Route::get('settings', [SettingController::class, 'index'])->name('settings.index');
         Route::put('settings', [SettingController::class, 'update'])->name('settings.update');
+        Route::get('categories/{category}/form', [CategoryFormController::class, 'edit'])->whereNumber('category')->name('categories.form.edit');
+        Route::put('categories/{category}/form', [CategoryFormController::class, 'update'])->whereNumber('category')->name('categories.form.update');
         Route::resource('categories', CategoryController::class)->except(['show']);
 
         Route::get('developers', [DeveloperController::class, 'index'])->name('developers.index');
@@ -155,6 +166,13 @@ Route::middleware('auth')->prefix('dashboard')->name('dashboard.')->group(functi
         Route::post('cases/{transferCase}/assign', [TransferCaseDeskController::class, 'assign'])->whereNumber('transferCase')->name('cases.assign');
         Route::post('cases/{transferCase}/lifecycle', [TransferCaseDeskController::class, 'lifecycle'])->whereNumber('transferCase')->name('cases.lifecycle');
         Route::post('cases/{transferCase}/documents', [TransferCaseDeskController::class, 'storeDocument'])->whereNumber('transferCase')->name('cases.documents.store');
+        Route::post('cases/{transferCase}/checklist/{item}', [TransferCaseDeskController::class, 'checklist'])
+            ->whereNumber('transferCase')
+            ->where('item', '[a-z_]+')
+            ->name('cases.checklist');
+        Route::post('cases/documents/{caseDocument}/extraction', [TransferCaseDeskController::class, 'reviewExtraction'])
+            ->whereNumber('caseDocument')
+            ->name('cases.documents.extraction');
 
         Route::get('support', [SupportDeskController::class, 'index'])->name('support.index');
         Route::get('support/{supportThread}', [SupportDeskController::class, 'show'])->whereNumber('supportThread')->name('support.show');
@@ -166,6 +184,14 @@ Route::middleware('auth')->prefix('dashboard')->name('dashboard.')->group(functi
         Route::get('cases', [TransferCaseDeskController::class, 'index'])->name('cases.index');
         Route::get('cases/{transferCase}', [TransferCaseDeskController::class, 'show'])->whereNumber('transferCase')->name('cases.show');
         Route::post('cases/{transferCase}/stage', [TransferCaseDeskController::class, 'stage'])->whereNumber('transferCase')->name('cases.stage');
+    });
+
+    Route::middleware('staff.can:edit_commissions')->group(function (): void {
+        Route::post('cases/{transferCase}/escrow', [EscrowDeskController::class, 'store'])->whereNumber('transferCase')->name('cases.escrow.store');
+    });
+
+    Route::middleware('staff.can:approve_commissions')->group(function (): void {
+        Route::post('escrow/{escrowPayment}/settle', [EscrowDeskController::class, 'settle'])->whereNumber('escrowPayment')->name('escrow.settle');
     });
 
     Route::middleware('staff.can:view_users')->group(function (): void {
@@ -203,6 +229,9 @@ Route::middleware('auth')->prefix('dashboard')->name('dashboard.')->group(functi
         Route::get('staff', [StaffController::class, 'index'])->name('staff.index');
         Route::get('staff/create', [StaffController::class, 'create'])->name('staff.create');
         Route::post('staff', [StaffController::class, 'store'])->name('staff.store');
+        Route::post('staff-teams', [StaffTeamController::class, 'store'])->name('staff-teams.store');
+        Route::put('staff-teams/{staffTeam}', [StaffTeamController::class, 'update'])->name('staff-teams.update');
+        Route::delete('staff-teams/{staffTeam}', [StaffTeamController::class, 'destroy'])->name('staff-teams.destroy');
         Route::get('staff/{staffUser}/edit', [StaffController::class, 'edit'])->name('staff.edit');
         Route::put('staff/{staffUser}', [StaffController::class, 'update'])->name('staff.update');
         Route::delete('staff/{staffUser}', [StaffController::class, 'destroy'])->name('staff.destroy');

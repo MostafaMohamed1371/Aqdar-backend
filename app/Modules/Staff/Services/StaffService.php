@@ -7,6 +7,7 @@ use App\Core\Enums\Permission as PermissionEnum;
 use App\Core\Enums\StaffRole;
 use App\Modules\Staff\Models\Permission;
 use App\Modules\Staff\Models\Role;
+use App\Modules\Staff\Models\StaffTeam;
 use App\Modules\Staff\Models\StaffUser;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Http\UploadedFile;
@@ -22,7 +23,7 @@ class StaffService
     public function paginate(string $search = '', int $perPage = 20): LengthAwarePaginator
     {
         return StaffUser::query()
-            ->with('role')
+            ->with(['role', 'team'])
             ->when($search !== '', function ($query) use ($search): void {
                 $query->where(function ($inner) use ($search): void {
                     $inner->where('name', 'like', '%'.$search.'%')
@@ -75,6 +76,7 @@ class StaffService
             'email' => $data['email'],
             'password' => $data['password'],
             'role_id' => $data['role_id'],
+            'team_id' => $data['team_id'] ?? null,
             'branch' => $this->normalizeBranch($data['branch'] ?? null),
             'is_active' => true,
         ]);
@@ -226,6 +228,59 @@ class StaffService
             'active' => StaffUser::query()->where('is_active', true)->count(),
             'branches' => StaffUser::query()->whereNotNull('branch')->distinct()->count('branch'),
         ];
+    }
+
+    /** @return Collection<int, StaffTeam> */
+    public function teams(bool $activeOnly = false): Collection
+    {
+        return StaffTeam::query()
+            ->withCount('members')
+            ->when($activeOnly, fn ($query) => $query->where('is_active', true))
+            ->orderBy('name_en')
+            ->get();
+    }
+
+    /** @param array<string, mixed> $data */
+    public function createTeam(array $data, StaffUser $actor): StaffTeam
+    {
+        $team = StaffTeam::query()->create($this->teamPayload($data));
+
+        $this->auditLogger->write('staff.team_created', $actor, $team, ['slug' => $team->slug]);
+
+        return $team;
+    }
+
+    /** @param array<string, mixed> $data */
+    public function updateTeam(StaffTeam $team, array $data, StaffUser $actor): StaffTeam
+    {
+        $team->fill($this->teamPayload($data))->save();
+
+        $this->auditLogger->write('staff.team_updated', $actor, $team, ['slug' => $team->slug]);
+
+        return $team;
+    }
+
+    /** Teams are retired, never deleted, so history on assigned records stays readable. */
+    public function retireTeam(StaffTeam $team, StaffUser $actor): void
+    {
+        $team->update(['is_active' => false]);
+
+        $this->auditLogger->write('staff.team_retired', $actor, $team, ['slug' => $team->slug]);
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    private function teamPayload(array $data): array
+    {
+        foreach (['sales_phone', 'sales_hours_ar', 'sales_hours_en'] as $key) {
+            if (array_key_exists($key, $data)) {
+                $data[$key] = filled($data[$key]) ? trim((string) $data[$key]) : null;
+            }
+        }
+
+        return $data;
     }
 
     /** @return list<string> */

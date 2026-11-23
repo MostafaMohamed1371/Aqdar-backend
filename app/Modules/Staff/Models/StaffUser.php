@@ -12,7 +12,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Support\Facades\Storage;
 
-#[Fillable(['name', 'email', 'password', 'role_id', 'branch', 'avatar_path', 'is_active', 'last_login_at'])]
+#[Fillable(['name', 'email', 'password', 'role_id', 'team_id', 'branch', 'avatar_path', 'is_active', 'last_login_at'])]
 #[Hidden(['password', 'remember_token'])]
 class StaffUser extends Authenticatable
 {
@@ -24,6 +24,11 @@ class StaffUser extends Authenticatable
     public function role(): BelongsTo
     {
         return $this->belongsTo(Role::class);
+    }
+
+    public function team(): BelongsTo
+    {
+        return $this->belongsTo(StaffTeam::class, 'team_id');
     }
 
     public function hasPermission(PermissionEnum|string $permission): bool

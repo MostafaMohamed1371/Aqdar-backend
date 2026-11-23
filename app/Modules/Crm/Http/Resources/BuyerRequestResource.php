@@ -56,7 +56,7 @@ class BuyerRequestResource extends JsonResource
                 'name' => $this->assignee->name,
                 'role' => __('aqdar.requests.consultant_role'),
             ] : null,
-            'sales_contact' => app(SettingService::class)->publicConfig()['sales_contact'],
+            'sales_contact' => app(SettingService::class)->salesContactFor($this->assignee),
             'created_at' => $this->created_at,
         ];
     }
