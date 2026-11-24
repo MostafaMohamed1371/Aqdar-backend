@@ -97,8 +97,9 @@ class SupportRealtimeFallbackTest extends TestCase
         $this->get(route('dashboard.support.show', $thread))
             ->assertOk()
             ->assertSee('data-support-poll="'.route('dashboard.support.poll', $thread).'"', false)
-            ->assertSee('aqdar.support_inline_poll_failed', false)
-            ->assertSee('setInterval(poll, 2000)', false);
+            ->assertSee('support-desk', false)
+            ->assertSee('support-bubble', false)
+            ->assertSee('aqdar.support_inline_poll_failed', false);
     }
 
     public function test_ajax_reply_returns_the_new_message_json(): void

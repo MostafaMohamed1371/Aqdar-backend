@@ -22,12 +22,17 @@ class SupportDeskController extends BaseController
     {
         /** @var StaffUser $staff */
         $staff = $request->user();
+        $filters = [
+            'status' => (string) $request->query('status', 'open'),
+            'q' => trim((string) $request->query('q', '')),
+        ];
 
         return view('dashboard::support.index', [
-            'threads' => $this->support->deskIndex($staff, [
-                'status' => (string) $request->query('status', 'all'),
-            ]),
-            'status' => (string) $request->query('status', 'all'),
+            'threads' => $this->support->deskIndex($staff, $filters),
+            'counts' => $this->support->deskCounts($staff),
+            'status' => $filters['status'],
+            'search' => $filters['q'],
+            'thread' => null,
         ]);
     }
 
@@ -35,8 +40,16 @@ class SupportDeskController extends BaseController
     {
         /** @var StaffUser $staff */
         $staff = $request->user();
+        $filters = [
+            'status' => (string) $request->query('status', 'open'),
+            'q' => trim((string) $request->query('q', '')),
+        ];
 
-        return view('dashboard::support.show', [
+        return view('dashboard::support.index', [
+            'threads' => $this->support->deskIndex($staff, $filters),
+            'counts' => $this->support->deskCounts($staff),
+            'status' => $filters['status'],
+            'search' => $filters['q'],
             'thread' => $this->support->deskShow($staff, $supportThread),
         ]);
     }
@@ -75,16 +88,27 @@ class SupportDeskController extends BaseController
         $staff = $request->user();
         $threads = $this->support->deskIndex($staff, [
             'status' => (string) $request->query('status', 'open'),
+            'q' => trim((string) $request->query('q', '')),
         ]);
 
         return response()->json([
-            'data' => collect($threads->items())->map(fn (SupportThread $thread): array => [
-                'id' => $thread->id,
-                'public_code' => $thread->public_code,
-                'user_id' => $thread->user_id,
-                'assigned_to' => $thread->assigned_to,
-                'status' => $thread->status?->value,
-            ])->values(),
+            'data' => collect($threads->items())->map(function (SupportThread $thread): array {
+                $latest = $thread->latestMessage;
+
+                return [
+                    'id' => $thread->id,
+                    'public_code' => $thread->public_code,
+                    'user_id' => $thread->user_id,
+                    'user_name' => $thread->user?->name,
+                    'assigned_to' => $thread->assigned_to,
+                    'assignee_name' => $thread->assignee?->name,
+                    'status' => $thread->status?->value,
+                    'messages_count' => (int) ($thread->messages_count ?? 0),
+                    'preview' => $latest?->body,
+                    'preview_at' => optional($latest?->created_at)?->toIso8601String(),
+                    'url' => route('dashboard.support.show', $thread),
+                ];
+            })->values(),
         ]);
     }
 

@@ -152,31 +152,36 @@ const upsertSupportRow = (state) => {
         return;
     }
 
-    const viewLabel = document.body.getAttribute('data-label-view') || 'View';
-    let tr = supportBody.querySelector(`[data-thread-id="${thread.id}"]`);
-    if (! tr) {
-        supportBody.querySelector('[data-support-empty]')?.remove();
-        tr = document.createElement('tr');
-        tr.setAttribute('data-thread-id', String(thread.id));
-        tr.innerHTML = `
-            <td class="en"><b></b></td>
-            <td class="en"></td>
-            <td>—</td>
-            <td></td>
-            <td><a class="btn ghost sm" href="/dashboard/support/${thread.id}"></a></td>
+    supportBody.querySelector('[data-support-empty]')?.remove();
+    let item = supportBody.querySelector(`[data-thread-id="${thread.id}"]`);
+    if (! item) {
+        item = document.createElement('a');
+        item.className = 'support-thread-item';
+        item.setAttribute('data-thread-id', String(thread.id));
+        item.setAttribute('href', thread.url || `/dashboard/support/${thread.id}`);
+        item.innerHTML = `
+            <div class="support-thread-avatar en"></div>
+            <div class="support-thread-meta">
+                <div class="support-thread-top"><b></b><span class="tiny en"></span></div>
+                <div class="support-thread-sub"><span class="en"></span><span class="badge grey"></span></div>
+                <p class="support-thread-preview"></p>
+            </div>
         `;
-        supportBody.prepend(tr);
+        supportBody.prepend(item);
     }
 
-    tr.querySelector('b').textContent = thread.public_code || '';
-    tr.children[1].textContent = `USR-${thread.user_id}`;
-    tr.children[3].textContent = thread.status || '';
-    const link = tr.querySelector('a');
-    if (link) {
-        link.textContent = viewLabel;
-        link.setAttribute('href', `/dashboard/support/${thread.id}`);
+    const name = thread.user_name || `USR-${thread.user_id}`;
+    item.querySelector('.support-thread-avatar').textContent = String(name).slice(0, 1).toUpperCase();
+    item.querySelector('.support-thread-top b').textContent = name;
+    item.querySelector('.support-thread-sub .en').textContent = thread.public_code || '';
+    const badge = item.querySelector('.badge');
+    badge.textContent = thread.status || '';
+    badge.className = `badge ${thread.status === 'open' ? 'ok' : 'grey'}`;
+    item.querySelector('.support-thread-preview').textContent = thread.preview || '';
+    if (thread.url) {
+        item.setAttribute('href', thread.url);
     }
-    flash(tr);
+    flash(item);
 };
 
 const appendThreadMessage = (state) => {
@@ -187,21 +192,29 @@ const appendThreadMessage = (state) => {
         return;
     }
 
+    const fromSales = message.author === 'sales';
     const row = document.createElement('div');
-    row.className = 'dl';
+    row.className = `support-bubble ${fromSales ? 'is-sales' : 'is-user'}`;
     row.setAttribute('data-message-id', String(message.id));
+    row.setAttribute('data-author', fromSales ? 'sales' : 'user');
 
-    const author = document.createElement('span');
-    author.textContent = message.author === 'sales'
+    const meta = document.createElement('div');
+    meta.className = 'support-bubble-meta';
+    const name = document.createElement('b');
+    name.textContent = fromSales
         ? (root.getAttribute('data-label-sales') || 'Sales')
-        : `USR-${root.getAttribute('data-user-id') || ''}`;
+        : (root.getAttribute('data-label-user') || `USR-${root.getAttribute('data-user-id') || ''}`);
+    const time = document.createElement('span');
+    time.className = 'tiny en';
+    meta.append(name, time);
 
-    const body = document.createElement('span');
+    const body = document.createElement('div');
+    body.className = 'support-bubble-body';
     body.textContent = message.body || '';
 
-    row.append(author, body);
+    row.append(meta, body);
     list.append(row);
-    row.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    list.scrollTop = list.scrollHeight;
     flash(row);
 };
 

@@ -117,13 +117,43 @@ class SupportService
     /** @param array<string, mixed> $filters */
     public function deskIndex(StaffUser $staff, array $filters): LengthAwarePaginator
     {
-        $query = SupportThread::query()->with(['user', 'assignee'])->latest('id');
+        $query = SupportThread::query()
+            ->with(['user', 'assignee', 'latestMessage'])
+            ->withCount('messages')
+            ->latest('id');
         $this->restrict($query, $staff);
+
         if (($filters['status'] ?? 'all') !== 'all' && $filters['status'] !== '') {
             $query->where('status', $filters['status']);
         }
 
-        return $query->paginate(20)->withQueryString();
+        $search = trim((string) ($filters['q'] ?? ''));
+        if ($search !== '') {
+            $query->where(function (Builder $inner) use ($search): void {
+                $inner->where('public_code', 'like', '%'.$search.'%')
+                    ->orWhere('user_id', $search)
+                    ->orWhereHas('user', function (Builder $user) use ($search): void {
+                        $user->where('name', 'like', '%'.$search.'%')
+                            ->orWhere('email', 'like', '%'.$search.'%')
+                            ->orWhere('phone', 'like', '%'.$search.'%');
+                    });
+            });
+        }
+
+        return $query->paginate(30)->withQueryString();
+    }
+
+    /** @return array{all: int, open: int, closed: int} */
+    public function deskCounts(StaffUser $staff): array
+    {
+        $base = SupportThread::query();
+        $this->restrict($base, $staff);
+
+        return [
+            'all' => (clone $base)->count(),
+            'open' => (clone $base)->where('status', SupportThreadStatus::Open)->count(),
+            'closed' => (clone $base)->where('status', SupportThreadStatus::Closed)->count(),
+        ];
     }
 
     public function deskShow(StaffUser $staff, SupportThread $thread): SupportThread

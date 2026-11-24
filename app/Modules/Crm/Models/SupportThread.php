@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 #[Fillable([
     'public_code',
@@ -50,5 +51,10 @@ class SupportThread extends Model
     public function messages(): HasMany
     {
         return $this->hasMany(SupportMessage::class, 'thread_id')->orderBy('id');
+    }
+
+    public function latestMessage(): HasOne
+    {
+        return $this->hasOne(SupportMessage::class, 'thread_id')->latestOfMany('id');
     }
 }
