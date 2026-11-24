@@ -53,3 +53,7 @@
         @endif
     </div>
 @endsection
+
+@push('scripts')
+    @include('dashboard::partials.support-poll')
+@endpush

@@ -12,6 +12,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\Response;
 
 class SupportDeskController extends BaseController
 {
@@ -47,15 +48,17 @@ class SupportDeskController extends BaseController
         $thread = $this->support->deskShow($staff, $supportThread);
         $afterId = max(0, (int) $request->query('after_id', 0));
 
-        $messages = $thread->messages
-            ->filter(fn ($message): bool => (int) $message->id > $afterId)
-            ->values()
+        $messages = $thread->messages()
+            ->where('id', '>', $afterId)
+            ->orderBy('id')
+            ->get()
             ->map(fn ($message): array => [
                 'id' => $message->id,
                 'author' => $message->author_type === SupportAuthorType::Staff ? 'sales' : 'user',
                 'body' => $message->body,
                 'created_at' => optional($message->created_at)?->toIso8601String(),
-            ]);
+            ])
+            ->values();
 
         return response()->json([
             'data' => [
@@ -85,11 +88,28 @@ class SupportDeskController extends BaseController
         ]);
     }
 
-    public function reply(StoreSupportReplyRequest $request, SupportThread $supportThread): RedirectResponse
+    public function reply(StoreSupportReplyRequest $request, SupportThread $supportThread): Response
     {
         /** @var StaffUser $staff */
         $staff = $request->user();
-        $this->support->reply($staff, $supportThread, (string) $request->validated('body'));
+        $thread = $this->support->reply($staff, $supportThread, (string) $request->validated('body'));
+
+        if ($request->expectsJson() || $request->ajax()) {
+            $message = $thread->messages->last();
+
+            return response()->json([
+                'data' => [
+                    'thread_id' => $thread->id,
+                    'status' => $thread->status?->value,
+                    'message' => $message === null ? null : [
+                        'id' => $message->id,
+                        'author' => $message->author_type === SupportAuthorType::Staff ? 'sales' : 'user',
+                        'body' => $message->body,
+                        'created_at' => optional($message->created_at)?->toIso8601String(),
+                    ],
+                ],
+            ]);
+        }
 
         return back()->with('status', __('aqdar.support.replied'));
     }

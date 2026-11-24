@@ -81,6 +81,47 @@ class SupportRealtimeFallbackTest extends TestCase
         ]);
     }
 
+    public function test_support_thread_page_embeds_poll_url_and_inline_script(): void
+    {
+        Event::fake([SupportMessageSent::class, SupportThreadClosed::class, SupportDeskUpdated::class]);
+
+        $this->marketplaceUser();
+        $this->postJson('/api/v1/my/support', [
+            'body' => 'Need help',
+            'consent' => true,
+        ])->assertCreated();
+
+        $thread = SupportThread::query()->firstOrFail();
+        $this->actingAsStaff(StaffRole::SuperAdmin);
+
+        $this->get(route('dashboard.support.show', $thread))
+            ->assertOk()
+            ->assertSee('data-support-poll="'.route('dashboard.support.poll', $thread).'"', false)
+            ->assertSee('aqdar.support_inline_poll_failed', false)
+            ->assertSee('setInterval(poll, 2000)', false);
+    }
+
+    public function test_ajax_reply_returns_the_new_message_json(): void
+    {
+        Event::fake([SupportMessageSent::class, SupportThreadClosed::class, SupportDeskUpdated::class]);
+
+        $this->marketplaceUser();
+        $this->postJson('/api/v1/my/support', [
+            'body' => 'Need help',
+            'consent' => true,
+        ])->assertCreated();
+
+        $thread = SupportThread::query()->firstOrFail();
+        $this->actingAsStaff(StaffRole::SuperAdmin);
+
+        $this->postJson(route('dashboard.support.reply', $thread), [
+            'body' => 'Hello from desk',
+        ])
+            ->assertOk()
+            ->assertJsonPath('data.message.author', 'sales')
+            ->assertJsonPath('data.message.body', 'Hello from desk');
+    }
+
     private function marketplaceUser(): User
     {
         $user = User::factory()->create(['is_seller' => false, 'is_buyer' => true]);

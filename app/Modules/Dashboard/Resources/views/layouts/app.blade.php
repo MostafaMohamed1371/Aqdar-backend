@@ -36,5 +36,6 @@
         </div>
     </div>
     <div class="desk-backdrop" data-sidebar-backdrop hidden></div>
+    @stack('scripts')
 </body>
 </html>
