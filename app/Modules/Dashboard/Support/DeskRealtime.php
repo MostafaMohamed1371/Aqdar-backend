@@ -2,6 +2,7 @@
 
 namespace App\Modules\Dashboard\Support;
 
+use App\Core\Broadcasting\SafeBroadcast;
 use App\Modules\Dashboard\Events\DeskUpdated;
 
 final class DeskRealtime
@@ -14,10 +15,6 @@ final class DeskRealtime
      */
     public static function push(string $resource, string $action, ?int $id = null, array $screens = [], array $meta = []): void
     {
-        if ((string) config('broadcasting.default') === 'null' || (string) config('broadcasting.default') === '') {
-            return;
-        }
-
         $defaultScreens = match ($resource) {
             'listings', 'documents' => ['ADM-01', 'ADM-02', 'ADM-03'],
             'users' => ['ADM-01', 'ADM-04'],
@@ -32,7 +29,7 @@ final class DeskRealtime
             default => ['ADM-01'],
         };
 
-        event(new DeskUpdated(
+        SafeBroadcast::dispatch(new DeskUpdated(
             $resource,
             $action,
             $id,

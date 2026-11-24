@@ -264,8 +264,7 @@ const bootDashboardCubit = () => {
     }
 
     const staffId = desk.getAttribute('data-staff-id');
-    const echo = getEcho();
-    if (! staffId || ! echo) {
+    if (! staffId) {
         return;
     }
 
@@ -291,6 +290,14 @@ const bootDashboardCubit = () => {
             patchDeskResource(state);
         }
     });
+
+    // Chat keeps working via polling even when Pusher/Echo is unavailable on the host.
+    startSupportPolling(cubit);
+
+    const echo = getEcho();
+    if (! echo) {
+        return;
+    }
 
     echo.private('desk')
         .listen('.desk.updated', (payload) => {
@@ -336,6 +343,103 @@ const bootDashboardCubit = () => {
                 });
             });
     }
+};
+
+const csrfHeaders = () => ({
+    Accept: 'application/json',
+    'X-Requested-With': 'XMLHttpRequest',
+    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+});
+
+const latestMessageId = () => {
+    const nodes = document.querySelectorAll('[data-support-messages] [data-message-id]');
+    let max = 0;
+    nodes.forEach((node) => {
+        max = Math.max(max, Number(node.getAttribute('data-message-id') || 0));
+    });
+
+    return max;
+};
+
+const pollSupportThread = async (cubit) => {
+    const root = document.querySelector('[data-support-thread]');
+    const url = root?.getAttribute('data-support-poll');
+    if (! root || ! url) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`${url}?after_id=${latestMessageId()}`, {
+            headers: csrfHeaders(),
+            credentials: 'same-origin',
+        });
+        if (! response.ok) {
+            return;
+        }
+
+        const payload = await response.json();
+        const data = payload?.data || {};
+        if (data.status === 'closed') {
+            cubit.emit({ lastThreadClosed: true });
+        }
+
+        (data.messages || []).forEach((message) => {
+            cubit.emit({ lastThreadMessage: message });
+        });
+    } catch (error) {
+        console.warn('aqdar.support_poll_failed', error);
+    }
+};
+
+const pollSupportIndex = async (cubit) => {
+    const body = document.querySelector('[data-support-rows]');
+    const url = body?.getAttribute('data-support-poll-index');
+    if (! body || ! url) {
+        return;
+    }
+
+    try {
+        const response = await fetch(url, {
+            headers: csrfHeaders(),
+            credentials: 'same-origin',
+        });
+        if (! response.ok) {
+            return;
+        }
+
+        const payload = await response.json();
+        (payload?.data || []).forEach((thread) => {
+            cubit.emit({
+                lastSupport: thread,
+                lastAction: 'message',
+            });
+        });
+    } catch (error) {
+        console.warn('aqdar.support_index_poll_failed', error);
+    }
+};
+
+const startSupportPolling = (cubit) => {
+    const hasThread = Boolean(document.querySelector('[data-support-poll]'));
+    const hasIndex = Boolean(document.querySelector('[data-support-poll-index]'));
+    if (! hasThread && ! hasIndex) {
+        return;
+    }
+
+    const tick = () => {
+        if (document.hidden) {
+            return;
+        }
+        if (hasThread) {
+            pollSupportThread(cubit);
+        }
+        if (hasIndex) {
+            pollSupportIndex(cubit);
+        }
+    };
+
+    tick();
+    window.setInterval(tick, 3000);
 };
 
 document.addEventListener('DOMContentLoaded', bootDashboardCubit);

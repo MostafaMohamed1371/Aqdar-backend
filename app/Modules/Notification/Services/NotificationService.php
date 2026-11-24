@@ -3,6 +3,7 @@
 namespace App\Modules\Notification\Services;
 
 use App\Core\Audit\AuditLogger;
+use App\Core\Broadcasting\SafeBroadcast;
 use App\Core\Enums\DeliveryStatus;
 use App\Core\Enums\NotificationCategory;
 use App\Core\Enums\NotificationChannel;
@@ -107,7 +108,7 @@ class NotificationService
         $this->queuePush($notification, $notifiable);
 
         if ($notifiable instanceof StaffUser) {
-            event(new StaffInboxReceived(
+            SafeBroadcast::dispatch(new StaffInboxReceived(
                 $notifiable,
                 $notification,
                 $this->unreadCount($notifiable),

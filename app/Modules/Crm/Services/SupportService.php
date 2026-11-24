@@ -3,6 +3,7 @@
 namespace App\Modules\Crm\Services;
 
 use App\Core\Audit\AuditLogger;
+use App\Core\Broadcasting\SafeBroadcast;
 use App\Core\Enums\Permission;
 use App\Core\Enums\PublicCodePrefix;
 use App\Core\Enums\StaffRole;
@@ -107,8 +108,8 @@ class SupportService
             );
         }
 
-        event(new SupportMessageSent($thread, $message));
-        event(new SupportDeskUpdated($thread, $message, 'message'));
+        SafeBroadcast::dispatch(new SupportMessageSent($thread, $message));
+        SafeBroadcast::dispatch(new SupportDeskUpdated($thread, $message, 'message'));
 
         return $thread->load('messages');
     }
@@ -156,8 +157,8 @@ class SupportService
             ], 'support_reply:'.$message->id);
         }
 
-        event(new SupportMessageSent($thread, $message));
-        event(new SupportDeskUpdated($thread, $message, 'message'));
+        SafeBroadcast::dispatch(new SupportMessageSent($thread, $message));
+        SafeBroadcast::dispatch(new SupportDeskUpdated($thread, $message, 'message'));
 
         return $thread->load('messages');
     }
@@ -177,8 +178,8 @@ class SupportService
             ], 'support_closed:'.$thread->id);
         }
 
-        event(new SupportThreadClosed($thread));
-        event(new SupportDeskUpdated($thread, null, 'closed'));
+        SafeBroadcast::dispatch(new SupportThreadClosed($thread));
+        SafeBroadcast::dispatch(new SupportDeskUpdated($thread, null, 'closed'));
 
         return $thread;
     }

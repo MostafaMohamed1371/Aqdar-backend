@@ -175,7 +175,9 @@ Route::middleware(['staff.ip', 'auth'])->prefix('dashboard')->name('dashboard.')
             ->name('cases.documents.extraction');
 
         Route::get('support', [SupportDeskController::class, 'index'])->name('support.index');
+        Route::get('support/poll', [SupportDeskController::class, 'pollIndex'])->name('support.poll-index');
         Route::get('support/{supportThread}', [SupportDeskController::class, 'show'])->whereNumber('supportThread')->name('support.show');
+        Route::get('support/{supportThread}/poll', [SupportDeskController::class, 'poll'])->whereNumber('supportThread')->name('support.poll');
         Route::post('support/{supportThread}/reply', [SupportDeskController::class, 'reply'])->whereNumber('supportThread')->name('support.reply');
         Route::post('support/{supportThread}/close', [SupportDeskController::class, 'close'])->whereNumber('supportThread')->name('support.close');
     });

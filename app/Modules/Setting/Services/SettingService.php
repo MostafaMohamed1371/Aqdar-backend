@@ -9,6 +9,7 @@ use App\Modules\Setting\Repositories\SettingRepository;
 use App\Modules\Staff\Models\StaffUser;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
+use Pusher\Pusher;
 
 class SettingService extends AbstractService
 {
@@ -65,7 +66,8 @@ class SettingService extends AbstractService
             ],
             'pusher' => [
                 'enabled' => (string) config('broadcasting.default') === 'pusher'
-                    && (string) config('broadcasting.connections.pusher.key') !== '',
+                    && (string) config('broadcasting.connections.pusher.key') !== ''
+                    && class_exists(Pusher::class),
                 'key' => (string) config('broadcasting.connections.pusher.key', ''),
                 'cluster' => (string) config('broadcasting.connections.pusher.options.cluster', ''),
                 'auth_endpoint' => '/api/v1/broadcasting/auth',

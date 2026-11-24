@@ -29,7 +29,7 @@
                     <th></th>
                 </tr>
             </thead>
-            <tbody data-support-rows>
+            <tbody data-support-rows data-support-poll-index="{{ route('dashboard.support.poll-index', ['status' => $status === 'all' ? 'open' : $status]) }}">
                 @forelse ($threads as $thread)
                     <tr data-thread-id="{{ $thread->id }}">
                         <td class="en"><b>{{ $thread->public_code }}</b></td>

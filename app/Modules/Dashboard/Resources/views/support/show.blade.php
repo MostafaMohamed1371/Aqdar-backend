@@ -22,6 +22,7 @@
         data-support-thread="{{ $thread->id }}"
         data-user-id="{{ $thread->user_id }}"
         data-label-sales="{{ __('aqdar.support.sales') }}"
+        data-support-poll="{{ route('dashboard.support.poll', $thread) }}"
     >
         <div class="card">
             <div class="card-h"><b>{{ __('aqdar.support.thread') }}</b></div>

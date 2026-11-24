@@ -5,6 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <meta name="color-scheme" content="light dark">
+    <meta name="broadcast-driver" content="{{ config('broadcasting.default') }}">
+    <meta name="pusher-key" content="{{ config('broadcasting.connections.pusher.key') }}">
+    <meta name="pusher-cluster" content="{{ config('broadcasting.connections.pusher.options.cluster', 'eu') }}">
     <title>@yield('title', __('structer.dashboard')) — {{ config('app.name') }}</title>
     @include('dashboard::partials.favicon')
     @include('dashboard::partials.theme-script')
