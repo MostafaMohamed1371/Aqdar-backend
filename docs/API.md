@@ -275,11 +275,15 @@ Bearer required. **200** user resource.
 
 Bearer + not suspended. Name, `is_seller`, `is_buyer`, `account_type`, `locale`. A first email may be set when the account has none (stored unverified). Sending a different email when one is already set returns **422** on `email` (`aqdar.auth.email_locked`); resending the same address is accepted. Phone, password, identity status and consent timestamps are ignored.
 
+Name must be at least 3 characters and must not be an OTP seed / placeholder (`مستخدم 1234`, `مستخدم`, `User 12`, …). Rejected names return **422** on `name`.
+
 ```json
 { "name": "Jane Doe", "is_seller": true, "account_type": "individual", "locale": "ar", "email": "jane@example.com" }
 ```
 
 `account_type`: `individual` | `developer` | `broker`
+
+OTP signup seeds `name` as `مستخدم {last4}`. User resource includes `profile_completed` (`false` while the name is still a placeholder/short). Optional server gate: set `AQDAR_REQUIRE_PROFILE=true` so listing/CRM writes return **422** with `code: profile_incomplete` until a real name is saved.
 
 ### POST `/devices`
 
@@ -354,6 +358,8 @@ Public. **404** if missing.
   "is_seller": false,
   "identity_status": "unverified",
   "locale": "ar",
+  "region": { "code": "EG", "name": "Egypt" },
+  "profile_completed": true,
   "consent_privacy_at": "2026-10-28T12:00:00.000000Z",
   "consent_terms_at": "2026-10-28T12:00:00.000000Z",
   "consent_version": "1",
@@ -679,7 +685,7 @@ In-app inbox is the source of truth (F10). Push is best-effort via a queued job.
 - `GET /notifications` — paginated inbox + `meta.unread_count`. Each row has `event`, `category`, `title`, `body`, `context` (safe keys only: listing code, area, client label — never a name or phone), `read_at`. `?category=` listing\|inquiry\|case\|system\|marketing\|smart. `?unread=1`. APP-14 `smart` is empty while `feature_smart_notifications` is off.
 - `POST /notifications/{id}/read`
 - `POST /notifications/read-all`
-- `GET|PATCH /me/notification-preferences` (alias `GET|PATCH /me/preferences`) — `push_enabled`, `email_enabled`, `sms_enabled`, `marketing_opt_in`. In-app cannot be turned off.
+- `GET|PATCH /me/notification-preferences` (alias `GET|PATCH /me/preferences`) — `locale`, `push_enabled`, `email_enabled`, `sms_enabled`, `marketing_opt_in`. In-app cannot be turned off. `locale` updates the user row (same values as `PATCH /me`).
 
 UAT-14: listing publish writes an inbox row and a push delivery. UAT-18: `push_enabled=false` still returns the in-app row. Duplicate events reuse `idempotency_key`. Expired device tokens are cleared. Quiet hours and default copy live in settings/templates (DEC-09).
 

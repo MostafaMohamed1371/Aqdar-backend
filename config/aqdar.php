@@ -29,6 +29,11 @@ return [
         'privacy_url' => env('AQDAR_PRIVACY_URL', ''),
     ],
 
+    'auth' => [
+        // When true, marketplace write APIs return 422 profile_incomplete until a real name is set.
+        'require_profile' => (bool) env('AQDAR_REQUIRE_PROFILE', false),
+    ],
+
     'locales' => ['ar', 'en'],
 
     'region' => [

@@ -266,6 +266,75 @@ class OtpAuthTest extends TestCase
             ->assertJsonValidationErrors('email');
     }
 
+    public function test_otp_verify_seeds_placeholder_name_and_profile_incomplete(): void
+    {
+        $this->postJson('/api/v1/auth/otp/send', $this->otpSendBody('01099887766'))->assertOk();
+
+        $this->postJson('/api/v1/auth/otp/verify', [
+            'phone' => '01099887766',
+            'code' => '1234',
+            'consent' => true,
+        ])->assertOk()
+            ->assertJsonPath('data.user.name', 'مستخدم 7766')
+            ->assertJsonPath('data.user.profile_completed', false)
+            ->assertJsonPath('data.user.region.code', 'EG')
+            ->assertJsonPath('data.user.is_buyer', true)
+            ->assertJsonPath('data.user.is_seller', false)
+            ->assertJsonPath('data.user.account_type', 'individual');
+    }
+
+    public function test_me_rejects_placeholder_and_short_names(): void
+    {
+        $user = User::factory()->create(['name' => 'مستخدم 1234']);
+        Sanctum::actingAs($user);
+
+        $this->getJson('/api/v1/me')
+            ->assertOk()
+            ->assertJsonPath('data.profile_completed', false)
+            ->assertJsonPath('data.region.code', 'EG');
+
+        $this->patchJson('/api/v1/me', ['name' => 'مستخدم 9999'])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('name');
+
+        $this->patchJson('/api/v1/me', ['name' => 'مستخدم'])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('name');
+
+        $this->patchJson('/api/v1/me', ['name' => 'أب'])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('name');
+
+        $this->patchJson('/api/v1/me', [
+            'name' => 'أحمد محمود',
+            'is_seller' => true,
+            'is_buyer' => true,
+            'account_type' => 'broker',
+            'locale' => 'en',
+        ])->assertOk()
+            ->assertJsonPath('data.name', 'أحمد محمود')
+            ->assertJsonPath('data.profile_completed', true)
+            ->assertJsonPath('data.is_seller', true)
+            ->assertJsonPath('data.account_type', 'broker')
+            ->assertJsonPath('data.locale', 'en');
+    }
+
+    public function test_require_profile_blocks_listing_writes_until_name_is_set(): void
+    {
+        config(['aqdar.auth.require_profile' => true]);
+
+        $user = User::factory()->create(['name' => 'مستخدم 4321']);
+        Sanctum::actingAs($user);
+
+        $this->postJson('/api/v1/my/listings')
+            ->assertUnprocessable()
+            ->assertJsonPath('code', 'profile_incomplete');
+
+        $this->patchJson('/api/v1/me', ['name' => 'سارة علي'])->assertOk();
+
+        $this->postJson('/api/v1/my/listings')->assertCreated();
+    }
+
     public function test_sms_gateway_failure_returns_503(): void
     {
         $gateway = new class implements SmsGateway

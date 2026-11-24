@@ -2,6 +2,7 @@
 
 use App\Core\Http\ApiErrorResponse;
 use App\Core\Http\Middleware\EnsureMarketplaceOpen;
+use App\Core\Http\Middleware\EnsureProfileComplete;
 use App\Core\Http\Middleware\EnsureStaffActive;
 use App\Core\Http\Middleware\EnsureStaffIpAllowed;
 use App\Core\Http\Middleware\EnsureStaffPermission;
@@ -57,6 +58,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'staff.ip' => EnsureStaffIpAllowed::class,
             'marketplace.active' => EnsureUserNotSuspended::class,
             'marketplace.open' => EnsureMarketplaceOpen::class,
+            'profile.complete' => EnsureProfileComplete::class,
             'optional.sanctum' => OptionalSanctumAuth::class,
         ]);
     })

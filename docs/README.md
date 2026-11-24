@@ -16,6 +16,7 @@ After **every** finished phase, follow [DOCUMENTATION_PROCESS.md](DOCUMENTATION_
 | **Send pack to Flutter / mobile** | [MOBILE_DEVELOPER.md](MOBILE_DEVELOPER.md) |
 | Call or extend the REST API | [API.md](API.md) + [Postman](../postman/README.md) |
 | Use the Blade admin | [DASHBOARD.md](DASHBOARD.md) |
+| Staff workflows step-by-step (+ in-app PDF) | [DASHBOARD_WORKFLOWS.md](DASHBOARD_WORKFLOWS.md) · `/dashboard/guide` |
 | See phase plan | [AQDAR_BACKEND_PHASES.md](AQDAR_BACKEND_PHASES.md) |
 | See admin screens by mockup | [DASHBOARD_PHASES.md](DASHBOARD_PHASES.md) |
 | Run tests | [TESTING_PHASES.md](TESTING_PHASES.md) |

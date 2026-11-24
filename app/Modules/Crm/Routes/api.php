@@ -8,7 +8,7 @@ use App\Modules\Crm\Http\Controllers\SupportController;
 use App\Modules\Crm\Http\Controllers\TransferCaseController;
 use Illuminate\Support\Facades\Route;
 
-Route::middleware(['auth:sanctum', 'marketplace.active', 'throttle:api'])->group(function (): void {
+Route::middleware(['auth:sanctum', 'marketplace.active', 'profile.complete', 'throttle:api'])->group(function (): void {
     Route::post('inquiries', [InquiryController::class, 'store']);
     Route::get('my/inquiries', [InquiryController::class, 'index']);
     Route::get('my/inquiries/{inquiry}', [InquiryController::class, 'show'])->whereNumber('inquiry');

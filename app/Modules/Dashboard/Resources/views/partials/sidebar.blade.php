@@ -2,6 +2,7 @@
     $menu = [
         'home' => [
             ['id' => 'ADM-01', 'icon' => 'home', 'key' => 'aqdar.menu.adm_01', 'route' => 'dashboard', 'active' => request()->routeIs('dashboard') && ! request()->routeIs('dashboard.*')],
+            ['id' => 'GUIDE', 'icon' => 'doc', 'key' => 'aqdar.menu.guide', 'route' => 'dashboard.guide', 'active' => request()->routeIs('dashboard.guide') || request()->routeIs('dashboard.guide.*')],
         ],
         'operations' => [
             ['id' => 'ADM-02', 'icon' => 'building', 'key' => 'aqdar.menu.adm_02', 'route' => 'dashboard.listings.index', 'active' => request()->routeIs('dashboard.listings.*'), 'can' => 'approve_listing'],

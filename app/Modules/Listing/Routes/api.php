@@ -18,7 +18,7 @@ Route::middleware(['optional.sanctum', 'throttle:search'])->group(function (): v
     Route::get('listings/{listing}/media', [PublicListingController::class, 'media'])->whereNumber('listing');
 });
 
-Route::middleware(['auth:sanctum', 'marketplace.active', 'throttle:api'])->group(function (): void {
+Route::middleware(['auth:sanctum', 'marketplace.active', 'profile.complete', 'throttle:api'])->group(function (): void {
     Route::get('my/listings', [SellerListingController::class, 'index']);
     Route::post('my/listings', [SellerListingController::class, 'store']);
     Route::get('my/listings/{listing}', [SellerListingController::class, 'show'])->whereNumber('listing');

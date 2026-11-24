@@ -18,6 +18,7 @@ class UpdateNotificationPreferenceRequest extends BaseFormRequest
             'email_enabled' => ['sometimes', 'boolean'],
             'sms_enabled' => ['sometimes', 'boolean'],
             'marketing_opt_in' => ['sometimes', 'boolean'],
+            'locale' => ['sometimes', 'in:'.implode(',', config('aqdar.locales', ['ar', 'en']))],
         ];
     }
 }

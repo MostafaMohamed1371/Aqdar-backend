@@ -17,6 +17,7 @@ use App\Modules\Staff\Models\StaffUser;
 use App\Modules\User\Models\User;
 use App\Modules\User\Models\UserDevice;
 use App\Modules\User\Repositories\UserRepository;
+use App\Modules\User\Support\ProfileName;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -125,7 +126,7 @@ class UserService extends AbstractService
         }
 
         return $this->register(array_merge([
-            'name' => 'مستخدم '.substr($phone, -4),
+            'name' => ProfileName::seedForPhone($phone),
             'phone' => $phone,
             'phone_verified_at' => now(),
             'is_buyer' => true,

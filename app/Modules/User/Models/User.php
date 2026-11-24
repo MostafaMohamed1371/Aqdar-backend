@@ -11,6 +11,7 @@ use App\Modules\Listing\Models\SavedSearch;
 use App\Modules\Notification\Models\NotificationPreference;
 use App\Modules\Staff\Models\StaffUser;
 use App\Modules\User\Database\Factories\UserFactory;
+use App\Modules\User\Support\ProfileName;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -97,6 +98,16 @@ class User extends Authenticatable
     public function isMarketplaceBlocked(): bool
     {
         return $this->isSuspended() || $this->isClosePending() || $this->isClosed();
+    }
+
+    public function hasPlaceholderName(): bool
+    {
+        return ProfileName::isPlaceholder($this->name);
+    }
+
+    public function isProfileComplete(): bool
+    {
+        return ProfileName::isAcceptable($this->name);
     }
 
     public function activityLabel(): string

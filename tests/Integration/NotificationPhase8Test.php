@@ -255,7 +255,15 @@ class NotificationPhase8Test extends TestCase
             ->assertOk()
             ->assertJsonPath('data.push_enabled', true)
             ->assertJsonPath('data.marketing_opt_in', false)
-            ->assertJsonPath('data.in_app_always_on', true);
+            ->assertJsonPath('data.in_app_always_on', true)
+            ->assertJsonPath('data.locale', $user->locale);
+
+        $this->patchJson('/api/v1/me/preferences', ['locale' => 'en', 'push_enabled' => false])
+            ->assertOk()
+            ->assertJsonPath('data.locale', 'en')
+            ->assertJsonPath('data.push_enabled', false);
+
+        $this->assertSame('en', $user->fresh()->locale);
     }
 
     public function test_quiet_hours_skip_push(): void

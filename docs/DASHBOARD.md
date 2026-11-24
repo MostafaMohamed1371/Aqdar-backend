@@ -9,6 +9,8 @@ When a phase ships a screen, append it here. Process: [DOCUMENTATION_PROCESS.md]
 **Local login:** http://127.0.0.1:8000/dashboard  
 **Seeded staff:** `test@example.com` / `password`
 
+**Staff guide (all screens + workflows):** `/dashboard/guide` (any signed-in staff) · PDF `/dashboard/guide/pdf` · narrative: [DASHBOARD_WORKFLOWS.md](DASHBOARD_WORKFLOWS.md)
+
 ---
 
 ## Phase 1 screens
