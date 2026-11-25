@@ -1106,6 +1106,37 @@ html[data-theme="dark"] .support-composer {
     }
 }
 
+/* ADM-11 content banner thumbnails */
+.content-thumb {
+    display: inline-flex;
+    width: 72px;
+    height: 48px;
+    border-radius: 10px;
+    overflow: hidden;
+    border: 1px solid var(--line);
+    background: var(--cream-2);
+    align-items: center;
+    justify-content: center;
+    color: var(--muted);
+}
+
+.content-thumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.content-thumb--empty {
+    opacity: 0.7;
+}
+
+html.dark .content-thumb,
+html[data-theme="dark"] .content-thumb {
+    background: rgba(14, 23, 34, 0.9);
+    border-color: rgba(155, 173, 192, 0.22);
+}
+
 /* Staff desk guide (/dashboard/guide) — brand accents stay fixed in dark mode */
 .guide-ptitle {
     align-items: flex-start;

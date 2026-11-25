@@ -26,4 +26,31 @@ class PublicMediaUrlTest extends TestCase
         $this->assertNull(PublicMediaUrl::for(null));
         $this->assertNull(PublicMediaUrl::for(''));
     }
+
+    #[Test]
+    public function it_prefers_configured_public_media_base_url(): void
+    {
+        config(['aqdar.public_media_base_url' => 'https://cdn.example.com/storage/media']);
+        $this->app->instance('request', Request::create('http://127.0.0.1:8000/api/v1/content/banners', 'GET'));
+
+        $this->assertSame(
+            'https://cdn.example.com/storage/media/banners/hero.jpg',
+            PublicMediaUrl::for('banners/hero.jpg'),
+        );
+    }
+
+    #[Test]
+    public function it_falls_back_from_loopback_to_app_url_when_app_url_is_public(): void
+    {
+        config([
+            'aqdar.public_media_base_url' => null,
+            'app.url' => 'https://aqdar.example.com',
+        ]);
+        $this->app->instance('request', Request::create('http://127.0.0.1:8000/api/v1/content/banners', 'GET'));
+
+        $this->assertSame(
+            'https://aqdar.example.com/storage/media/banners/hero.jpg',
+            PublicMediaUrl::for('banners/hero.jpg'),
+        );
+    }
 }

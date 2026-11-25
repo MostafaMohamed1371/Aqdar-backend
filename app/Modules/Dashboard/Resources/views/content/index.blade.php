@@ -138,13 +138,13 @@
 
     @if (auth()->user()?->can('manage_catalog') && (in_array($tab, ['banners', 'faqs', 'support', 'onboarding', 'seller_guide'], true) || $tab === 'templates'))
         @if ($tab !== 'templates' && $tab !== 'push')
-            <form id="add-content" method="POST" action="{{ route('dashboard.content.store') }}" class="tw" style="padding:16px;margin-bottom:16px" enctype="multipart/form-data">
+            <form id="add-content" method="POST" action="{{ route('dashboard.content.store', ['tab' => $tab]) }}" class="tw" style="padding:16px;margin-bottom:16px" enctype="multipart/form-data">
                 @csrf
                 <div class="toolbar" style="flex-wrap:wrap">
                     <select name="type" required>
                         <option value="banner" @selected($tab === 'banners')>{{ __('aqdar.catalog.banners') }}</option>
                         <option value="faq" @selected($tab === 'faqs')>{{ __('aqdar.catalog.faqs') }}</option>
-                        <option value="support">{{ __('aqdar.catalog.support') }}</option>
+                        <option value="support" @selected($tab === 'support')>{{ __('aqdar.catalog.support') }}</option>
                         <option value="onboarding" @selected($tab === 'onboarding')>{{ __('aqdar.catalog.onboarding') }}</option>
                         <option value="seller_guide" @selected($tab === 'seller_guide')>{{ __('aqdar.catalog.seller_guide') }}</option>
                     </select>
@@ -153,8 +153,13 @@
                     <input class="en" name="title_en" placeholder="{{ __('aqdar.catalog.title_en') }}">
                     <input class="en" name="link_url" placeholder="{{ __('aqdar.catalog.link_url') }}">
                     <input type="number" name="sort_order" min="0" value="0" style="width:6rem" title="{{ __('aqdar.catalog.sort_order') }}">
-                    <input type="file" name="image" accept="image/jpeg,image/png,image/webp">
+                    @if (in_array($tab, ['banners', 'onboarding'], true))
+                        <input type="file" name="image" accept="image/jpeg,image/png,image/webp">
+                    @endif
                 </div>
+                @if (in_array($tab, ['banners', 'onboarding'], true))
+                    <p class="tiny" style="margin:0 0 8px">{{ __('aqdar.catalog.image_hint') }}</p>
+                @endif
                 <textarea name="body_ar" rows="3" placeholder="{{ __('aqdar.catalog.body_ar') }}" style="width:100%;margin:8px 0"></textarea>
                 <textarea name="body_en" rows="3" placeholder="{{ __('aqdar.catalog.body_en') }}" class="en" style="width:100%;margin:8px 0"></textarea>
                 <button class="btn" type="submit">{{ __('structer.save') }}</button>
@@ -165,23 +170,42 @@
                         <h3>{{ __('aqdar.catalog.'.$label) }}</h3>
                         <table class="t">
                             @forelse ($blocks as $block)
+                                @php
+                                    $imageUrl = in_array($label, ['banners', 'onboarding'], true)
+                                        ? \App\Core\Support\PublicMediaUrl::for($block->image_path)
+                                        : null;
+                                @endphp
                                 <tr>
+                                    <td>
+                                        @if ($imageUrl)
+                                            <a href="{{ $imageUrl }}" target="_blank" rel="noopener" class="content-thumb" title="{{ __('aqdar.catalog.open_image') }}">
+                                                <img src="{{ $imageUrl }}" alt="" loading="lazy">
+                                            </a>
+                                        @elseif (in_array($label, ['banners', 'onboarding'], true))
+                                            <span class="content-thumb content-thumb--empty" title="{{ __('aqdar.catalog.no_image') }}">@include('dashboard::partials.icon', ['name' => 'doc'])</span>
+                                        @endif
+                                    </td>
                                     <td>
                                         <b>{{ app()->getLocale() === 'en' ? $block->title_en : $block->title_ar }}</b>
                                         <div class="tiny en">{{ $block->key }}</div>
+                                        @if ($imageUrl)
+                                            <div class="tiny en" style="max-width:28rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ $imageUrl }}</div>
+                                        @endif
                                     </td>
                                     <td class="en">{{ $block->sort_order }}</td>
                                     <td>
                                         <details>
                                             <summary class="icon-btn" title="{{ __('structer.edit') }}" style="list-style:none;cursor:pointer">@include('dashboard::partials.icon', ['name' => 'edit'])</summary>
-                                            <form method="POST" action="{{ route('dashboard.content.update', $block) }}" enctype="multipart/form-data" style="margin-top:6px">
+                                            <form method="POST" action="{{ route('dashboard.content.update', ['contentBlock' => $block, 'tab' => $label]) }}" enctype="multipart/form-data" style="margin-top:6px">
                                                 @csrf @method('PUT')
+                                                <input type="hidden" name="type" value="{{ $block->type?->value }}">
                                                 <input name="title_ar" value="{{ $block->title_ar }}">
                                                 <input class="en" name="title_en" value="{{ $block->title_en }}">
                                                 <input class="en" name="link_url" value="{{ $block->link_url }}" placeholder="{{ __('aqdar.catalog.link_url') }}">
                                                 <input type="number" name="sort_order" min="0" value="{{ $block->sort_order }}" style="width:6rem">
                                                 @if (in_array($label, ['banners', 'onboarding'], true))
                                                     <input type="file" name="image" accept="image/jpeg,image/png,image/webp">
+                                                    <p class="tiny">{{ __('aqdar.catalog.image_hint') }}</p>
                                                 @endif
                                                 <textarea name="body_ar" rows="2" style="width:100%;margin:8px 0">{{ $block->body_ar }}</textarea>
                                                 <textarea name="body_en" rows="2" class="en" style="width:100%;margin:8px 0">{{ $block->body_en }}</textarea>
@@ -191,13 +215,13 @@
                                     </td>
                                     <td>
                                         @include('dashboard::partials.catalog-toggle', [
-                                            'action' => route('dashboard.content.update', $block),
+                                            'action' => route('dashboard.content.update', ['contentBlock' => $block, 'tab' => $label]),
                                             'active' => $block->is_active,
                                         ])
                                     </td>
                                 </tr>
                             @empty
-                                <tr><td colspan="4" class="empty-note">{{ __('aqdar.catalog.empty') }}</td></tr>
+                                <tr><td colspan="5" class="empty-note">{{ __('aqdar.catalog.empty') }}</td></tr>
                             @endforelse
                         </table>
                     </div>

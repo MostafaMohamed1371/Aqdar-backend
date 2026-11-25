@@ -4,6 +4,14 @@ return [
 
     'currency' => 'EGP',
 
+    /*
+    | Absolute base for public media URLs (banners, listing photos, logos).
+    | Example: https://aqdar.example.com/storage/media
+    | When empty, URLs use the current request host, then APP_URL.
+    | Set this when the phone cannot open localhost / an internal host.
+    */
+    'public_media_base_url' => env('AQDAR_PUBLIC_MEDIA_URL'),
+
     'otp' => [
         'length' => 4,
         'ttl_seconds' => (int) env('AQDAR_OTP_TTL', 300),

@@ -43,12 +43,15 @@ class ContentController extends BaseController
 
     public function store(SaveCatalogRecordRequest $request): RedirectResponse
     {
+        $payload = $request->safe()->except(['image']);
+        $payload['is_active'] = $payload['is_active'] ?? true;
+
         $this->masterData->createContent(
-            $request->safe()->except(['image']),
+            $payload,
             $request->file('image'),
         );
 
-        return redirect()->route('dashboard.content.index')->with('status', __('aqdar.catalog.saved'));
+        return $this->redirectToContentTab($request)->with('status', __('aqdar.catalog.saved'));
     }
 
     public function update(SaveCatalogRecordRequest $request, ContentBlock $contentBlock): RedirectResponse
@@ -59,13 +62,38 @@ class ContentController extends BaseController
             $request->file('image'),
         );
 
-        return redirect()->route('dashboard.content.index')->with('status', __('aqdar.catalog.saved'));
+        return $this->redirectToContentTab($request, $contentBlock)->with('status', __('aqdar.catalog.saved'));
     }
 
     public function destroy(ContentBlock $contentBlock): RedirectResponse
     {
         $this->masterData->deleteContent($contentBlock);
 
-        return redirect()->route('dashboard.content.index')->with('status', __('aqdar.catalog.deactivated'));
+        return redirect()
+            ->route('dashboard.content.index', ['tab' => $this->tabForType($contentBlock->type?->value)])
+            ->with('status', __('aqdar.catalog.deactivated'));
+    }
+
+    private function redirectToContentTab(Request $request, ?ContentBlock $block = null): RedirectResponse
+    {
+        $type = $request->input('type') ?? $block?->type?->value;
+        $tab = $request->query('tab');
+
+        if (! is_string($tab) || $tab === '') {
+            $tab = $this->tabForType(is_string($type) ? $type : null);
+        }
+
+        return redirect()->route('dashboard.content.index', ['tab' => $tab]);
+    }
+
+    private function tabForType(?string $type): string
+    {
+        return match ($type) {
+            'faq' => 'faqs',
+            'support' => 'support',
+            'onboarding' => 'onboarding',
+            'seller_guide' => 'seller_guide',
+            default => 'banners',
+        };
     }
 }

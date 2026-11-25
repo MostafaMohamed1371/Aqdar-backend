@@ -339,7 +339,7 @@ class DashboardCatalogCrudTest extends TestCase
         Storage::fake('public_media');
         $this->actingAsStaff();
 
-        $this->post(route('dashboard.content.store'), [
+        $this->post(route('dashboard.content.store', ['tab' => 'banners']), [
             'type' => ContentBlockType::Banner->value,
             'key' => 'home-hero-test',
             'title_ar' => 'بنر اختبار',
@@ -347,14 +347,19 @@ class DashboardCatalogCrudTest extends TestCase
             'link_url' => 'https://example.com/promo',
             'sort_order' => 3,
             'image' => UploadedFile::fake()->image('hero.jpg', 800, 400),
-        ])->assertRedirect(route('dashboard.content.index'));
+        ])->assertRedirect(route('dashboard.content.index', ['tab' => 'banners']));
 
         $block = ContentBlock::query()->where('key', 'home-hero-test')->firstOrFail();
         $this->assertNotNull($block->image_path);
+        $this->assertTrue($block->is_active);
         Storage::disk('public_media')->assertExists($block->image_path);
 
         $this->assertSame('https://example.com/promo', $block->link_url);
         $this->assertSame(3, $block->sort_order);
+
+        $this->get(route('dashboard.content.index', ['tab' => 'banners']))
+            ->assertOk()
+            ->assertSee(PublicMediaUrl::for($block->image_path), false);
 
         $this->getJson('/api/v1/content/banners')
             ->assertOk()
