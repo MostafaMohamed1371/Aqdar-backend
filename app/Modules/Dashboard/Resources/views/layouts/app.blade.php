@@ -22,9 +22,18 @@
     data-staff-id="{{ auth()->id() }}"
     data-can-crm="{{ auth()->user()?->can('manage_crm') ? '1' : '0' }}"
     data-unread="{{ $inboxUnread }}"
+    data-desk-live="{{ route('dashboard.live') }}"
     data-label-unread="{{ __('aqdar.notifications.unread') }}"
     data-label-view="{{ __('aqdar.listings.desk.view') }}"
+    data-toast-waiting="{{ __('aqdar.live_toast.waiting') }}"
+    data-toast-open="{{ __('aqdar.live_toast.open') }}"
+    data-toast-listing="{{ __('aqdar.live_toast.listing_submitted') }}"
+    data-toast-media="{{ __('aqdar.live_toast.media_uploaded') }}"
+    data-toast-lead="{{ __('aqdar.live_toast.lead_created') }}"
+    data-toast-request="{{ __('aqdar.live_toast.request_created') }}"
+    data-toast-case="{{ __('aqdar.live_toast.case_opened') }}"
 >
+    <div class="desk-toast-stack" data-desk-toasts aria-live="polite"></div>
     <div class="desk {{ app()->getLocale() === 'ar' ? 'is-rtl' : 'is-ltr' }}">
         @include('dashboard::partials.sidebar')
         <div class="dmain">

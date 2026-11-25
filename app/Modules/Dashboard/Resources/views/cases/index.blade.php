@@ -86,7 +86,7 @@
     </form>
 
     <div class="tw">
-        <table class="t">
+        <table class="t" data-live-table="cases">
             <tr>
                 @include('dashboard::partials.sort-th', ['key' => 'code', 'label' => __('aqdar.crm.code')])
                 <th>{{ __('aqdar.crm.listing') }}</th>
@@ -113,7 +113,7 @@
                     <td class="en">{{ $item->last_transition_at?->format('Y/m/d') ?? $item->updated_at?->format('Y/m/d') }}</td>
                 </tr>
             @empty
-                    <tr><td colspan="10">{{ __('aqdar.cases.empty') }}</td></tr>
+                    <tr data-live-empty="cases"><td colspan="10">{{ __('aqdar.cases.empty') }}</td></tr>
             @endforelse
         </table>
     </div>

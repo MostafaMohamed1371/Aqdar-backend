@@ -15,6 +15,7 @@ use App\Modules\Crm\Models\BuyerRequestHistory;
 use App\Modules\Crm\Models\Lead;
 use App\Modules\Crm\Models\RequestMatch;
 use App\Modules\Crm\Models\TransferCase;
+use App\Modules\Dashboard\Support\DeskLiveRow;
 use App\Modules\Dashboard\Support\DeskRealtime;
 use App\Modules\Listing\Models\Listing;
 use App\Modules\Listing\Services\ContactLeakScanner;
@@ -104,9 +105,11 @@ class BuyerRequestService
             false,
             'staff_new_buyer_request:'.$request->id,
         );
+        $request->loadMissing(['buyer']);
         DeskRealtime::push('requests', 'created', (int) $request->id, meta: [
             'public_code' => $request->public_code,
             'status' => $request->status?->value,
+            'row' => DeskLiveRow::request($request),
         ]);
 
         return $request->fresh(['matches' => fn ($query) => $query->whereNotNull('sent_at')->with(['listing.media', 'listing.financials']), 'lead', 'assignee']) ?? $request;

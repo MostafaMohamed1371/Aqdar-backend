@@ -10,6 +10,7 @@ use App\Core\Console\Commands\JmeterPrepareCommand;
 use App\Core\Console\Commands\MakeModuleCommand;
 use App\Core\Console\Commands\OpenApiCommand;
 use App\Core\Console\Commands\OpsHealthCommand;
+use App\Core\Console\Commands\ProcessApprovedMediaCommand;
 use App\Core\Console\Commands\PruneAuditCommand;
 use App\Core\Console\Commands\QaRunCommand;
 use App\Core\Console\Commands\ScalingCheckCommand;
@@ -56,6 +57,7 @@ class AppServiceProvider extends ServiceProvider
                 BackupCommand::class,
                 OpenApiCommand::class,
                 FcmStatusCommand::class,
+                ProcessApprovedMediaCommand::class,
             ]);
         }
     }

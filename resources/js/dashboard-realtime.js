@@ -49,7 +49,7 @@ const seenDeskEvents = new Set();
 
 const KPI_NEW_ACTIONS = {
     listings: ['submitted', 'resubmitted'],
-    documents: [],
+    documents: ['uploaded', 'pending'],
     leads: ['inquiry', 'created'],
     requests: ['created'],
     cases: ['opened'],
@@ -59,12 +59,61 @@ const KPI_NEW_ACTIONS = {
     inbox: [],
 };
 
+const isNewAction = (resource, action) => {
+    const key = String(action || '').replace(/^(listing|lead|request|case)\./, '');
+
+    return (KPI_NEW_ACTIONS[resource] || []).includes(action)
+        || (KPI_NEW_ACTIONS[resource] || []).includes(key);
+};
+
+const bumpSidebarBadges = (resource, action) => {
+    if (! isNewAction(resource, action)) {
+        return;
+    }
+
+    const map = {
+        listings: ['ADM-02'],
+        documents: ['ADM-03'],
+        leads: ['ADM-07'],
+        requests: ['ADM-08'],
+        cases: ['ADM-09'],
+    };
+
+    (map[resource] || []).forEach((screen) => {
+        document.querySelectorAll(`[data-live-badge="${screen}"]`).forEach((node) => {
+            const current = Number(String(node.textContent || '0').replace(/[^\d.-]/g, '')) || 0;
+            const next = current + 1;
+            node.textContent = String(next);
+            node.hidden = next < 1;
+            flash(node);
+        });
+    });
+};
+
+const applyBadges = (badges) => {
+    if (! badges || typeof badges !== 'object') {
+        return;
+    }
+
+    Object.entries(badges).forEach(([screen, count]) => {
+        const next = Number(count) || 0;
+        document.querySelectorAll(`[data-live-badge="${screen}"]`).forEach((node) => {
+            node.textContent = String(next);
+            node.hidden = next < 1;
+        });
+        document.querySelectorAll(`[data-live-kpi="${screen}"]`).forEach((node) => {
+            node.textContent = String(next);
+            flash(node);
+        });
+    });
+};
+
 const bumpKpis = (resource, action) => {
     const map = {
         listings: (action === 'listing.published' || action === 'published')
             ? ['total_listings', 'listings_approved']
             : ((action === 'submitted' || action === 'resubmitted') ? ['listings_in_review'] : []),
-        documents: [],
+        documents: (action === 'uploaded' || action === 'pending') ? ['media_pending'] : [],
         leads: KPI_NEW_ACTIONS.leads.includes(action) ? ['unassigned_leads', 'inquiries_in_range'] : [],
         requests: KPI_NEW_ACTIONS.requests.includes(action) ? ['custom_buy_requests', 'new_buyer_requests'] : [],
         cases: KPI_NEW_ACTIONS.cases.includes(action) ? ['active_transfers'] : [],
@@ -246,6 +295,122 @@ const fieldValue = (resource, action, meta, field) => {
     return meta[field] || meta.label || '';
 };
 
+const findLiveTable = (resource) => document.querySelector(`[data-live-table="${resource}"]`);
+
+const maxLiveId = (resource) => {
+    let max = 0;
+    document.querySelectorAll(`[data-live-row="${resource}"][data-live-id]`).forEach((node) => {
+        max = Math.max(max, Number(node.getAttribute('data-live-id') || 0));
+    });
+
+    return max;
+};
+
+const buildLiveRow = (resource, row) => {
+    if (! row?.id) {
+        return null;
+    }
+
+    const tr = document.createElement('tr');
+    tr.setAttribute('data-live-row', resource);
+    tr.setAttribute('data-live-id', String(row.id));
+    tr.className = 'live-new-row';
+
+    const viewLabel = row.view_label || document.body.getAttribute('data-label-view') || 'View';
+    const statusTone = row.status_tone || 'warn';
+    const statusLabel = row.status_label || row.status || '';
+    const code = row.public_code || `#${row.id}`;
+    const title = row.title || code;
+
+    if (resource === 'listings') {
+        tr.innerHTML = `
+            <td></td>
+            <td>—</td>
+            <td><b></b><div class="tiny en"></div></td>
+            <td><span class="badge grey"></span></td>
+            <td></td>
+            <td></td>
+            <td class="en"></td>
+            <td>—</td>
+            <td><span class="badge ${statusTone}" data-live-field="status"></span></td>
+            <td><a class="btn ghost sm" href=""></a></td>
+        `;
+        tr.querySelector('b').textContent = title;
+        tr.querySelector('.tiny').textContent = code;
+        tr.children[3].querySelector('.badge').textContent = row.market || '';
+        tr.children[4].textContent = row.governorate || '—';
+        tr.children[5].textContent = row.developer || '—';
+        tr.children[6].textContent = row.created_at || '';
+        tr.querySelector('[data-live-field="status"]').textContent = statusLabel;
+        const link = tr.querySelector('a');
+        link.href = row.url || `/dashboard/listings/${row.id}`;
+        link.textContent = viewLabel;
+    } else {
+        tr.innerHTML = `
+            <td><b class="en"></b></td>
+            <td></td>
+            <td><span class="badge ${statusTone}" data-live-field="status"></span></td>
+            <td><a class="btn ghost sm" href=""></a></td>
+        `;
+        tr.querySelector('b').textContent = code;
+        tr.children[1].textContent = title;
+        tr.querySelector('[data-live-field="status"]').textContent = statusLabel;
+        if (row.stage) {
+            const stage = document.createElement('span');
+            stage.className = 'badge info';
+            stage.setAttribute('data-live-field', 'stage');
+            stage.textContent = row.stage_label || row.stage;
+            tr.children[2].append(' ', stage);
+        }
+        const link = tr.querySelector('a');
+        link.href = row.url || '#';
+        link.textContent = viewLabel;
+    }
+
+    return tr;
+};
+
+const upsertLiveRow = (resource, row, action) => {
+    const table = findLiveTable(resource);
+    if (! table || ! row?.id) {
+        return false;
+    }
+
+    const existing = table.querySelector(`[data-live-row="${resource}"][data-live-id="${row.id}"]`);
+    if (existing) {
+        if (row.status_label || row.status) {
+            patchLiveField(resource, row.id, 'status', row.status_label || row.status);
+        }
+        if (row.stage_label || row.stage) {
+            patchLiveField(resource, row.id, 'stage', row.stage_label || row.stage);
+        }
+        flash(existing);
+
+        return true;
+    }
+
+    if (! isNewAction(resource, action) && action !== 'poll') {
+        return false;
+    }
+
+    table.querySelector('[data-live-empty]')?.remove();
+    const tr = buildLiveRow(resource, row);
+    if (! tr) {
+        return false;
+    }
+
+    const body = table.tBodies?.[0] || table;
+    const header = body.querySelector('tr:not([data-live-row])');
+    if (header && header.nextSibling) {
+        body.insertBefore(tr, header.nextSibling);
+    } else {
+        body.prepend(tr);
+    }
+    flash(tr);
+
+    return true;
+};
+
 const patchDeskResource = (state) => {
     const resource = state.lastResource;
     const id = state.lastId;
@@ -263,11 +428,108 @@ const patchDeskResource = (state) => {
         return;
     }
 
+    if (meta.row && typeof meta.row === 'object') {
+        upsertLiveRow(resource, meta.row, state.lastAction || 'poll');
+    } else if (isNewAction(resource, state.lastAction)) {
+        upsertLiveRow(resource, {
+            id,
+            public_code: meta.public_code || `#${id}`,
+            title: meta.title || meta.public_code || `#${id}`,
+            status: meta.status || state.lastAction,
+            status_label: meta.label || meta.status || state.lastAction,
+            status_tone: 'warn',
+            stage: meta.stage,
+            url: meta.url || null,
+        }, state.lastAction);
+    }
+
     patchLiveField(resource, id, 'status', fieldValue(resource, state.lastAction, meta, 'status'));
     if (meta.stage) {
         patchLiveField(resource, id, 'stage', fieldValue(resource, state.lastAction, meta, 'stage'));
     }
-    bumpKpis(resource, state.lastAction);
+    if (state.lastAction !== 'poll') {
+        bumpKpis(resource, state.lastAction);
+        bumpSidebarBadges(resource, state.lastAction);
+        showWaitingToast(resource, state.lastAction, meta);
+    }
+};
+
+const toastTemplate = (resource, action) => {
+    if (resource === 'listings' && isNewAction(resource, action)) {
+        return document.body.getAttribute('data-toast-listing') || 'New listing awaiting review: :code';
+    }
+    if (resource === 'documents' && (action === 'uploaded' || action === 'pending')) {
+        return document.body.getAttribute('data-toast-media') || 'New public photo awaiting approval: :code';
+    }
+    if (resource === 'leads' && isNewAction(resource, action)) {
+        return document.body.getAttribute('data-toast-lead') || 'New lead waiting: :code';
+    }
+    if (resource === 'requests' && isNewAction(resource, action)) {
+        return document.body.getAttribute('data-toast-request') || 'New buyer request: :code';
+    }
+    if (resource === 'cases' && isNewAction(resource, action)) {
+        return document.body.getAttribute('data-toast-case') || 'New transfer case: :code';
+    }
+
+    return null;
+};
+
+const toastUrl = (resource, meta) => {
+    if (meta?.row?.url) {
+        return meta.row.url;
+    }
+    if (resource === 'listings' && meta?.listing_id) {
+        return `/dashboard/listings/${meta.listing_id}`;
+    }
+    if (resource === 'documents' && meta?.listing_id) {
+        return `/dashboard/listings/${meta.listing_id}`;
+    }
+    if (resource === 'listings') {
+        return '/dashboard/listings?status=in_review';
+    }
+    if (resource === 'leads') {
+        return '/dashboard/leads';
+    }
+    if (resource === 'requests') {
+        return '/dashboard/requests';
+    }
+    if (resource === 'cases') {
+        return '/dashboard/cases';
+    }
+
+    return '/dashboard';
+};
+
+const showWaitingToast = (resource, action, meta = {}) => {
+    const template = toastTemplate(resource, action);
+    const stack = document.querySelector('[data-desk-toasts]');
+    if (! template || ! stack) {
+        return;
+    }
+
+    const code = meta.public_code || meta.row?.public_code || meta.listing_code || `#${meta.listing_id || ''}`;
+    const text = template.replace(':code', code);
+    const toast = document.createElement('div');
+    toast.className = 'desk-toast';
+    toast.innerHTML = `
+        <div class="desk-toast__body">
+            <span class="badge warn"></span>
+            <div>
+                <b></b>
+                <p></p>
+            </div>
+        </div>
+        <a class="btn sm" href=""></a>
+    `;
+    toast.querySelector('.badge').textContent = document.body.getAttribute('data-toast-waiting') || 'Waiting';
+    toast.querySelector('b').textContent = code;
+    toast.querySelector('p').textContent = text;
+    const link = toast.querySelector('a');
+    link.href = toastUrl(resource, meta);
+    link.textContent = document.body.getAttribute('data-toast-open') || 'Open';
+    stack.prepend(toast);
+    flash(toast);
+    window.setTimeout(() => toast.remove(), 12000);
 };
 
 const bootDashboardCubit = () => {
@@ -304,7 +566,8 @@ const bootDashboardCubit = () => {
         }
     });
 
-    // Chat keeps working via polling even when Pusher/Echo is unavailable on the host.
+    // Queues + chat keep working via polling even when Pusher/Echo is unavailable.
+    startDeskPolling(cubit);
     startSupportPolling(cubit);
 
     const echo = getEcho();
@@ -453,6 +716,69 @@ const startSupportPolling = (cubit) => {
 
     tick();
     window.setInterval(tick, 3000);
+};
+
+const pollDeskQueues = async (cubit) => {
+    const url = document.body.getAttribute('data-desk-live');
+    if (! url) {
+        return;
+    }
+
+    const params = new URLSearchParams({
+        listings_after: String(maxLiveId('listings')),
+        leads_after: String(maxLiveId('leads')),
+        requests_after: String(maxLiveId('requests')),
+        cases_after: String(maxLiveId('cases')),
+        documents_after: String(maxLiveId('documents')),
+    });
+
+    try {
+        const response = await fetch(`${url}?${params.toString()}`, {
+            headers: csrfHeaders(),
+            credentials: 'same-origin',
+        });
+        if (! response.ok) {
+            return;
+        }
+
+        const payload = await response.json();
+        const data = payload?.data || {};
+        applyBadges(data.badges);
+
+        ['listings', 'leads', 'requests', 'cases', 'documents'].forEach((resource) => {
+            (data[resource] || []).forEach((row) => {
+                if (! row?.id) {
+                    return;
+                }
+                const inserted = upsertLiveRow(resource, row, 'poll');
+                if (inserted) {
+                    cubit.emit({
+                        lastResource: resource,
+                        lastAction: 'poll',
+                        lastId: row.id,
+                        lastMeta: { row, status: row.status, public_code: row.public_code },
+                    });
+                }
+            });
+        });
+    } catch (error) {
+        console.warn('aqdar.desk_live_poll_failed', error);
+    }
+};
+
+const startDeskPolling = (cubit) => {
+    if (! document.body.getAttribute('data-desk-live')) {
+        return;
+    }
+
+    const tick = () => {
+        if (! document.hidden) {
+            pollDeskQueues(cubit);
+        }
+    };
+
+    tick();
+    window.setInterval(tick, 4000);
 };
 
 document.addEventListener('DOMContentLoaded', bootDashboardCubit);

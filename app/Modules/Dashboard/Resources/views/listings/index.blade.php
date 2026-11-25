@@ -52,7 +52,7 @@
     </form>
 
     <div class="tw">
-        <table class="t">
+        <table class="t" data-live-table="listings">
             <tr>
                 <th title="{{ __('aqdar.listings.desk.bulk_select') }}"></th>
                 <th></th>
@@ -142,7 +142,7 @@
                     </td>
                 </tr>
             @empty
-                <tr>
+                <tr data-live-empty="listings">
                     <td colspan="10">{{ __('aqdar.listings.desk.empty') }}</td>
                 </tr>
             @endforelse

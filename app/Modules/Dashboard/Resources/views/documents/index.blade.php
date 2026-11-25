@@ -31,7 +31,7 @@
     </div>
 
     <div class="tw">
-        <table class="t">
+        <table class="t" data-live-table="documents">
             <tr>
                 <th>{{ __('aqdar.listings.docs.owner') }}</th>
                 @include('dashboard::partials.sort-th', ['key' => 'type', 'label' => __('aqdar.listings.docs.type')])
@@ -57,7 +57,7 @@
                     </td>
                 </tr>
             @empty
-                <tr><td colspan="7">{{ __('aqdar.listings.docs.empty') }}</td></tr>
+                <tr data-live-empty="documents"><td colspan="7">{{ __('aqdar.listings.docs.empty') }}</td></tr>
             @endforelse
         </table>
     </div>

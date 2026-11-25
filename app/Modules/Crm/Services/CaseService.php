@@ -17,6 +17,7 @@ use App\Modules\Crm\Models\Lead;
 use App\Modules\Crm\Models\RequestMatch;
 use App\Modules\Crm\Models\TransferCase;
 use App\Modules\Crm\Services\Ocr\DocumentExtractionService;
+use App\Modules\Dashboard\Support\DeskLiveRow;
 use App\Modules\Dashboard\Support\DeskRealtime;
 use App\Modules\Listing\Models\Listing;
 use App\Modules\Notification\Services\NotificationService;
@@ -125,10 +126,12 @@ class CaseService
         $this->recordHistory($case, null, $stage, $actor, $reason, null);
         $this->audit->write('case.opened', $actor, $case, ['reason' => $reason]);
         $this->notifyParties($case, __('aqdar.cases.client.'.$stage->clientLabel()), $stage->value);
+        $case->loadMissing(['listing']);
         DeskRealtime::push('cases', 'opened', (int) $case->id, meta: [
             'public_code' => $case->public_code,
             'status' => CaseStatus::Open->value,
             'stage' => $stage->value,
+            'row' => DeskLiveRow::transferCase($case),
         ]);
 
         return $case;

@@ -9,6 +9,7 @@ use App\Core\Enums\DeliveryStatus;
 use App\Core\Enums\DocumentReviewStatus;
 use App\Core\Enums\LeadStatus;
 use App\Core\Enums\ListingStatus;
+use App\Core\Enums\MediaModerationStatus;
 use App\Core\Enums\NotificationChannel;
 use App\Modules\Catalog\Models\Developer;
 use App\Modules\Catalog\Models\Governorate;
@@ -19,6 +20,7 @@ use App\Modules\Crm\Models\TransferCase;
 use App\Modules\Finance\Models\Commission;
 use App\Modules\Listing\Models\Listing;
 use App\Modules\Listing\Models\ListingDocument;
+use App\Modules\Listing\Models\ListingMedia;
 use App\Modules\Notification\Models\NotificationDelivery;
 use App\Modules\User\Models\User;
 use Carbon\Carbon;
@@ -263,6 +265,12 @@ class DashboardService
             ])->count(),
             'documents_pending' => ListingDocument::query()
                 ->whereIn('review_status', [DocumentReviewStatus::Pending, DocumentReviewStatus::ReplacementRequested])
+                ->count(),
+            'media_pending' => ListingMedia::query()
+                ->whereIn('moderation_status', [
+                    MediaModerationStatus::Pending,
+                    MediaModerationStatus::Held,
+                ])
                 ->count(),
             'new_buyer_requests' => BuyerRequest::query()->where('status', 'new')->count(),
             'awaiting_developer' => TransferCase::query()

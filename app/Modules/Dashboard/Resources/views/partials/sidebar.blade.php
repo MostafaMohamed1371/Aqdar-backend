@@ -51,8 +51,8 @@
                 <a href="{{ route($item['route']) }}" @class(['on' => $item['active'] ?? false])>
                     @include('dashboard::partials.icon', ['name' => $item['icon']])
                     <span><x-bilingual :key="$item['key']" /></span>
-                    @if (! empty($queueBadges[$item['id']]))
-                        <span class="cnt">{{ number_format($queueBadges[$item['id']]) }}</span>
+                    @if (in_array($item['id'], ['ADM-02', 'ADM-03'], true) || ! empty($queueBadges[$item['id']]))
+                        <span class="cnt" data-live-badge="{{ $item['id'] }}" @if (empty($queueBadges[$item['id']])) hidden @endif>{{ number_format($queueBadges[$item['id']] ?? 0) }}</span>
                     @endif
                 </a>
             @else

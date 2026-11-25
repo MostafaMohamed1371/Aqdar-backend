@@ -47,6 +47,7 @@
         $needs = [
             ['listings_in_review', 'building', 'aqdar.needs.listings_in_review', 'approve_listing', 'dashboard.listings.index', ['status' => 'in_review']],
             ['documents_pending', 'doc', 'aqdar.needs.documents_pending', 'open_private_documents', 'dashboard.documents.index', []],
+            ['media_pending', 'doc', 'aqdar.needs.media_pending', 'approve_listing', 'dashboard.listings.index', ['status' => 'in_review']],
             ['new_buyer_requests', 'inbox', 'aqdar.needs.new_buyer_requests', 'manage_crm', 'dashboard.requests.index', ['status' => 'new']],
             ['awaiting_developer', 'swap', 'aqdar.needs.awaiting_developer', 'manage_crm', 'dashboard.cases.index', ['stage' => 'developer_approval']],
             ['unassigned_leads', 'users', 'aqdar.needs.unassigned_leads', 'manage_crm', 'dashboard.leads.index', ['assigned_to' => 'unassigned']],

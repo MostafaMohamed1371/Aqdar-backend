@@ -15,6 +15,7 @@ use App\Modules\Catalog\Models\Governorate;
 use App\Modules\Catalog\Models\Project;
 use App\Modules\Catalog\Models\UnitType;
 use App\Modules\Category\Models\Category;
+use App\Modules\Dashboard\Support\DeskLiveRow;
 use App\Modules\Dashboard\Support\DeskRealtime;
 use App\Modules\Listing\Models\InstallmentItem;
 use App\Modules\Listing\Models\Listing;
@@ -139,8 +140,11 @@ class ListingService
         });
 
         $this->notifyListingSubmitted($listing, $user);
+        $listing->loadMissing(['governorate', 'developer']);
         DeskRealtime::push('listings', 'submitted', (int) $listing->id, meta: [
             'public_code' => $listing->public_code,
+            'status' => $listing->status?->value,
+            'row' => DeskLiveRow::listing($listing),
         ]);
 
         return $listing;
@@ -173,9 +177,11 @@ class ListingService
         });
 
         $this->notifyListingSubmitted($listing, $user);
+        $listing->loadMissing(['governorate', 'developer']);
         DeskRealtime::push('listings', 'resubmitted', (int) $listing->id, meta: [
             'public_code' => $listing->public_code,
             'status' => $listing->status?->value,
+            'row' => DeskLiveRow::listing($listing),
         ]);
 
         return $listing;

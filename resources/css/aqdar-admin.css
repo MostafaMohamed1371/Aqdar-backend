@@ -1106,6 +1106,67 @@ html[data-theme="dark"] .support-composer {
     }
 }
 
+/* Realtime waiting-action toasts */
+.desk-toast-stack {
+    position: fixed;
+    inset-block-end: 18px;
+    inset-inline-start: 18px;
+    z-index: 80;
+    display: grid;
+    gap: 10px;
+    width: min(380px, calc(100vw - 32px));
+    pointer-events: none;
+}
+
+.desk-toast {
+    pointer-events: auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px 14px;
+    border-radius: 14px;
+    border: 1px solid color-mix(in srgb, var(--gold) 40%, var(--line));
+    background: var(--white);
+    box-shadow: var(--shadow);
+}
+
+.desk-toast__body {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    min-width: 0;
+}
+
+.desk-toast__body b {
+    display: block;
+    color: var(--ink);
+    font-size: 13px;
+}
+
+.desk-toast__body p {
+    margin: 2px 0 0;
+    color: var(--muted);
+    font-size: 12.5px;
+    line-height: 1.4;
+}
+
+html.dark .desk-toast,
+html[data-theme="dark"] .desk-toast {
+    background: #1a2c40;
+    border-color: rgba(197, 152, 95, 0.45);
+}
+
+/* Live desk queue rows inserted without refresh */
+tr.live-new-row td {
+    background: color-mix(in srgb, var(--teal-soft) 55%, transparent);
+}
+
+html.dark tr.live-new-row td,
+html[data-theme="dark"] tr.live-new-row td {
+    background: rgba(8, 126, 130, 0.18);
+}
+
 /* ADM-11 content banner thumbnails */
 .content-thumb {
     display: inline-flex;

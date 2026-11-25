@@ -10,6 +10,7 @@ use App\Core\Enums\PublicCodePrefix;
 use App\Core\Identity\PublicCodeGenerator;
 use App\Modules\Crm\Models\Inquiry;
 use App\Modules\Crm\Models\Lead;
+use App\Modules\Dashboard\Support\DeskLiveRow;
 use App\Modules\Dashboard\Support\DeskRealtime;
 use App\Modules\Listing\Models\Listing;
 use App\Modules\Listing\Services\ContactLeakScanner;
@@ -113,9 +114,11 @@ class InquiryService
             );
         }
         if ($inquiry->lead_id) {
+            $lead = $inquiry->lead?->loadMissing(['buyer', 'listing']) ?? null;
             DeskRealtime::push('leads', 'inquiry', (int) $inquiry->lead_id, meta: [
-                'public_code' => $inquiry->lead?->public_code,
-                'status' => $inquiry->lead?->status?->value,
+                'public_code' => $lead?->public_code,
+                'status' => $lead?->status?->value,
+                'row' => $lead ? DeskLiveRow::lead($lead) : null,
             ]);
         }
 

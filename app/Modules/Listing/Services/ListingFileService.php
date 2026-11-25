@@ -6,10 +6,10 @@ use App\Core\Audit\AuditLogger;
 use App\Core\Enums\DocumentReviewStatus;
 use App\Core\Enums\DocumentType;
 use App\Core\Enums\MediaModerationStatus;
+use App\Core\Enums\Permission;
 use App\Core\Uploads\UploadScanner;
 use App\Modules\Dashboard\Support\DeskRealtime;
 use App\Modules\Listing\Exceptions\RequiredDocumentsException;
-use App\Modules\Listing\Jobs\ProcessListingMediaJob;
 use App\Modules\Listing\Models\Listing;
 use App\Modules\Listing\Models\ListingDocument;
 use App\Modules\Listing\Models\ListingMedia;
@@ -120,6 +120,22 @@ class ListingFileService
         );
 
         $this->moderation->returnToReview($listing->fresh() ?? $listing, $user, 'public_media_changed');
+
+        DeskRealtime::push('documents', 'uploaded', (int) $media->id, meta: [
+            'listing_id' => $listing->id,
+            'public_code' => $listing->public_code,
+            'status' => $media->moderation_status?->value,
+        ]);
+        $this->notifications->notifyStaffQueue(
+            'staff_new_submission',
+            [
+                'listing_code' => $listing->public_code,
+                'listing_id' => $listing->id,
+            ],
+            Permission::ApproveListing,
+            false,
+            'staff_media_uploaded:'.$media->id,
+        );
 
         return $media;
     }
@@ -265,8 +281,10 @@ class ListingFileService
             'public_path' => $status === MediaModerationStatus::Approved ? $media->public_path : null,
         ])->save();
 
+        // Public gallery URLs require public_path. Publish this derivative inline so
+        // GET /listings/{id}/photos does not stay empty when the queue worker is down.
         if ($status === MediaModerationStatus::Approved && ! $media->isVideo()) {
-            ProcessListingMediaJob::dispatch($media->id);
+            $this->publishPublicDerivative($media->fresh() ?? $media);
         }
 
         $this->audit->write('listing.media_reviewed', $staff, $media, [
@@ -283,6 +301,58 @@ class ListingFileService
         ]);
 
         return $fresh;
+    }
+
+    /**
+     * Copy an approved photo onto the public_media disk and set public_path.
+     * Videos stay private even after approve.
+     */
+    public function publishPublicDerivative(ListingMedia $media): ListingMedia
+    {
+        if ($media->isVideo() || $media->moderation_status !== MediaModerationStatus::Approved) {
+            return $media;
+        }
+
+        if (! Storage::disk($media->original_disk)->exists($media->original_path)) {
+            return $media;
+        }
+
+        $bytes = Storage::disk($media->original_disk)->get($media->original_path);
+        $extension = pathinfo((string) $media->original_path, PATHINFO_EXTENSION) ?: 'jpg';
+        $publicPath = 'listings/'.$media->listing_id.'/'.$media->id.'.'.$extension;
+        Storage::disk((string) config('aqdar.files.media.public_disk'))->put($publicPath, $bytes);
+
+        $media->forceFill(['public_path' => $publicPath])->save();
+
+        return $media->fresh() ?? $media;
+    }
+
+    /** Repair approved photos that never got a public_path (queue never ran). */
+    public function repairApprovedPublicDerivatives(?int $listingId = null): int
+    {
+        $query = ListingMedia::query()
+            ->where('moderation_status', MediaModerationStatus::Approved)
+            ->where(function ($inner): void {
+                $inner->whereNull('public_path')->orWhere('public_path', '');
+            });
+
+        if ($listingId !== null) {
+            $query->where('listing_id', $listingId);
+        }
+
+        $fixed = 0;
+        foreach ($query->cursor() as $media) {
+            if ($media->isVideo()) {
+                continue;
+            }
+            $before = $media->public_path;
+            $media = $this->publishPublicDerivative($media);
+            if ($media->public_path && $media->public_path !== $before) {
+                $fixed++;
+            }
+        }
+
+        return $fixed;
     }
 
     /** @return Collection<int, ListingDocument> */

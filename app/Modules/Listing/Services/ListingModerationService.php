@@ -56,6 +56,8 @@ class ListingModerationService
     public function publish(Listing $listing, StaffUser $staff, string $reason): Listing
     {
         $this->assertDocumentsApproved($listing);
+        // Ensure any already-approved photos have a public_path before going live.
+        app(ListingFileService::class)->repairApprovedPublicDerivatives((int) $listing->id);
         $listing = $this->move($listing, ListingStatus::Published, $staff, $reason, 'listing.published');
         $listing->forceFill(['published_at' => $listing->published_at ?? now()])->save();
         MatchSavedSearchesJob::dispatch($listing->id);

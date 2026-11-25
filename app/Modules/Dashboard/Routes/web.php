@@ -8,6 +8,7 @@ use App\Modules\Dashboard\Http\Controllers\CategoryFormController;
 use App\Modules\Dashboard\Http\Controllers\CommissionDeskController;
 use App\Modules\Dashboard\Http\Controllers\ContentController;
 use App\Modules\Dashboard\Http\Controllers\DashboardController;
+use App\Modules\Dashboard\Http\Controllers\DeskLiveController;
 use App\Modules\Dashboard\Http\Controllers\DeveloperController;
 use App\Modules\Dashboard\Http\Controllers\DocumentDeskController;
 use App\Modules\Dashboard\Http\Controllers\EscrowDeskController;
@@ -41,6 +42,7 @@ Route::middleware('staff.ip')->group(function (): void {
 Route::middleware(['staff.ip', 'auth'])->prefix('dashboard')->name('dashboard.')->group(function (): void {
     Route::get('guide', [GuideDeskController::class, 'index'])->name('guide');
     Route::get('guide/pdf', [GuideDeskController::class, 'pdf'])->name('guide.pdf');
+    Route::get('live', [DeskLiveController::class, 'index'])->name('live');
     Route::get('inbox', [StaffInboxController::class, 'index'])->name('inbox');
     Route::post('inbox/{notification}/read', [StaffInboxController::class, 'read'])->whereNumber('notification')->name('inbox.read');
     Route::get('profile', [ProfileController::class, 'show'])->name('profile.show');
