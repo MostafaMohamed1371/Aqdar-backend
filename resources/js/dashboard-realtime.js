@@ -297,6 +297,14 @@ const fieldValue = (resource, action, meta, field) => {
 
 const findLiveTable = (resource) => document.querySelector(`[data-live-table="${resource}"]`);
 
+const LIVE_RESOURCES = ['listings', 'leads', 'requests', 'cases', 'documents'];
+
+const liveWatermark = Object.fromEntries(LIVE_RESOURCES.map((resource) => [resource, 0]));
+const liveBootstrapped = Object.fromEntries(LIVE_RESOURCES.map((resource) => [resource, false]));
+const notifiedLiveIds = new Set();
+let inboxWatermark = 0;
+let inboxBootstrapped = false;
+
 const maxLiveId = (resource) => {
     let max = 0;
     document.querySelectorAll(`[data-live-row="${resource}"][data-live-id]`).forEach((node) => {
@@ -304,6 +312,66 @@ const maxLiveId = (resource) => {
     });
 
     return max;
+};
+
+const maxInboxId = () => {
+    let max = 0;
+    document.querySelectorAll('[data-inbox-id]').forEach((node) => {
+        max = Math.max(max, Number(node.getAttribute('data-inbox-id') || 0));
+    });
+
+    return max;
+};
+
+const seedLiveWatermarks = () => {
+    LIVE_RESOURCES.forEach((resource) => {
+        const max = maxLiveId(resource);
+        liveWatermark[resource] = max;
+        if (max > 0) {
+            liveBootstrapped[resource] = true;
+            notifiedLiveIds.add(`${resource}:${max}`);
+            document.querySelectorAll(`[data-live-row="${resource}"][data-live-id]`).forEach((node) => {
+                notifiedLiveIds.add(`${resource}:${node.getAttribute('data-live-id')}`);
+            });
+        }
+    });
+
+    inboxWatermark = maxInboxId();
+    if (inboxWatermark > 0) {
+        inboxBootstrapped = true;
+    }
+};
+
+const pollActionFor = (resource, row = {}) => {
+    const status = String(row.status || '').toLowerCase();
+
+    if (resource === 'listings') {
+        return status === 'resubmitted' ? 'resubmitted' : 'submitted';
+    }
+    if (resource === 'documents') {
+        return 'uploaded';
+    }
+    if (resource === 'leads') {
+        return 'created';
+    }
+    if (resource === 'requests') {
+        return 'created';
+    }
+    if (resource === 'cases') {
+        return 'opened';
+    }
+
+    return 'submitted';
+};
+
+const rememberLiveNotification = (resource, id) => {
+    const key = `${resource}:${id}`;
+    if (! id || notifiedLiveIds.has(key)) {
+        return false;
+    }
+    notifiedLiveIds.add(key);
+
+    return true;
 };
 
 const buildLiveRow = (resource, row) => {
@@ -386,7 +454,7 @@ const upsertLiveRow = (resource, row, action) => {
         }
         flash(existing);
 
-        return true;
+        return false;
     }
 
     if (! isNewAction(resource, action) && action !== 'poll') {
@@ -447,7 +515,11 @@ const patchDeskResource = (state) => {
     if (meta.stage) {
         patchLiveField(resource, id, 'stage', fieldValue(resource, state.lastAction, meta, 'stage'));
     }
-    if (state.lastAction !== 'poll') {
+    if (state.lastAction === 'poll') {
+        return;
+    }
+
+    if (rememberLiveNotification(resource, id)) {
         bumpKpis(resource, state.lastAction);
         bumpSidebarBadges(resource, state.lastAction);
         showWaitingToast(resource, state.lastAction, meta);
@@ -545,6 +617,7 @@ const bootDashboardCubit = () => {
 
     const cubit = createDeskCubit(desk);
     window.deskCubit = cubit;
+    seedLiveWatermarks();
 
     cubit.listen((state, patch) => {
         applyInboxBell(state);
@@ -566,7 +639,7 @@ const bootDashboardCubit = () => {
         }
     });
 
-    // Queues + chat keep working via polling even when Pusher/Echo is unavailable.
+    // Queues + inbox keep working via polling even when Pusher/Echo is unavailable.
     startDeskPolling(cubit);
     startSupportPolling(cubit);
 
@@ -725,11 +798,12 @@ const pollDeskQueues = async (cubit) => {
     }
 
     const params = new URLSearchParams({
-        listings_after: String(maxLiveId('listings')),
-        leads_after: String(maxLiveId('leads')),
-        requests_after: String(maxLiveId('requests')),
-        cases_after: String(maxLiveId('cases')),
-        documents_after: String(maxLiveId('documents')),
+        listings_after: String(Math.max(liveWatermark.listings, maxLiveId('listings'))),
+        leads_after: String(Math.max(liveWatermark.leads, maxLiveId('leads'))),
+        requests_after: String(Math.max(liveWatermark.requests, maxLiveId('requests'))),
+        cases_after: String(Math.max(liveWatermark.cases, maxLiveId('cases'))),
+        documents_after: String(Math.max(liveWatermark.documents, maxLiveId('documents'))),
+        inbox_after: String(Math.max(inboxWatermark, maxInboxId())),
     });
 
     try {
@@ -744,22 +818,81 @@ const pollDeskQueues = async (cubit) => {
         const payload = await response.json();
         const data = payload?.data || {};
         applyBadges(data.badges);
+        applyBadges(data.needs);
 
-        ['listings', 'leads', 'requests', 'cases', 'documents'].forEach((resource) => {
-            (data[resource] || []).forEach((row) => {
-                if (! row?.id) {
+        LIVE_RESOURCES.forEach((resource) => {
+            const rows = (data[resource] || [])
+                .filter((row) => row?.id)
+                .sort((left, right) => Number(left.id) - Number(right.id));
+
+            if (! liveBootstrapped[resource]) {
+                rows.forEach((row) => {
+                    liveWatermark[resource] = Math.max(liveWatermark[resource], Number(row.id));
+                    notifiedLiveIds.add(`${resource}:${row.id}`);
+                    upsertLiveRow(resource, row, 'poll');
+                });
+                liveBootstrapped[resource] = true;
+
+                return;
+            }
+
+            rows.forEach((row) => {
+                const id = Number(row.id);
+                if (id <= liveWatermark[resource]) {
+                    upsertLiveRow(resource, row, 'poll');
+
                     return;
                 }
-                const inserted = upsertLiveRow(resource, row, 'poll');
-                if (inserted) {
-                    cubit.emit({
-                        lastResource: resource,
-                        lastAction: 'poll',
-                        lastId: row.id,
-                        lastMeta: { row, status: row.status, public_code: row.public_code },
-                    });
+
+                liveWatermark[resource] = id;
+                const action = pollActionFor(resource, row);
+                upsertLiveRow(resource, row, action);
+
+                if (! rememberLiveNotification(resource, id)) {
+                    return;
                 }
+
+                // Absolute KPIs/badges already applied from `needs` / `badges`; toast only.
+                showWaitingToast(resource, action, {
+                    row,
+                    status: row.status,
+                    public_code: row.public_code,
+                    listing_id: row.listing_id || (resource === 'listings' ? id : null),
+                });
             });
+        });
+
+        const inbox = data.inbox || {};
+        const unreadCount = Number(inbox.unread_count);
+        const hasUnreadCount = inbox.unread_count !== undefined && inbox.unread_count !== null && ! Number.isNaN(unreadCount);
+        if (hasUnreadCount) {
+            cubit.emit({ unreadCount });
+        }
+
+        const inboxItems = (inbox.items || [])
+            .filter((item) => item?.id)
+            .sort((left, right) => Number(left.id) - Number(right.id));
+
+        if (! inboxBootstrapped) {
+            inboxItems.forEach((item) => {
+                inboxWatermark = Math.max(inboxWatermark, Number(item.id));
+            });
+            inboxBootstrapped = true;
+
+            return;
+        }
+
+        inboxItems.forEach((item) => {
+            const id = Number(item.id);
+            if (id <= inboxWatermark) {
+                return;
+            }
+            inboxWatermark = id;
+            const patch = { lastInbox: item };
+            if (hasUnreadCount) {
+                patch.unreadCount = unreadCount;
+            }
+            cubit.emit(patch);
         });
     } catch (error) {
         console.warn('aqdar.desk_live_poll_failed', error);

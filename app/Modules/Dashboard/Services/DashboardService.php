@@ -254,6 +254,16 @@ class DashboardService
         ];
     }
 
+    /**
+     * Live “needs action” counters for ADM-01 and /dashboard/live polling.
+     *
+     * @return array<string, int>
+     */
+    public function waitingActions(): array
+    {
+        return $this->needsAction();
+    }
+
     /** @return array<string, int> */
     private function needsAction(): array
     {

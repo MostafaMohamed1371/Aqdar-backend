@@ -15,6 +15,8 @@ use App\Modules\Dashboard\Support\DeskLiveRow;
 use App\Modules\Listing\Models\Listing;
 use App\Modules\Listing\Models\ListingDocument;
 use App\Modules\Listing\Models\ListingMedia;
+use App\Modules\Notification\Models\InboxNotification;
+use App\Modules\Notification\Services\NotificationService;
 use App\Modules\Staff\Models\StaffUser;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -24,6 +26,7 @@ class DeskLiveController extends BaseController
     public function __construct(
         private DashboardService $dashboard,
         private LeadService $leads,
+        private NotificationService $notifications,
     ) {}
 
     public function index(Request $request): JsonResponse
@@ -39,6 +42,24 @@ class DeskLiveController extends BaseController
             ])
             ->count();
 
+        $inboxAfter = max(0, (int) $request->query('inbox_after', 0));
+        $inboxItems = InboxNotification::query()
+            ->where('notifiable_type', $staff->getMorphClass())
+            ->where('notifiable_id', $staff->getKey())
+            ->where('id', '>', $inboxAfter)
+            ->latest('id')
+            ->limit(20)
+            ->get()
+            ->map(fn (InboxNotification $notification): array => [
+                'id' => $notification->id,
+                'event_key' => $notification->event_key,
+                'title' => $notification->localizedTitle(),
+                'body' => $notification->localizedBody(),
+                'created_at' => optional($notification->created_at)?->toIso8601String(),
+            ])
+            ->values()
+            ->all();
+
         $payload = [
             'listings' => [],
             'leads' => [],
@@ -46,6 +67,11 @@ class DeskLiveController extends BaseController
             'cases' => [],
             'documents' => [],
             'badges' => $badges,
+            'needs' => $this->dashboard->waitingActions(),
+            'inbox' => [
+                'unread_count' => $this->notifications->unreadCount($staff),
+                'items' => $inboxItems,
+            ],
         ];
 
         if ($staff->can('approve_listing')) {
