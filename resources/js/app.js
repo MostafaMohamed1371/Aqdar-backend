@@ -1,7 +1,15 @@
 import { initThemeToggle } from './theme';
 import './dashboard-realtime';
 
-document.addEventListener('DOMContentLoaded', () => {
+const ready = (fn) => {
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', fn, { once: true });
+    } else {
+        fn();
+    }
+};
+
+ready(() => {
     initThemeToggle();
 
     const sidebar = document.querySelector('[data-sidebar]');

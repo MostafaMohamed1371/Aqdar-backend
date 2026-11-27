@@ -755,11 +755,35 @@ const wireDeskLivePing = (cubit) => {
 
     button.addEventListener('click', async () => {
         button.disabled = true;
+
+        // Show feedback immediately so the button never looks dead if the network is slow.
+        const localId = Date.now();
+        const localCode = `PING-${String(localId).slice(-4)}`;
+        const localRow = {
+            id: localId,
+            public_code: localCode,
+            title: document.body.getAttribute('data-toast-listing') || 'Realtime desk ping',
+            status: 'submitted',
+            status_label: 'Submitted',
+            status_tone: 'warn',
+            url: '/dashboard/listings?status=in_review',
+        };
+        showWaitingToast('listings', 'submitted', {
+            row: localRow,
+            public_code: localCode,
+            status: 'submitted',
+        });
+        prependLiveFeedItem('listings', localRow, true);
+
         try {
             const response = await fetch(url, {
                 method: 'POST',
-                headers: csrfHeaders(),
+                headers: {
+                    ...csrfHeaders(),
+                    'Content-Type': 'application/json',
+                },
                 credentials: 'same-origin',
+                body: '{}',
             });
             const payload = await response.json().catch(() => ({}));
             if (! response.ok) {
@@ -770,29 +794,22 @@ const wireDeskLivePing = (cubit) => {
             }
 
             const data = payload?.data || {};
-            // Local fallback so the toast appears even if Pusher auth fails on this browser.
-            const row = {
-                id: data.id,
-                public_code: data.public_code,
-                title: document.body.getAttribute('data-toast-listing') || 'Realtime desk ping',
-                status: 'submitted',
-                status_label: 'Submitted',
-                status_tone: 'warn',
-                url: '/dashboard/listings?status=in_review',
-            };
             cubit.emit({
                 lastResource: 'listings',
                 lastAction: 'submitted',
-                lastId: data.id ?? Date.now(),
+                lastId: data.id ?? localId,
                 lastScreens: ['ADM-01', 'ADM-02'],
                 lastMeta: {
-                    public_code: data.public_code || 'PING',
+                    public_code: data.public_code || localCode,
                     status: 'submitted',
                     ping: true,
-                    row,
+                    row: {
+                        ...localRow,
+                        id: data.id ?? localId,
+                        public_code: data.public_code || localCode,
+                    },
                 },
             });
-            prependLiveFeedItem('listings', row, true);
             console.info('aqdar.desk_live_ping_ok', data);
         } catch (error) {
             console.warn('aqdar.desk_live_ping_error', error);
@@ -1155,6 +1172,9 @@ const pollDeskQueues = async (cubit) => {
 
 const startDeskPolling = (cubit) => {
     if (! deskLiveUrl()) {
+        console.warn('aqdar.desk_live_missing', 'body[data-desk-live] is empty');
+        refreshLiveStatusPills('fail');
+
         return;
     }
 
@@ -1170,4 +1190,13 @@ const startDeskPolling = (cubit) => {
     });
 };
 
-document.addEventListener('DOMContentLoaded', bootDashboardCubit);
+// Vite loads this as a deferred module — DOMContentLoaded may already have fired.
+const ready = (fn) => {
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', fn, { once: true });
+    } else {
+        fn();
+    }
+};
+
+ready(bootDashboardCubit);
