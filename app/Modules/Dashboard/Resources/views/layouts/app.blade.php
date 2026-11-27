@@ -40,8 +40,22 @@
     data-label-pusher-on="{{ __('aqdar.live_toast.pusher_connected') }}"
     data-label-pusher-off="{{ __('aqdar.live_toast.pusher_offline') }}"
     data-label-test-live="{{ __('aqdar.live_toast.test_live') }}"
+    data-label-feed-listing="{{ __('aqdar.live_toast.feed_listing') }}"
+    data-label-feed-media="{{ __('aqdar.live_toast.feed_media') }}"
+    data-label-feed-document="{{ __('aqdar.live_toast.feed_document') }}"
+    data-label-feed-request="{{ __('aqdar.live_toast.feed_request') }}"
+    data-label-feed-lead="{{ __('aqdar.live_toast.feed_lead') }}"
+    data-label-feed-case="{{ __('aqdar.live_toast.feed_case') }}"
 >
     <div class="desk-toast-stack" data-desk-toasts aria-live="polite"></div>
+    <aside class="desk-live-feed" data-desk-live-feed hidden>
+        <div class="desk-live-feed__head">
+            <b>{{ __('aqdar.live_toast.feed_title') }}</b>
+            <button type="button" class="btn ghost sm" data-desk-live-feed-close aria-label="{{ __('structer.close_menu') }}">×</button>
+        </div>
+        <div class="desk-live-feed__empty tiny" data-desk-live-feed-empty>{{ __('aqdar.live_toast.feed_empty') }}</div>
+        <div class="desk-live-feed__list" data-desk-live-feed-list></div>
+    </aside>
     <div class="desk {{ app()->getLocale() === 'ar' ? 'is-rtl' : 'is-ltr' }}">
         @include('dashboard::partials.sidebar')
         <div class="dmain">

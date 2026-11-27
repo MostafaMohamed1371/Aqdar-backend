@@ -1106,6 +1106,73 @@ html[data-theme="dark"] .support-composer {
     }
 }
 
+/* Global live waiting feed — visible on every desk page without refresh */
+.desk-live-feed {
+    position: fixed;
+    inset-block-start: 72px;
+    inset-inline-end: 16px;
+    z-index: 75;
+    width: min(360px, calc(100vw - 24px));
+    max-height: min(420px, calc(100vh - 100px));
+    overflow: auto;
+    border-radius: 16px;
+    border: 1px solid color-mix(in srgb, var(--gold) 35%, var(--line));
+    background: var(--white);
+    box-shadow: var(--shadow);
+    padding: 12px;
+}
+
+.desk-live-feed__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+
+.desk-live-feed__head b {
+    font-size: 13px;
+}
+
+.desk-live-feed__list {
+    display: grid;
+    gap: 8px;
+}
+
+.desk-live-feed__item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 10px 12px;
+    border-radius: 12px;
+    border: 1px solid var(--line);
+    background: color-mix(in srgb, var(--teal-soft) 40%, transparent);
+    text-decoration: none;
+    color: inherit;
+}
+
+.desk-live-feed__item.is-new {
+    outline: 2px solid color-mix(in srgb, var(--gold) 65%, transparent);
+}
+
+.desk-live-feed__item b {
+    display: block;
+    font-size: 13px;
+}
+
+.desk-live-feed__item span {
+    display: block;
+    color: var(--muted);
+    font-size: 12px;
+    margin-top: 2px;
+}
+
+html.dark .desk-live-feed,
+html[data-theme="dark"] .desk-live-feed {
+    background: #1a2c40;
+}
+
 /* Live poll / Pusher status in the desk header */
 .desk-live-status {
     display: inline-flex;

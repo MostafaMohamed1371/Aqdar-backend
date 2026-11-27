@@ -309,6 +309,87 @@ const liveBootstrapped = Object.fromEntries(LIVE_RESOURCES.map((resource) => [re
 const notifiedLiveIds = new Set();
 let inboxWatermark = 0;
 let inboxBootstrapped = false;
+let liveFeedOpened = false;
+
+const feedResourceLabel = (resource) => {
+    const map = {
+        listings: document.body.getAttribute('data-label-feed-listing') || 'Listing',
+        media: document.body.getAttribute('data-label-feed-media') || 'Photo',
+        documents: document.body.getAttribute('data-label-feed-document') || 'Document',
+        requests: document.body.getAttribute('data-label-feed-request') || 'Buyer request',
+        leads: document.body.getAttribute('data-label-feed-lead') || 'Lead',
+        cases: document.body.getAttribute('data-label-feed-case') || 'Case',
+    };
+
+    return map[resource] || resource;
+};
+
+const notificationKey = (resource, rowOrId, status = '') => {
+    const id = typeof rowOrId === 'object' && rowOrId !== null
+        ? Number(rowOrId.id || 0)
+        : Number(rowOrId || 0);
+    const rowStatus = typeof rowOrId === 'object' && rowOrId !== null
+        ? String(rowOrId.status || status || '')
+        : String(status || '');
+
+    // Include status so draft → submitted (same listing id) still notifies the open desk.
+    if (resource === 'listings') {
+        return `${resource}:${id}:${rowStatus || 'waiting'}`;
+    }
+
+    return `${resource}:${id}`;
+};
+
+const openLiveFeed = () => {
+    const feed = document.querySelector('[data-desk-live-feed]');
+    if (! feed) {
+        return;
+    }
+    feed.hidden = false;
+    liveFeedOpened = true;
+};
+
+const prependLiveFeedItem = (resource, row, isNew = false) => {
+    const list = document.querySelector('[data-desk-live-feed-list]');
+    const empty = document.querySelector('[data-desk-live-feed-empty]');
+    if (! list || ! row?.id) {
+        return;
+    }
+
+    openLiveFeed();
+    empty?.setAttribute('hidden', 'hidden');
+
+    const key = notificationKey(resource, row);
+    let item = list.querySelector(`[data-feed-key="${key}"]`);
+    if (! item) {
+        item = document.createElement('a');
+        item.className = 'desk-live-feed__item';
+        item.setAttribute('data-feed-key', key);
+        item.setAttribute('data-feed-resource', resource);
+        item.setAttribute('data-feed-id', String(row.id));
+        item.innerHTML = '<div><b></b><span></span></div><span class="badge warn"></span>';
+        list.prepend(item);
+    }
+
+    item.href = row.url || toastUrl(resource, { row, listing_id: row.listing_id });
+    item.querySelector('b').textContent = row.public_code || `#${row.id}`;
+    item.querySelector('span').textContent = `${feedResourceLabel(resource)} · ${row.title || row.status_label || row.status || ''}`.trim();
+    item.querySelector('.badge').textContent = row.status_label || row.status || feedResourceLabel(resource);
+    if (isNew) {
+        item.classList.add('is-new');
+        flash(item);
+        window.setTimeout(() => item.classList.remove('is-new'), 8000);
+    }
+};
+
+const wireLiveFeedClose = () => {
+    document.querySelector('[data-desk-live-feed-close]')?.addEventListener('click', () => {
+        const feed = document.querySelector('[data-desk-live-feed]');
+        if (feed) {
+            feed.hidden = true;
+        }
+    });
+};
 
 const maxLiveId = (resource) => {
     let max = 0;
@@ -333,10 +414,13 @@ const seedLiveWatermarks = () => {
         const max = maxLiveId(resource);
         liveWatermark[resource] = max;
         if (max > 0) {
-            liveBootstrapped[resource] = true;
-            notifiedLiveIds.add(`${resource}:${max}`);
+            // Do not mark bootstrapped from DOM alone — first /dashboard/live snapshot
+            // owns the baseline so draft→submit and brand-new ads still toast.
             document.querySelectorAll(`[data-live-row="${resource}"][data-live-id]`).forEach((node) => {
-                notifiedLiveIds.add(`${resource}:${node.getAttribute('data-live-id')}`);
+                const id = Number(node.getAttribute('data-live-id') || 0);
+                const status = node.querySelector('[data-live-field="status"]')?.textContent?.trim() || '';
+                notifiedLiveIds.add(notificationKey(resource, { id, status }));
+                notifiedLiveIds.add(`${resource}:${id}`);
             });
         }
     });
@@ -372,8 +456,11 @@ const pollActionFor = (resource, row = {}) => {
     return 'submitted';
 };
 
-const rememberLiveNotification = (resource, id) => {
-    const key = `${resource}:${id}`;
+const rememberLiveNotification = (resource, rowOrId, status = '') => {
+    const id = typeof rowOrId === 'object' && rowOrId !== null
+        ? Number(rowOrId.id || 0)
+        : Number(rowOrId || 0);
+    const key = notificationKey(resource, rowOrId, status);
     if (! id || notifiedLiveIds.has(key)) {
         return false;
     }
@@ -527,10 +614,21 @@ const patchDeskResource = (state) => {
         return;
     }
 
-    if (rememberLiveNotification(resource, id)) {
+    if (rememberLiveNotification(resource, meta.row || id, meta.status || state.lastAction)) {
         bumpKpis(resource, state.lastAction);
         bumpSidebarBadges(resource, state.lastAction);
         showWaitingToast(resource, state.lastAction, meta);
+        if (meta.row || isNewAction(resource, state.lastAction)) {
+            prependLiveFeedItem(resource, meta.row || {
+                id,
+                public_code: meta.public_code || `#${id}`,
+                title: meta.title || meta.public_code || `#${id}`,
+                status: meta.status || state.lastAction,
+                status_label: meta.label || meta.status || state.lastAction,
+                url: meta.url || toastUrl(resource, meta),
+                listing_id: meta.listing_id,
+            }, true);
+        }
     }
 };
 
@@ -673,6 +771,15 @@ const wireDeskLivePing = (cubit) => {
 
             const data = payload?.data || {};
             // Local fallback so the toast appears even if Pusher auth fails on this browser.
+            const row = {
+                id: data.id,
+                public_code: data.public_code,
+                title: document.body.getAttribute('data-toast-listing') || 'Realtime desk ping',
+                status: 'submitted',
+                status_label: 'Submitted',
+                status_tone: 'warn',
+                url: '/dashboard/listings?status=in_review',
+            };
             cubit.emit({
                 lastResource: 'listings',
                 lastAction: 'submitted',
@@ -682,17 +789,10 @@ const wireDeskLivePing = (cubit) => {
                     public_code: data.public_code || 'PING',
                     status: 'submitted',
                     ping: true,
-                    row: {
-                        id: data.id,
-                        public_code: data.public_code,
-                        title: document.body.getAttribute('data-toast-listing') || 'Realtime desk ping',
-                        status: 'submitted',
-                        status_label: 'Submitted',
-                        status_tone: 'warn',
-                        url: '/dashboard/listings?status=in_review',
-                    },
+                    row,
                 },
             });
+            prependLiveFeedItem('listings', row, true);
             console.info('aqdar.desk_live_ping_ok', data);
         } catch (error) {
             console.warn('aqdar.desk_live_ping_error', error);
@@ -728,6 +828,7 @@ const bootDashboardCubit = () => {
     seedLiveWatermarks();
     refreshLiveStatusPills();
     wireDeskLivePing(cubit);
+    wireLiveFeedClose();
 
     cubit.listen((state, patch) => {
         applyInboxBell(state);
@@ -963,7 +1064,7 @@ const pollDeskQueues = async (cubit) => {
 
             if (! liveBootstrapped[resource]) {
                 rows.forEach((row) => {
-                    notifiedLiveIds.add(`${resource}:${row.id}`);
+                    notifiedLiveIds.add(notificationKey(resource, row));
                     liveWatermark[resource] = Math.max(liveWatermark[resource] || 0, Number(row.id) || 0);
                     upsertLiveRow(resource, row, 'poll');
                 });
@@ -972,25 +1073,35 @@ const pollDeskQueues = async (cubit) => {
                 return;
             }
 
-            const activeKeys = new Set(rows.map((row) => `${resource}:${row.id}`));
+            const activeKeys = new Set(rows.map((row) => notificationKey(resource, row)));
             [...notifiedLiveIds].forEach((key) => {
-                if (key.startsWith(`${resource}:`) && ! activeKeys.has(key)) {
+                if (! key.startsWith(`${resource}:`)) {
+                    return;
+                }
+                // Drop stale keys for ids no longer waiting (draft→submit uses a new status key).
+                const stillActive = [...activeKeys].some((active) => active === key)
+                    || rows.some((row) => key === `${resource}:${row.id}` || key.startsWith(`${resource}:${row.id}:`));
+                if (! stillActive) {
                     notifiedLiveIds.delete(key);
                 }
             });
 
             rows.forEach((row) => {
                 const id = Number(row.id);
-                const key = `${resource}:${id}`;
+                const key = notificationKey(resource, row);
                 const isNew = ! notifiedLiveIds.has(key);
-                upsertLiveRow(resource, row, isNew ? pollActionFor(resource, row) : 'poll');
+                const action = isNew ? pollActionFor(resource, row) : 'poll';
+                upsertLiveRow(resource, row, action);
                 liveWatermark[resource] = Math.max(liveWatermark[resource] || 0, id);
 
-                if (! isNew || ! rememberLiveNotification(resource, id)) {
+                if (! isNew || ! rememberLiveNotification(resource, row)) {
                     return;
                 }
 
-                showWaitingToast(resource, pollActionFor(resource, row), {
+                bumpKpis(resource, action);
+                bumpSidebarBadges(resource, action);
+                prependLiveFeedItem(resource, row, true);
+                showWaitingToast(resource, action, {
                     row,
                     status: row.status,
                     public_code: row.public_code,
@@ -1048,17 +1159,14 @@ const startDeskPolling = (cubit) => {
     }
 
     const tick = () => {
-        if (! document.hidden) {
-            pollDeskQueues(cubit);
-        }
+        // Keep polling while the desk tab is open so mobile advertiser submits appear live.
+        pollDeskQueues(cubit);
     };
 
     tick();
     window.setInterval(tick, 2000);
     document.addEventListener('visibilitychange', () => {
-        if (! document.hidden) {
-            pollDeskQueues(cubit);
-        }
+        pollDeskQueues(cubit);
     });
 };
 
