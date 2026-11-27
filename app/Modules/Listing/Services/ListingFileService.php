@@ -125,10 +125,23 @@ class ListingFileService
             ]);
         }
 
+        // Public gallery files are written immediately so mobile can render /storage/media/...
+        // Staff approve still gates marketplace visibility via moderation_status.
+        $publicDisk = (string) config('aqdar.files.media.public_disk');
+        $publicPath = 'listings/'.$listing->id.'/'.Str::random(12).'.'.$extension;
+        Storage::disk($publicDisk)->put($publicPath, $bytes);
+
+        if (! Storage::disk($publicDisk)->exists($publicPath)) {
+            throw ValidationException::withMessages([
+                'file' => [__('aqdar.listings.media_store_failed')],
+            ]);
+        }
+
         $media = $listing->media()->create([
             'sort_order' => ((int) $listing->media()->max('sort_order')) + 1,
             'original_disk' => $disk,
             'original_path' => $path,
+            'public_path' => $publicPath,
             'mime' => $mime ?: 'application/octet-stream',
             'size_bytes' => strlen($bytes),
             'width' => $width,

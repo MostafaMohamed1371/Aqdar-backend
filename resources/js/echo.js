@@ -45,10 +45,46 @@ export const getEcho = () => {
                     'X-Requested-With': 'XMLHttpRequest',
                 },
             },
+            authorizer: (channel) => ({
+                authorize: (socketId, callback) => {
+                    fetch('/broadcasting/auth', {
+                        method: 'POST',
+                        credentials: 'same-origin',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            Accept: 'application/json',
+                            'X-CSRF-TOKEN': csrf,
+                            'X-Requested-With': 'XMLHttpRequest',
+                        },
+                        body: JSON.stringify({
+                            socket_id: socketId,
+                            channel_name: channel.name,
+                        }),
+                    })
+                        .then(async (response) => {
+                            if (! response.ok) {
+                                const text = await response.text();
+                                console.warn('aqdar.echo_auth_failed', response.status, channel.name, text.slice(0, 200));
+                                callback(new Error(`auth ${response.status}`), null);
+
+                                return;
+                            }
+
+                            callback(null, await response.json());
+                        })
+                        .catch((error) => {
+                            console.warn('aqdar.echo_auth_error', channel.name, error);
+                            callback(error, null);
+                        });
+                },
+            }),
         });
 
         const pusher = echoInstance.connector?.pusher;
         if (pusher?.connection) {
+            pusher.connection.bind('connected', () => {
+                document.body?.setAttribute('data-pusher-state', 'connected');
+            });
             pusher.connection.bind('error', (error) => {
                 console.warn('aqdar.pusher_connection_error', error);
             });

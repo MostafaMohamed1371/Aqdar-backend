@@ -22,11 +22,8 @@ class DeskLivePollTest extends TestCase
         $older = Listing::factory()->create(['status' => ListingStatus::InReview]);
         $newer = Listing::factory()->create(['status' => ListingStatus::InReview]);
 
-        $this->getJson(route('dashboard.live', ['listings_after' => $older->id]))
+        $live = $this->getJson(route('dashboard.live'))
             ->assertOk()
-            ->assertJsonPath('data.listings.0.id', $newer->id)
-            ->assertJsonPath('data.listings.0.public_code', $newer->public_code)
-            ->assertJsonPath('data.listings.0.url', route('dashboard.listings.show', $newer))
             ->assertJsonPath('data.needs.listings_in_review', 2)
             ->assertJsonPath('data.cursors.listings', $newer->id)
             ->assertJsonStructure([
@@ -41,8 +38,13 @@ class DeskLivePollTest extends TestCase
                     'needs' => ['listings_in_review', 'media_pending'],
                     'cursors' => ['listings', 'media', 'inbox'],
                     'inbox' => ['unread_count', 'items'],
+                    'polled_at',
                 ],
             ]);
+
+        $ids = collect($live->json('data.listings'))->pluck('id')->all();
+        $this->assertContains($older->id, $ids);
+        $this->assertContains($newer->id, $ids);
 
         $this->get(route('dashboard.listings.index'))
             ->assertOk()

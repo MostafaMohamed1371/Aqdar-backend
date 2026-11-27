@@ -829,14 +829,6 @@ const deskLiveUrl = () => {
     return raw.startsWith('/') ? raw : `/${raw}`;
 };
 
-const afterFor = (resource) => {
-    if (! liveBootstrapped[resource]) {
-        return 0;
-    }
-
-    return Math.max(liveWatermark[resource] || 0, maxLiveId(resource));
-};
-
 const pollDeskQueues = async (cubit) => {
     const url = deskLiveUrl();
     if (! url) {
@@ -844,12 +836,6 @@ const pollDeskQueues = async (cubit) => {
     }
 
     const params = new URLSearchParams({
-        listings_after: String(afterFor('listings')),
-        leads_after: String(afterFor('leads')),
-        requests_after: String(afterFor('requests')),
-        cases_after: String(afterFor('cases')),
-        documents_after: String(afterFor('documents')),
-        media_after: String(afterFor('media')),
         inbox_after: String(inboxBootstrapped ? Math.max(inboxWatermark, maxInboxId()) : 0),
     });
 
@@ -857,31 +843,26 @@ const pollDeskQueues = async (cubit) => {
         const response = await fetch(`${url}?${params.toString()}`, {
             headers: csrfHeaders(),
             credentials: 'same-origin',
-            redirect: 'error',
         });
-        if (! response.ok) {
-            console.warn('aqdar.desk_live_poll_http', response.status, url);
+        const contentType = response.headers.get('content-type') || '';
+        if (! response.ok || ! contentType.includes('application/json')) {
+            console.warn('aqdar.desk_live_poll_http', response.status, url, contentType);
 
             return;
         }
 
         const payload = await response.json();
         const data = payload?.data || {};
-        const cursors = data.cursors || {};
         applyBadges(data.badges);
         applyBadges(data.needs);
 
         LIVE_RESOURCES.forEach((resource) => {
-            const rows = (data[resource] || [])
-                .filter((row) => row?.id)
-                .sort((left, right) => Number(left.id) - Number(right.id));
-            const cursor = Number(cursors[resource] || 0);
+            const rows = (data[resource] || []).filter((row) => row?.id);
 
             if (! liveBootstrapped[resource]) {
-                const maxFromRows = rows.reduce((max, row) => Math.max(max, Number(row.id) || 0), 0);
-                liveWatermark[resource] = Math.max(liveWatermark[resource] || 0, cursor, maxFromRows, maxLiveId(resource));
                 rows.forEach((row) => {
                     notifiedLiveIds.add(`${resource}:${row.id}`);
+                    liveWatermark[resource] = Math.max(liveWatermark[resource] || 0, Number(row.id) || 0);
                     upsertLiveRow(resource, row, 'poll');
                 });
                 liveBootstrapped[resource] = true;
@@ -889,33 +870,31 @@ const pollDeskQueues = async (cubit) => {
                 return;
             }
 
+            const activeKeys = new Set(rows.map((row) => `${resource}:${row.id}`));
+            [...notifiedLiveIds].forEach((key) => {
+                if (key.startsWith(`${resource}:`) && ! activeKeys.has(key)) {
+                    notifiedLiveIds.delete(key);
+                }
+            });
+
             rows.forEach((row) => {
                 const id = Number(row.id);
-                if (id <= liveWatermark[resource]) {
-                    upsertLiveRow(resource, row, 'poll');
+                const key = `${resource}:${id}`;
+                const isNew = ! notifiedLiveIds.has(key);
+                upsertLiveRow(resource, row, isNew ? pollActionFor(resource, row) : 'poll');
+                liveWatermark[resource] = Math.max(liveWatermark[resource] || 0, id);
 
+                if (! isNew || ! rememberLiveNotification(resource, id)) {
                     return;
                 }
 
-                liveWatermark[resource] = Math.max(liveWatermark[resource], id, cursor);
-                const action = pollActionFor(resource, row);
-                upsertLiveRow(resource, row, action);
-
-                if (! rememberLiveNotification(resource, id)) {
-                    return;
-                }
-
-                showWaitingToast(resource, action, {
+                showWaitingToast(resource, pollActionFor(resource, row), {
                     row,
                     status: row.status,
                     public_code: row.public_code,
                     listing_id: row.listing_id || (resource === 'listings' ? id : null),
                 });
             });
-
-            if (cursor > liveWatermark[resource]) {
-                liveWatermark[resource] = cursor;
-            }
         });
 
         const inbox = data.inbox || {};
@@ -928,7 +907,7 @@ const pollDeskQueues = async (cubit) => {
         const inboxItems = (inbox.items || [])
             .filter((item) => item?.id)
             .sort((left, right) => Number(left.id) - Number(right.id));
-        const inboxCursor = Number(cursors.inbox || 0);
+        const inboxCursor = Number(data.cursors?.inbox || 0);
 
         if (! inboxBootstrapped) {
             const maxFromItems = inboxItems.reduce((max, item) => Math.max(max, Number(item.id) || 0), 0);
@@ -952,6 +931,8 @@ const pollDeskQueues = async (cubit) => {
                 inboxWatermark = inboxCursor;
             }
         }
+
+        document.body.setAttribute('data-desk-live-ok', data.polled_at || '1');
     } catch (error) {
         console.warn('aqdar.desk_live_poll_failed', error);
     }

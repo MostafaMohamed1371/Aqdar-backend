@@ -46,6 +46,7 @@ class SellerFileController extends BaseController
             $request->file('file'),
             $request->validated('caption') ?? null,
         );
+        $media->loadMissing('listing');
 
         return (new ListingMediaResource($media))
             ->response()

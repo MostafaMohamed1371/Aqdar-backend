@@ -81,6 +81,9 @@ class ListingMedia extends Model
         return $this->moderation_status === MediaModerationStatus::Approved && filled($this->public_path);
     }
 
+    /**
+     * Marketplace / approved-only URL.
+     */
     public function publicUrl(): ?string
     {
         if (! $this->isApproved()) {
@@ -91,13 +94,38 @@ class ListingMedia extends Model
     }
 
     /**
-     * URL the seller (or public gallery) can load in an image/video widget.
-     * Pending uploads use a short-lived signed owner preview — not the private disk path.
+     * File URL when the asset already lives on the public_media disk (set on upload).
+     */
+    public function storedPublicUrl(): ?string
+    {
+        if (! filled($this->public_path)) {
+            return null;
+        }
+
+        return PublicMediaUrl::for($this->public_path);
+    }
+
+    /**
+     * URL mobile can load in an image/video widget.
+     * Sellers see public /storage/media URLs as soon as they upload; marketplace still uses isApproved().
      */
     public function displayUrl(?User $viewer = null): ?string
     {
-        if ($public = $this->publicUrl()) {
-            return $public;
+        if ($this->isApproved()) {
+            return $this->publicUrl();
+        }
+
+        $stored = $this->storedPublicUrl();
+        if ($stored !== null) {
+            if ($viewer === null) {
+                return null;
+            }
+            $this->loadMissing('listing');
+            if ((int) $this->listing?->user_id === (int) $viewer->id) {
+                return $stored;
+            }
+
+            return null;
         }
 
         if ($viewer === null || ! filled($this->original_path)) {

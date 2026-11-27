@@ -122,9 +122,9 @@ class ListingPhase4Test extends TestCase
             ->assertCreated()
             ->assertJsonPath('data.moderation_status', 'held')
             ->assertJsonPath('data.hold_reason', 'phone');
-        // Owner still gets a signed preview URL so the seller gallery can render the file.
+        // Owner gets a public /storage/media URL immediately (file is on public_media on upload).
         $this->assertNotEmpty($held->json('data.url'));
-        $this->assertStringContainsString('/preview?', (string) $held->json('data.url'));
+        $this->assertStringContainsString('/storage/media/', (string) $held->json('data.url'));
 
         $listing->forceFill(['status' => ListingStatus::Published, 'published_at' => now()])->save();
         $this->getJson('/api/v1/listings/'.$listing->id.'/media')
@@ -271,31 +271,39 @@ class ListingPhase4Test extends TestCase
             ->assertJsonPath('data.mime', 'video/mp4')
             ->assertJsonPath('data.kind', 'video');
         $this->assertNotEmpty($created->json('data.url'));
+        $this->assertStringContainsString('/storage/media/', (string) $created->json('data.url'));
+        $this->assertNotNull($created->json('data.url'));
     }
 
-    public function test_owner_listing_includes_preview_photos_before_staff_approval(): void
+    public function test_owner_listing_includes_public_media_urls_before_staff_approval(): void
     {
         $listing = Listing::factory()->create();
         Sanctum::actingAs($listing->owner);
         Storage::fake('private_media');
+        Storage::fake('public_media');
 
         $created = $this->post("/api/v1/my/listings/{$listing->id}/media", [
             'file' => UploadedFile::fake()->image('unit.jpg', 640, 480),
         ], ['Accept' => 'application/json'])->assertCreated();
 
+        $media = ListingMedia::query()->findOrFail($created->json('data.id'));
+        $this->assertNotNull($media->public_path);
+        Storage::disk('public_media')->assertExists($media->public_path);
+
         $show = $this->getJson("/api/v1/my/listings/{$listing->id}")
             ->assertOk()
-            ->assertJsonPath('data.media.0.id', $created->json('data.id'))
+            ->assertJsonPath('data.media.0.id', $media->id)
             ->assertJsonPath('data.media.0.moderation_status', 'pending');
 
         $this->assertNotEmpty($show->json('data.media.0.url'));
         $this->assertNotEmpty($show->json('data.photos.0.url'));
-        $this->assertStringContainsString('/preview?', (string) $show->json('data.photos.0.url'));
+        $this->assertStringContainsString('/storage/media/', (string) $show->json('data.photos.0.url'));
 
-        $previewUrl = (string) $show->json('data.photos.0.url');
-        $path = parse_url($previewUrl, PHP_URL_PATH);
-        $query = parse_url($previewUrl, PHP_URL_QUERY);
-        $this->get($path.'?'.$query)->assertOk();
+        // Marketplace gallery still waits for staff approval.
+        $listing->forceFill(['status' => ListingStatus::Published, 'published_at' => now()])->save();
+        $this->getJson('/api/v1/listings/'.$listing->id.'/media')
+            ->assertOk()
+            ->assertExactJson(['data' => []]);
     }
 
     public function test_owner_can_replace_document_while_listing_is_in_review(): void

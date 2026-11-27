@@ -150,7 +150,8 @@ class OwnerListingResource extends JsonResource
             ->sortBy('sort_order')
             ->values()
             ->map(function ($media) use ($viewer) {
-                $url = $media->displayUrl($viewer);
+                $media->setRelation('listing', $this->resource);
+                $url = $media->displayUrl($viewer instanceof User ? $viewer : null);
 
                 return [
                     'id' => $media->id,
@@ -163,7 +164,6 @@ class OwnerListingResource extends JsonResource
                     'moderation_status' => $media->moderation_status?->value,
                 ];
             })
-            ->filter(fn (array $row) => filled($row['url']))
             ->values()
             ->all();
     }
