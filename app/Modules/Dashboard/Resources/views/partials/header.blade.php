@@ -23,6 +23,11 @@
         <input type="search" name="q" value="{{ request('q') }}" placeholder="{{ __('aqdar.search_placeholder') }}" aria-label="{{ __('aqdar.search_placeholder') }}">
     </form>
     <span class="grow"></span>
+    <div class="desk-live-status" data-desk-live-status title="{{ __('aqdar.live_toast.test_live') }}">
+        <span class="desk-live-pill is-wait" data-live-poll-pill>{{ __('aqdar.live_toast.poll_wait') }}</span>
+        <span class="desk-live-pill is-off" data-live-pusher-pill>{{ __('aqdar.live_toast.pusher_offline') }}</span>
+        <button type="button" class="btn ghost sm" data-desk-live-ping>{{ __('aqdar.live_toast.test_live') }}</button>
+    </div>
     @include('dashboard::partials.theme-toggle')
     <div class="locale-mini">
         @include('dashboard::partials.locale-switcher')

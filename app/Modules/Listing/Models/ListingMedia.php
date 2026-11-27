@@ -82,6 +82,21 @@ class ListingMedia extends Model
     }
 
     /**
+     * Visible on public listing gallery APIs: uploaded public files that are not rejected/held.
+     */
+    public function isPubliclyListable(): bool
+    {
+        if (! filled($this->public_path)) {
+            return false;
+        }
+
+        return in_array($this->moderation_status, [
+            MediaModerationStatus::Pending,
+            MediaModerationStatus::Approved,
+        ], true);
+    }
+
+    /**
      * Marketplace / approved-only URL.
      */
     public function publicUrl(): ?string
@@ -107,12 +122,12 @@ class ListingMedia extends Model
 
     /**
      * URL mobile can load in an image/video widget.
-     * Sellers see public /storage/media URLs as soon as they upload; marketplace still uses isApproved().
+     * Sellers always get a URL for uploaded files; public gallery uses isPubliclyListable().
      */
     public function displayUrl(?User $viewer = null): ?string
     {
-        if ($this->isApproved()) {
-            return $this->publicUrl();
+        if ($this->isPubliclyListable()) {
+            return $this->storedPublicUrl() ?? $this->publicUrl();
         }
 
         $stored = $this->storedPublicUrl();

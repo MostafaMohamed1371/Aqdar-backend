@@ -99,7 +99,7 @@ class DeskRealtimeBroadcastTest extends TestCase
         );
 
         Event::assertDispatched(DeskUpdated::class, function (DeskUpdated $event): bool {
-            return $event->resource === 'documents'
+            return $event->resource === 'media'
                 && $event->action === 'uploaded'
                 && $event->id !== null;
         });

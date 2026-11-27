@@ -222,13 +222,13 @@ class Listing extends Model
     /** @return array{id: int, public_code: string|null, title: string, photo: string|null}|null */
     public function publicCard(): ?array
     {
-        $cover = $this->media->first(fn ($media) => $media->isApproved());
+        $cover = $this->media->first(fn ($media) => $media->isPubliclyListable());
 
         return [
             'id' => $this->id,
             'public_code' => $this->public_code,
             'title' => $this->localizedTitle(),
-            'photo' => $cover?->publicUrl(),
+            'photo' => $cover?->storedPublicUrl() ?? $cover?->publicUrl(),
         ];
     }
 

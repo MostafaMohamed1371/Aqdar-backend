@@ -23,6 +23,7 @@
     data-can-crm="{{ auth()->user()?->can('manage_crm') ? '1' : '0' }}"
     data-unread="{{ $inboxUnread }}"
     data-desk-live="{{ route('dashboard.live', absolute: false) }}"
+    data-desk-live-ping="{{ route('dashboard.live.ping', absolute: false) }}"
     data-label-unread="{{ __('aqdar.notifications.unread') }}"
     data-label-view="{{ __('aqdar.listings.desk.view') }}"
     data-toast-waiting="{{ __('aqdar.live_toast.waiting') }}"
@@ -33,6 +34,12 @@
     data-toast-lead="{{ __('aqdar.live_toast.lead_created') }}"
     data-toast-request="{{ __('aqdar.live_toast.request_created') }}"
     data-toast-case="{{ __('aqdar.live_toast.case_opened') }}"
+    data-label-poll-ok="{{ __('aqdar.live_toast.poll_ok') }}"
+    data-label-poll-wait="{{ __('aqdar.live_toast.poll_wait') }}"
+    data-label-poll-fail="{{ __('aqdar.live_toast.poll_fail') }}"
+    data-label-pusher-on="{{ __('aqdar.live_toast.pusher_connected') }}"
+    data-label-pusher-off="{{ __('aqdar.live_toast.pusher_offline') }}"
+    data-label-test-live="{{ __('aqdar.live_toast.test_live') }}"
 >
     <div class="desk-toast-stack" data-desk-toasts aria-live="polite"></div>
     <div class="desk {{ app()->getLocale() === 'ar' ? 'is-rtl' : 'is-ltr' }}">

@@ -77,31 +77,33 @@ class PublicListingResource extends JsonResource
                     ->all(),
             ),
             'verification_badge' => (bool) $financials?->asking_price_verified,
-            'photos' => $this->approvedPhotos(),
+            'photos' => $this->publicPhotos(),
             'is_favorited' => in_array((int) $this->id, $this->favoriteListingIds($user), true),
             'published_at' => $this->published_at,
             'sales_contact' => app(SettingService::class)->publicConfig()['sales_contact'],
         ];
     }
 
-    private function approvedPhotos(): array
+    private function publicPhotos(): array
     {
         if (! $this->relationLoaded('media')) {
             return [];
         }
 
         return $this->media
-            ->filter(fn ($media) => $media->isApproved())
+            ->filter(fn ($media) => $media->isPubliclyListable())
+            ->sortBy('sort_order')
+            ->values()
             ->map(fn ($media) => [
                 'id' => $media->id,
                 'sort_order' => $media->sort_order,
                 'kind' => $media->isVideo() ? 'video' : 'photo',
-                'url' => $media->publicUrl(),
+                'url' => $media->storedPublicUrl() ?? $media->publicUrl(),
                 'mime' => $media->mime,
                 'width' => $media->width,
                 'height' => $media->height,
+                'moderation_status' => $media->moderation_status?->value,
             ])
-            ->values()
             ->all();
     }
 

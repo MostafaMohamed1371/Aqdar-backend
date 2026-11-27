@@ -65,18 +65,23 @@ class PublicListingController extends BaseController
         abort_unless($listing->isPubliclyVisible(), 404);
 
         $photos = $listing->media()
-            ->where('moderation_status', MediaModerationStatus::Approved)
             ->whereNotNull('public_path')
+            ->where('public_path', '!=', '')
+            ->whereIn('moderation_status', [
+                MediaModerationStatus::Pending,
+                MediaModerationStatus::Approved,
+            ])
             ->orderBy('sort_order')
             ->get()
             ->map(fn ($media) => [
                 'id' => $media->id,
                 'sort_order' => $media->sort_order,
                 'kind' => $media->isVideo() ? 'video' : 'photo',
-                'url' => $media->publicUrl(),
+                'url' => $media->storedPublicUrl() ?? $media->publicUrl(),
                 'mime' => $media->mime,
                 'width' => $media->width,
                 'height' => $media->height,
+                'moderation_status' => $media->moderation_status?->value,
             ])
             ->values();
 

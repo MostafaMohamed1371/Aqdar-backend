@@ -126,7 +126,7 @@ class ListingFileService
         }
 
         // Public gallery files are written immediately so mobile can render /storage/media/...
-        // Staff approve still gates marketplace visibility via moderation_status.
+        // Held/rejected media stay out of GET /listings/{id}/media; pending+approved are listed.
         $publicDisk = (string) config('aqdar.files.media.public_disk');
         $publicPath = 'listings/'.$listing->id.'/'.Str::random(12).'.'.$extension;
         Storage::disk($publicDisk)->put($publicPath, $bytes);
@@ -160,11 +160,12 @@ class ListingFileService
 
         $this->moderation->returnToReview($listing->fresh() ?? $listing, $user, 'public_media_changed');
 
-        DeskRealtime::push('documents', 'uploaded', (int) $media->id, meta: [
+        DeskRealtime::push('media', 'uploaded', (int) $media->id, meta: [
             'listing_id' => $listing->id,
             'public_code' => $listing->public_code,
             'status' => $media->moderation_status?->value,
             'kind' => 'media',
+            'row' => DeskLiveRow::media($media->loadMissing('listing')),
         ]);
         $this->notifications->notifyStaffQueue(
             'staff_new_submission',
@@ -344,18 +345,18 @@ class ListingFileService
     }
 
     /**
-     * Copy an approved photo onto the public_media disk and set public_path.
-     * Videos stay private even after approve.
+     * Copy a listable photo onto the public_media disk and set public_path.
+     * Videos stay private (owner preview / signed URL only).
      */
     public function publishPublicDerivative(ListingMedia $media): ListingMedia
     {
-        if ($media->isVideo() || $media->moderation_status !== MediaModerationStatus::Approved) {
+        if ($media->isVideo() || ! $this->canPublishPublicDerivative($media)) {
             return $media;
         }
 
         if (! Storage::disk($media->original_disk)->exists($media->original_path)) {
             report(new \RuntimeException(
-                'Approved listing media #'.$media->id.' has no original file on disk ['.$media->original_disk.':'.$media->original_path.'].'
+                'Listing media #'.$media->id.' has no original file on disk ['.$media->original_disk.':'.$media->original_path.'].'
             ));
 
             return $media;
@@ -380,11 +381,16 @@ class ListingFileService
         return $media->fresh() ?? $media;
     }
 
-    /** Repair approved photos that never got a public_path (queue never ran). */
+    /**
+     * Repair pending/approved photos that never got a public_path (empty mobile galleries).
+     */
     public function repairApprovedPublicDerivatives(?int $listingId = null): int
     {
         $query = ListingMedia::query()
-            ->where('moderation_status', MediaModerationStatus::Approved)
+            ->whereIn('moderation_status', [
+                MediaModerationStatus::Pending,
+                MediaModerationStatus::Approved,
+            ])
             ->where(function ($inner): void {
                 $inner->whereNull('public_path')->orWhere('public_path', '');
             });
@@ -406,6 +412,14 @@ class ListingFileService
         }
 
         return $fixed;
+    }
+
+    private function canPublishPublicDerivative(ListingMedia $media): bool
+    {
+        return in_array($media->moderation_status, [
+            MediaModerationStatus::Pending,
+            MediaModerationStatus::Approved,
+        ], true);
     }
 
     /** @return Collection<int, ListingDocument> */

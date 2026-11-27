@@ -9,7 +9,7 @@ class ProcessApprovedMediaCommand extends Command
 {
     protected $signature = 'aqdar:process-approved-media {--listing= : Limit to one listing id}';
 
-    protected $description = 'Publish public_path for approved listing photos that are still missing a public URL (fixes empty mobile galleries).';
+    protected $description = 'Publish public_path for pending/approved listing photos that are still missing a public URL (fixes empty mobile galleries).';
 
     public function handle(ListingFileService $files): int
     {
@@ -18,7 +18,7 @@ class ProcessApprovedMediaCommand extends Command
             $listingId !== null && $listingId !== '' ? (int) $listingId : null,
         );
 
-        $this->info("Published public derivatives for {$fixed} approved photo(s).");
+        $this->info("Published public derivatives for {$fixed} photo(s).");
 
         return self::SUCCESS;
     }

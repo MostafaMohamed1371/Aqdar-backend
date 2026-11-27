@@ -312,7 +312,7 @@ class ListingPhase3Test extends TestCase
             ->assertJsonPath('data.0.is_favorited', true);
     }
 
-    public function test_published_media_endpoint_is_empty_without_approved_photos(): void
+    public function test_published_media_endpoint_is_empty_without_listable_photos(): void
     {
         $listing = Listing::factory()->published()->create();
 

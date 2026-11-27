@@ -4,9 +4,11 @@ namespace Tests\Feature;
 
 use App\Core\Enums\ListingStatus;
 use App\Core\Enums\StaffRole;
+use App\Modules\Dashboard\Events\DeskUpdated;
 use App\Modules\Listing\Models\Listing;
 use App\Modules\Notification\Models\InboxNotification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Event;
 use Tests\Concerns\CreatesStaffUsers;
 use Tests\TestCase;
 
@@ -83,5 +85,31 @@ class DeskLivePollTest extends TestCase
     public function test_guest_cannot_poll_desk_live(): void
     {
         $this->getJson(route('dashboard.live'))->assertUnauthorized();
+    }
+
+    public function test_staff_can_ping_desk_live_broadcast(): void
+    {
+        $this->actingAsStaff(StaffRole::Operations);
+
+        Event::fake([DeskUpdated::class]);
+
+        $this->postJson(route('dashboard.live.ping'))
+            ->assertOk()
+            ->assertJsonPath('data.ok', true)
+            ->assertJsonStructure(['data' => ['public_code', 'id', 'broadcast_driver', 'message']]);
+
+        Event::assertDispatched(
+            DeskUpdated::class,
+            function (DeskUpdated $event): bool {
+                return $event->resource === 'listings'
+                    && $event->action === 'submitted'
+                    && ($event->meta['ping'] ?? false) === true;
+            },
+        );
+
+        $this->get(route('dashboard.listings.index'))
+            ->assertOk()
+            ->assertSee('data-desk-live-ping="/dashboard/live/ping"', false)
+            ->assertSee('data-desk-live-status', false);
     }
 }

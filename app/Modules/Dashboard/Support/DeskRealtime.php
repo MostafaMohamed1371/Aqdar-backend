@@ -16,7 +16,7 @@ final class DeskRealtime
     public static function push(string $resource, string $action, ?int $id = null, array $screens = [], array $meta = []): void
     {
         $defaultScreens = match ($resource) {
-            'listings', 'documents' => ['ADM-01', 'ADM-02', 'ADM-03'],
+            'listings', 'documents', 'media' => ['ADM-01', 'ADM-02', 'ADM-03'],
             'users' => ['ADM-01', 'ADM-04'],
             'staff' => ['ADM-06'],
             'leads', 'support' => ['ADM-01', 'ADM-07'],

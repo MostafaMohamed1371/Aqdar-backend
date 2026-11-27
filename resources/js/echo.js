@@ -23,6 +23,7 @@ export const getEcho = () => {
 
     if (driver !== 'pusher' || ! key) {
         echoUnavailable = true;
+        document.body?.setAttribute('data-pusher-state', 'offline');
         console.warn('aqdar.echo_unavailable', { driver, hasKey: Boolean(key) });
 
         return null;
@@ -94,6 +95,7 @@ export const getEcho = () => {
         }
     } catch (error) {
         echoUnavailable = true;
+        document.body?.setAttribute('data-pusher-state', 'offline');
         console.warn('aqdar.echo_unavailable', error);
 
         return null;

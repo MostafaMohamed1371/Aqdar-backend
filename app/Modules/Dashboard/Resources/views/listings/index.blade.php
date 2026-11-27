@@ -74,9 +74,9 @@
                         @endif
                     </td>
                     <td>
-                        @php $cover = $listing->media->first(fn ($media) => $media->isApproved()); @endphp
-                        @if ($cover?->publicUrl())
-                            <img src="{{ $cover->publicUrl() }}" alt="" width="48" height="36" style="object-fit:cover;border-radius:8px">
+                        @php $cover = $listing->media->first(fn ($media) => $media->isPubliclyListable()); @endphp
+                        @if ($cover?->storedPublicUrl() ?? $cover?->publicUrl())
+                            <img src="{{ $cover->storedPublicUrl() ?? $cover->publicUrl() }}" alt="" width="48" height="36" style="object-fit:cover;border-radius:8px">
                         @else
                             —
                         @endif

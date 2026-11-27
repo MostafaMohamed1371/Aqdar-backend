@@ -127,6 +127,7 @@ class ListingPhase4Test extends TestCase
         $this->assertStringContainsString('/storage/media/', (string) $held->json('data.url'));
 
         $listing->forceFill(['status' => ListingStatus::Published, 'published_at' => now()])->save();
+        // Held media stays hidden from the public gallery.
         $this->getJson('/api/v1/listings/'.$listing->id.'/media')
             ->assertOk()
             ->assertExactJson(['data' => []]);
@@ -299,11 +300,13 @@ class ListingPhase4Test extends TestCase
         $this->assertNotEmpty($show->json('data.photos.0.url'));
         $this->assertStringContainsString('/storage/media/', (string) $show->json('data.photos.0.url'));
 
-        // Marketplace gallery still waits for staff approval.
+        // Pending uploads with public_path appear on the public gallery endpoint.
         $listing->forceFill(['status' => ListingStatus::Published, 'published_at' => now()])->save();
         $this->getJson('/api/v1/listings/'.$listing->id.'/media')
             ->assertOk()
-            ->assertExactJson(['data' => []]);
+            ->assertJsonPath('data.0.id', $media->id)
+            ->assertJsonPath('data.0.moderation_status', 'pending');
+        $this->assertStringContainsString('/storage/media/', (string) $this->getJson('/api/v1/listings/'.$listing->id)->json('data.photos.0.url'));
     }
 
     public function test_owner_can_replace_document_while_listing_is_in_review(): void
