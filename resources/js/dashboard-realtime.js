@@ -539,6 +539,11 @@ const upsertLiveRow = (resource, row, action) => {
         return false;
     }
 
+    // Never inject debug/ping rows into real moderation tables.
+    if (row.ping || String(row.public_code || '').startsWith('PING-')) {
+        return false;
+    }
+
     const existing = table.querySelector(`[data-live-row="${resource}"][data-live-id="${row.id}"]`);
     if (existing) {
         if (row.status_label || row.status) {
@@ -578,6 +583,9 @@ const patchDeskResource = (state) => {
     const resource = state.lastResource;
     const id = state.lastId;
     const meta = state.lastMeta || {};
+    if (meta.ping || String(meta.public_code || meta.row?.public_code || '').startsWith('PING-')) {
+        return;
+    }
     const fingerprint = deskEventKey(state);
     if (fingerprint !== '|||{}' && seenDeskEvents.has(fingerprint)) {
         return;
@@ -716,110 +724,6 @@ const showWaitingToast = (resource, action, meta = {}) => {
     window.setTimeout(() => toast.remove(), 12000);
 };
 
-const setPill = (node, text, tone) => {
-    if (! node) {
-        return;
-    }
-    node.textContent = text;
-    node.classList.remove('is-ok', 'is-off', 'is-fail', 'is-wait');
-    node.classList.add(tone);
-};
-
-const refreshLiveStatusPills = (pollTone = null) => {
-    const pollPill = document.querySelector('[data-live-poll-pill]');
-    const pusherPill = document.querySelector('[data-live-pusher-pill]');
-    const body = document.body;
-
-    if (pollTone === 'ok') {
-        setPill(pollPill, body.getAttribute('data-label-poll-ok') || 'Poll OK', 'is-ok');
-    } else if (pollTone === 'fail') {
-        setPill(pollPill, body.getAttribute('data-label-poll-fail') || 'Poll fail', 'is-fail');
-    } else if (pollPill && ! pollPill.classList.contains('is-ok') && ! pollPill.classList.contains('is-fail')) {
-        setPill(pollPill, body.getAttribute('data-label-poll-wait') || 'Poll…', 'is-wait');
-    }
-
-    const pusherState = body.getAttribute('data-pusher-state') || '';
-    if (pusherState === 'connected') {
-        setPill(pusherPill, body.getAttribute('data-label-pusher-on') || 'Pusher on', 'is-ok');
-    } else {
-        setPill(pusherPill, body.getAttribute('data-label-pusher-off') || 'Pusher off', 'is-off');
-    }
-};
-
-const wireDeskLivePing = (cubit) => {
-    const button = document.querySelector('[data-desk-live-ping]');
-    const url = document.body.getAttribute('data-desk-live-ping') || '';
-    if (! button || ! url) {
-        return;
-    }
-
-    button.addEventListener('click', async () => {
-        button.disabled = true;
-
-        // Show feedback immediately so the button never looks dead if the network is slow.
-        const localId = Date.now();
-        const localCode = `PING-${String(localId).slice(-4)}`;
-        const localRow = {
-            id: localId,
-            public_code: localCode,
-            title: document.body.getAttribute('data-toast-listing') || 'Realtime desk ping',
-            status: 'submitted',
-            status_label: 'Submitted',
-            status_tone: 'warn',
-            url: '/dashboard/listings?status=in_review',
-        };
-        showWaitingToast('listings', 'submitted', {
-            row: localRow,
-            public_code: localCode,
-            status: 'submitted',
-        });
-        prependLiveFeedItem('listings', localRow, true);
-
-        try {
-            const response = await fetch(url, {
-                method: 'POST',
-                headers: {
-                    ...csrfHeaders(),
-                    'Content-Type': 'application/json',
-                },
-                credentials: 'same-origin',
-                body: '{}',
-            });
-            const payload = await response.json().catch(() => ({}));
-            if (! response.ok) {
-                console.warn('aqdar.desk_live_ping_failed', response.status, payload);
-                refreshLiveStatusPills('fail');
-
-                return;
-            }
-
-            const data = payload?.data || {};
-            cubit.emit({
-                lastResource: 'listings',
-                lastAction: 'submitted',
-                lastId: data.id ?? localId,
-                lastScreens: ['ADM-01', 'ADM-02'],
-                lastMeta: {
-                    public_code: data.public_code || localCode,
-                    status: 'submitted',
-                    ping: true,
-                    row: {
-                        ...localRow,
-                        id: data.id ?? localId,
-                        public_code: data.public_code || localCode,
-                    },
-                },
-            });
-            console.info('aqdar.desk_live_ping_ok', data);
-        } catch (error) {
-            console.warn('aqdar.desk_live_ping_error', error);
-            refreshLiveStatusPills('fail');
-        } finally {
-            button.disabled = false;
-        }
-    });
-};
-
 const bootDashboardCubit = () => {
     const desk = document.querySelector('[data-staff-id]');
     if (! desk) {
@@ -835,7 +739,6 @@ const bootDashboardCubit = () => {
     window.deskCubit = cubit;
     window.aqdarDeskDebug = () => ({
         liveUrl: deskLiveUrl(),
-        pingUrl: document.body.getAttribute('data-desk-live-ping') || '',
         pollOk: document.body.getAttribute('data-desk-live-ok') || null,
         pusherState: document.body.getAttribute('data-pusher-state') || 'unknown',
         echo: Boolean(getEcho()),
@@ -843,8 +746,6 @@ const bootDashboardCubit = () => {
         notified: [...notifiedLiveIds],
     });
     seedLiveWatermarks();
-    refreshLiveStatusPills();
-    wireDeskLivePing(cubit);
     wireLiveFeedClose();
 
     cubit.listen((state, patch) => {
@@ -874,7 +775,6 @@ const bootDashboardCubit = () => {
     // Pusher primary path — poll above remains the safety net when auth/WS fails.
     if (! getEcho()) {
         document.body.setAttribute('data-pusher-state', 'offline');
-        refreshLiveStatusPills();
         console.warn('aqdar.desk_pusher_offline', 'Polling /dashboard/live every 2s');
 
         return;
@@ -929,8 +829,6 @@ const bootDashboardCubit = () => {
         });
     }
 
-    const observer = new MutationObserver(() => refreshLiveStatusPills());
-    observer.observe(document.body, { attributes: true, attributeFilter: ['data-pusher-state', 'data-desk-live-ok'] });
 };
 
 const csrfHeaders = () => ({
@@ -1066,7 +964,6 @@ const pollDeskQueues = async (cubit) => {
         const contentType = response.headers.get('content-type') || '';
         if (! response.ok || ! contentType.includes('application/json')) {
             console.warn('aqdar.desk_live_poll_http', response.status, url, contentType);
-            refreshLiveStatusPills('fail');
 
             return;
         }
@@ -1163,17 +1060,14 @@ const pollDeskQueues = async (cubit) => {
         }
 
         document.body.setAttribute('data-desk-live-ok', data.polled_at || '1');
-        refreshLiveStatusPills('ok');
     } catch (error) {
         console.warn('aqdar.desk_live_poll_failed', error);
-        refreshLiveStatusPills('fail');
     }
 };
 
 const startDeskPolling = (cubit) => {
     if (! deskLiveUrl()) {
         console.warn('aqdar.desk_live_missing', 'body[data-desk-live] is empty');
-        refreshLiveStatusPills('fail');
 
         return;
     }

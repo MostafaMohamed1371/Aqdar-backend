@@ -43,7 +43,6 @@ Route::middleware(['staff.ip', 'auth'])->prefix('dashboard')->name('dashboard.')
     Route::get('guide', [GuideDeskController::class, 'index'])->name('guide');
     Route::get('guide/pdf', [GuideDeskController::class, 'pdf'])->name('guide.pdf');
     Route::get('live', [DeskLiveController::class, 'index'])->name('live');
-    Route::post('live/ping', [DeskLiveController::class, 'ping'])->name('live.ping');
     Route::get('inbox', [StaffInboxController::class, 'index'])->name('inbox');
     Route::post('inbox/{notification}/read', [StaffInboxController::class, 'read'])->whereNumber('notification')->name('inbox.read');
     Route::get('profile', [ProfileController::class, 'show'])->name('profile.show');

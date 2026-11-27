@@ -12,7 +12,6 @@ use App\Modules\Crm\Models\TransferCase;
 use App\Modules\Crm\Services\LeadService;
 use App\Modules\Dashboard\Services\DashboardService;
 use App\Modules\Dashboard\Support\DeskLiveRow;
-use App\Modules\Dashboard\Support\DeskRealtime;
 use App\Modules\Listing\Models\Listing;
 use App\Modules\Listing\Models\ListingDocument;
 use App\Modules\Listing\Models\ListingMedia;
@@ -21,7 +20,6 @@ use App\Modules\Notification\Services\NotificationService;
 use App\Modules\Staff\Models\StaffUser;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Str;
 
 class DeskLiveController extends BaseController
 {
@@ -186,45 +184,5 @@ class DeskLiveController extends BaseController
         }
 
         return response()->json(['data' => $payload]);
-    }
-
-    /**
-     * Fire a desk.updated event so staff can confirm Pusher (and poll toast path) without a mobile submit.
-     */
-    public function ping(Request $request): JsonResponse
-    {
-        /** @var StaffUser $staff */
-        $staff = $request->user();
-
-        $code = 'PING-'.Str::upper(Str::random(4));
-        $id = (int) (microtime(true) * 1000) % 2_000_000_000;
-
-        DeskRealtime::push('listings', 'submitted', $id, meta: [
-            'public_code' => $code,
-            'status' => ListingStatus::Submitted->value,
-            'label' => ListingStatus::Submitted->value,
-            'ping' => true,
-            'staff_id' => $staff->id,
-            'row' => [
-                'id' => $id,
-                'public_code' => $code,
-                'title' => __('aqdar.live_toast.ping_title'),
-                'status' => ListingStatus::Submitted->value,
-                'status_label' => __('aqdar.listings.status.submitted'),
-                'status_tone' => 'warn',
-                'url' => route('dashboard.listings.index', ['status' => 'in_review'], absolute: false),
-                'view_label' => __('aqdar.listings.desk.view'),
-            ],
-        ]);
-
-        return response()->json([
-            'data' => [
-                'ok' => true,
-                'public_code' => $code,
-                'id' => $id,
-                'broadcast_driver' => config('broadcasting.default'),
-                'message' => __('aqdar.live_toast.ping_sent'),
-            ],
-        ]);
     }
 }
