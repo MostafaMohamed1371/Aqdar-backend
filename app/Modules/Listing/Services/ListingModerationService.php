@@ -5,6 +5,7 @@ namespace App\Modules\Listing\Services;
 use App\Core\Audit\AuditLogger;
 use App\Core\Enums\ListingStatus;
 use App\Core\Enums\Permission;
+use App\Modules\Dashboard\Support\DeskLiveRow;
 use App\Modules\Dashboard\Support\DeskRealtime;
 use App\Modules\Listing\Jobs\MatchSavedSearchesJob;
 use App\Modules\Listing\Models\Listing;
@@ -237,9 +238,15 @@ class ListingModerationService
                 ], $event.':listing:'.$fresh->id.':history:'.$history->id);
             }
 
-            DeskRealtime::push('listings', $action, (int) $fresh->id, meta: [
+            $fresh->loadMissing(['governorate', 'developer']);
+            $deskAction = match ($action) {
+                'listing.returned_to_review', 'listing.reopened' => 'submitted',
+                default => $action,
+            };
+            DeskRealtime::push('listings', $deskAction, (int) $fresh->id, meta: [
                 'public_code' => $fresh->public_code,
                 'status' => $to->value,
+                'row' => DeskLiveRow::listing($fresh),
             ]);
 
             return $fresh;

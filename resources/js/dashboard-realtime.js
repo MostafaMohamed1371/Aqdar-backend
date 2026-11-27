@@ -1,4 +1,4 @@
-import { getEcho } from './echo';
+import { getEcho, subscribePrivate } from './echo';
 import { createDeskCubit } from './desk-cubit';
 
 const STATUS_LABELS = {
@@ -48,8 +48,9 @@ const flash = (el) => {
 const seenDeskEvents = new Set();
 
 const KPI_NEW_ACTIONS = {
-    listings: ['submitted', 'resubmitted'],
-    documents: ['uploaded', 'pending'],
+    listings: ['submitted', 'resubmitted', 'returned_to_review', 'reopened', 'in_review'],
+    documents: ['uploaded', 'pending', 'document_uploaded'],
+    media: ['uploaded', 'pending'],
     leads: ['inquiry', 'created'],
     requests: ['created'],
     cases: ['opened'],
@@ -74,6 +75,7 @@ const bumpSidebarBadges = (resource, action) => {
     const map = {
         listings: ['ADM-02'],
         documents: ['ADM-03'],
+        media: ['ADM-02', 'ADM-03'],
         leads: ['ADM-07'],
         requests: ['ADM-08'],
         cases: ['ADM-09'],
@@ -112,8 +114,11 @@ const bumpKpis = (resource, action) => {
     const map = {
         listings: (action === 'listing.published' || action === 'published')
             ? ['total_listings', 'listings_approved']
-            : ((action === 'submitted' || action === 'resubmitted') ? ['listings_in_review'] : []),
-        documents: (action === 'uploaded' || action === 'pending') ? ['media_pending'] : [],
+            : (isNewAction('listings', action) ? ['listings_in_review'] : []),
+        documents: (action === 'uploaded' || action === 'pending')
+            ? ['media_pending']
+            : ((action === 'document_uploaded') ? ['documents_pending'] : []),
+        media: (action === 'uploaded' || action === 'pending') ? ['media_pending'] : [],
         leads: KPI_NEW_ACTIONS.leads.includes(action) ? ['unassigned_leads', 'inquiries_in_range'] : [],
         requests: KPI_NEW_ACTIONS.requests.includes(action) ? ['custom_buy_requests', 'new_buyer_requests'] : [],
         cases: KPI_NEW_ACTIONS.cases.includes(action) ? ['active_transfers'] : [],
@@ -297,7 +302,7 @@ const fieldValue = (resource, action, meta, field) => {
 
 const findLiveTable = (resource) => document.querySelector(`[data-live-table="${resource}"]`);
 
-const LIVE_RESOURCES = ['listings', 'leads', 'requests', 'cases', 'documents'];
+const LIVE_RESOURCES = ['listings', 'leads', 'requests', 'cases', 'documents', 'media'];
 
 const liveWatermark = Object.fromEntries(LIVE_RESOURCES.map((resource) => [resource, 0]));
 const liveBootstrapped = Object.fromEntries(LIVE_RESOURCES.map((resource) => [resource, false]));
@@ -348,8 +353,11 @@ const pollActionFor = (resource, row = {}) => {
     if (resource === 'listings') {
         return status === 'resubmitted' ? 'resubmitted' : 'submitted';
     }
-    if (resource === 'documents') {
+    if (resource === 'media') {
         return 'uploaded';
+    }
+    if (resource === 'documents') {
+        return 'document_uploaded';
     }
     if (resource === 'leads') {
         return 'created';
@@ -530,6 +538,12 @@ const toastTemplate = (resource, action) => {
     if (resource === 'listings' && isNewAction(resource, action)) {
         return document.body.getAttribute('data-toast-listing') || 'New listing awaiting review: :code';
     }
+    if (resource === 'media' && (action === 'uploaded' || action === 'pending')) {
+        return document.body.getAttribute('data-toast-media') || 'New public photo awaiting approval: :code';
+    }
+    if (resource === 'documents' && action === 'document_uploaded') {
+        return document.body.getAttribute('data-toast-document') || 'New document awaiting review: :code';
+    }
     if (resource === 'documents' && (action === 'uploaded' || action === 'pending')) {
         return document.body.getAttribute('data-toast-media') || 'New public photo awaiting approval: :code';
     }
@@ -553,7 +567,7 @@ const toastUrl = (resource, meta) => {
     if (resource === 'listings' && meta?.listing_id) {
         return `/dashboard/listings/${meta.listing_id}`;
     }
-    if (resource === 'documents' && meta?.listing_id) {
+    if ((resource === 'documents' || resource === 'media') && meta?.listing_id) {
         return `/dashboard/listings/${meta.listing_id}`;
     }
     if (resource === 'listings') {
@@ -643,13 +657,15 @@ const bootDashboardCubit = () => {
     startDeskPolling(cubit);
     startSupportPolling(cubit);
 
-    const echo = getEcho();
-    if (! echo) {
+    // Pusher primary path — poll above remains the safety net when auth/WS fails.
+    if (! getEcho()) {
+        console.warn('aqdar.desk_pusher_offline', 'Polling /dashboard/live every 4s');
+
         return;
     }
 
-    echo.private('desk')
-        .listen('.desk.updated', (payload) => {
+    subscribePrivate('desk', {
+        '.desk.updated': (payload) => {
             cubit.emit({
                 lastResource: payload?.resource || null,
                 lastAction: payload?.action || null,
@@ -657,40 +673,44 @@ const bootDashboardCubit = () => {
                 lastScreens: Array.isArray(payload?.screens) ? payload.screens : [],
                 lastMeta: payload?.meta || {},
             });
-        });
+        },
+    });
 
-    echo.private(`staff.${staffId}`)
-        .listen('.staff.inbox.received', (payload) => {
+    subscribePrivate(`staff.${staffId}`, {
+        '.staff.inbox.received': (payload) => {
             cubit.emit({
                 unreadCount: Number(payload?.unread_count || 0),
                 lastInbox: payload?.notification || null,
             });
-        });
+        },
+    });
 
     if (desk.getAttribute('data-can-crm') === '1') {
-        echo.private('support.desk')
-            .listen('.support.desk.updated', (payload) => {
+        subscribePrivate('support.desk', {
+            '.support.desk.updated': (payload) => {
                 cubit.emit({
                     lastSupport: payload?.thread || null,
                     lastAction: payload?.action || 'message',
                 });
-            });
+            },
+        });
     }
 
     const threadRoot = document.querySelector('[data-support-thread]');
     const threadId = threadRoot?.getAttribute('data-support-thread');
     if (threadId) {
-        echo.private(`support.thread.${threadId}`)
-            .listen('.support.message.sent', (payload) => {
+        subscribePrivate(`support.thread.${threadId}`, {
+            '.support.message.sent': (payload) => {
                 cubit.emit({
                     lastThreadMessage: payload?.message || null,
                 });
-            })
-            .listen('.support.thread.closed', () => {
+            },
+            '.support.thread.closed': () => {
                 cubit.emit({
                     lastThreadClosed: true,
                 });
-            });
+            },
+        });
     }
 };
 
@@ -791,32 +811,63 @@ const startSupportPolling = (cubit) => {
     window.setInterval(tick, 3000);
 };
 
+const deskLiveUrl = () => {
+    const raw = document.body.getAttribute('data-desk-live') || '';
+    if (! raw) {
+        return '';
+    }
+
+    // Always same-origin relative path so APP_URL=localhost does not break LAN / 127.0.0.1 desks.
+    try {
+        if (raw.startsWith('http://') || raw.startsWith('https://')) {
+            return new URL(raw).pathname;
+        }
+    } catch (error) {
+        console.warn('aqdar.desk_live_url_invalid', raw, error);
+    }
+
+    return raw.startsWith('/') ? raw : `/${raw}`;
+};
+
+const afterFor = (resource) => {
+    if (! liveBootstrapped[resource]) {
+        return 0;
+    }
+
+    return Math.max(liveWatermark[resource] || 0, maxLiveId(resource));
+};
+
 const pollDeskQueues = async (cubit) => {
-    const url = document.body.getAttribute('data-desk-live');
+    const url = deskLiveUrl();
     if (! url) {
         return;
     }
 
     const params = new URLSearchParams({
-        listings_after: String(Math.max(liveWatermark.listings, maxLiveId('listings'))),
-        leads_after: String(Math.max(liveWatermark.leads, maxLiveId('leads'))),
-        requests_after: String(Math.max(liveWatermark.requests, maxLiveId('requests'))),
-        cases_after: String(Math.max(liveWatermark.cases, maxLiveId('cases'))),
-        documents_after: String(Math.max(liveWatermark.documents, maxLiveId('documents'))),
-        inbox_after: String(Math.max(inboxWatermark, maxInboxId())),
+        listings_after: String(afterFor('listings')),
+        leads_after: String(afterFor('leads')),
+        requests_after: String(afterFor('requests')),
+        cases_after: String(afterFor('cases')),
+        documents_after: String(afterFor('documents')),
+        media_after: String(afterFor('media')),
+        inbox_after: String(inboxBootstrapped ? Math.max(inboxWatermark, maxInboxId()) : 0),
     });
 
     try {
         const response = await fetch(`${url}?${params.toString()}`, {
             headers: csrfHeaders(),
             credentials: 'same-origin',
+            redirect: 'error',
         });
         if (! response.ok) {
+            console.warn('aqdar.desk_live_poll_http', response.status, url);
+
             return;
         }
 
         const payload = await response.json();
         const data = payload?.data || {};
+        const cursors = data.cursors || {};
         applyBadges(data.badges);
         applyBadges(data.needs);
 
@@ -824,10 +875,12 @@ const pollDeskQueues = async (cubit) => {
             const rows = (data[resource] || [])
                 .filter((row) => row?.id)
                 .sort((left, right) => Number(left.id) - Number(right.id));
+            const cursor = Number(cursors[resource] || 0);
 
             if (! liveBootstrapped[resource]) {
+                const maxFromRows = rows.reduce((max, row) => Math.max(max, Number(row.id) || 0), 0);
+                liveWatermark[resource] = Math.max(liveWatermark[resource] || 0, cursor, maxFromRows, maxLiveId(resource));
                 rows.forEach((row) => {
-                    liveWatermark[resource] = Math.max(liveWatermark[resource], Number(row.id));
                     notifiedLiveIds.add(`${resource}:${row.id}`);
                     upsertLiveRow(resource, row, 'poll');
                 });
@@ -844,7 +897,7 @@ const pollDeskQueues = async (cubit) => {
                     return;
                 }
 
-                liveWatermark[resource] = id;
+                liveWatermark[resource] = Math.max(liveWatermark[resource], id, cursor);
                 const action = pollActionFor(resource, row);
                 upsertLiveRow(resource, row, action);
 
@@ -852,7 +905,6 @@ const pollDeskQueues = async (cubit) => {
                     return;
                 }
 
-                // Absolute KPIs/badges already applied from `needs` / `badges`; toast only.
                 showWaitingToast(resource, action, {
                     row,
                     status: row.status,
@@ -860,6 +912,10 @@ const pollDeskQueues = async (cubit) => {
                     listing_id: row.listing_id || (resource === 'listings' ? id : null),
                 });
             });
+
+            if (cursor > liveWatermark[resource]) {
+                liveWatermark[resource] = cursor;
+            }
         });
 
         const inbox = data.inbox || {};
@@ -872,35 +928,37 @@ const pollDeskQueues = async (cubit) => {
         const inboxItems = (inbox.items || [])
             .filter((item) => item?.id)
             .sort((left, right) => Number(left.id) - Number(right.id));
+        const inboxCursor = Number(cursors.inbox || 0);
 
         if (! inboxBootstrapped) {
-            inboxItems.forEach((item) => {
-                inboxWatermark = Math.max(inboxWatermark, Number(item.id));
-            });
+            const maxFromItems = inboxItems.reduce((max, item) => Math.max(max, Number(item.id) || 0), 0);
+            inboxWatermark = Math.max(inboxWatermark, inboxCursor, maxFromItems, maxInboxId());
             inboxBootstrapped = true;
+        } else {
+            inboxItems.forEach((item) => {
+                const id = Number(item.id);
+                if (id <= inboxWatermark) {
+                    return;
+                }
+                inboxWatermark = id;
+                const patch = { lastInbox: item };
+                if (hasUnreadCount) {
+                    patch.unreadCount = unreadCount;
+                }
+                cubit.emit(patch);
+            });
 
-            return;
+            if (inboxCursor > inboxWatermark) {
+                inboxWatermark = inboxCursor;
+            }
         }
-
-        inboxItems.forEach((item) => {
-            const id = Number(item.id);
-            if (id <= inboxWatermark) {
-                return;
-            }
-            inboxWatermark = id;
-            const patch = { lastInbox: item };
-            if (hasUnreadCount) {
-                patch.unreadCount = unreadCount;
-            }
-            cubit.emit(patch);
-        });
     } catch (error) {
         console.warn('aqdar.desk_live_poll_failed', error);
     }
 };
 
 const startDeskPolling = (cubit) => {
-    if (! document.body.getAttribute('data-desk-live')) {
+    if (! deskLiveUrl()) {
         return;
     }
 
@@ -911,7 +969,12 @@ const startDeskPolling = (cubit) => {
     };
 
     tick();
-    window.setInterval(tick, 4000);
+    window.setInterval(tick, 2000);
+    document.addEventListener('visibilitychange', () => {
+        if (! document.hidden) {
+            pollDeskQueues(cubit);
+        }
+    });
 };
 
 document.addEventListener('DOMContentLoaded', bootDashboardCubit);

@@ -43,9 +43,11 @@ class DeskLiveController extends BaseController
             ->count();
 
         $inboxAfter = max(0, (int) $request->query('inbox_after', 0));
-        $inboxItems = InboxNotification::query()
+        $inboxQuery = InboxNotification::query()
             ->where('notifiable_type', $staff->getMorphClass())
-            ->where('notifiable_id', $staff->getKey())
+            ->where('notifiable_id', $staff->getKey());
+
+        $inboxItems = (clone $inboxQuery)
             ->where('id', '>', $inboxAfter)
             ->latest('id')
             ->limit(20)
@@ -66,8 +68,18 @@ class DeskLiveController extends BaseController
             'requests' => [],
             'cases' => [],
             'documents' => [],
+            'media' => [],
             'badges' => $badges,
             'needs' => $this->dashboard->waitingActions(),
+            'cursors' => [
+                'listings' => 0,
+                'leads' => 0,
+                'requests' => 0,
+                'cases' => 0,
+                'documents' => 0,
+                'media' => 0,
+                'inbox' => (int) ((clone $inboxQuery)->max('id') ?? 0),
+            ],
             'inbox' => [
                 'unread_count' => $this->notifications->unreadCount($staff),
                 'items' => $inboxItems,
@@ -75,19 +87,38 @@ class DeskLiveController extends BaseController
         ];
 
         if ($staff->can('approve_listing')) {
+            $listingBase = Listing::query()->whereIn('status', [
+                ListingStatus::Submitted,
+                ListingStatus::InReview,
+                ListingStatus::Resubmitted,
+            ]);
+            $payload['cursors']['listings'] = (int) ((clone $listingBase)->max('id') ?? 0);
+
             $after = max(0, (int) $request->query('listings_after', 0));
-            $payload['listings'] = Listing::query()
+            $payload['listings'] = (clone $listingBase)
                 ->with(['governorate', 'developer'])
                 ->where('id', '>', $after)
-                ->whereIn('status', [
-                    ListingStatus::Submitted,
-                    ListingStatus::InReview,
-                    ListingStatus::Resubmitted,
-                ])
                 ->orderByDesc('id')
                 ->limit(20)
                 ->get()
                 ->map(fn (Listing $listing) => DeskLiveRow::listing($listing))
+                ->values()
+                ->all();
+
+            $mediaBase = ListingMedia::query()->whereIn('moderation_status', [
+                MediaModerationStatus::Pending,
+                MediaModerationStatus::Held,
+            ]);
+            $payload['cursors']['media'] = (int) ((clone $mediaBase)->max('id') ?? 0);
+
+            $mediaAfter = max(0, (int) $request->query('media_after', 0));
+            $payload['media'] = (clone $mediaBase)
+                ->with(['listing'])
+                ->where('id', '>', $mediaAfter)
+                ->orderByDesc('id')
+                ->limit(20)
+                ->get()
+                ->map(fn (ListingMedia $media) => DeskLiveRow::media($media))
                 ->values()
                 ->all();
         }
@@ -95,12 +126,16 @@ class DeskLiveController extends BaseController
         if ($staff->can('manage_crm')) {
             $salesOnly = ! $this->leads->canManageAll($staff) && $staff->role?->slug === 'sales';
 
-            $leadsAfter = max(0, (int) $request->query('leads_after', 0));
-            $leadsQuery = Lead::query()->with(['buyer', 'listing'])->where('id', '>', $leadsAfter);
+            $leadsBase = Lead::query();
             if ($salesOnly) {
-                $leadsQuery->where('assigned_to', $staff->id);
+                $leadsBase->where('assigned_to', $staff->id);
             }
-            $payload['leads'] = $leadsQuery
+            $payload['cursors']['leads'] = (int) ((clone $leadsBase)->max('id') ?? 0);
+
+            $leadsAfter = max(0, (int) $request->query('leads_after', 0));
+            $payload['leads'] = (clone $leadsBase)
+                ->with(['buyer', 'listing'])
+                ->where('id', '>', $leadsAfter)
                 ->orderByDesc('id')
                 ->limit(20)
                 ->get()
@@ -108,12 +143,16 @@ class DeskLiveController extends BaseController
                 ->values()
                 ->all();
 
-            $requestsAfter = max(0, (int) $request->query('requests_after', 0));
-            $requestsQuery = BuyerRequest::query()->with(['buyer'])->where('id', '>', $requestsAfter);
+            $requestsBase = BuyerRequest::query();
             if ($salesOnly) {
-                $requestsQuery->where('assigned_to', $staff->id);
+                $requestsBase->where('assigned_to', $staff->id);
             }
-            $payload['requests'] = $requestsQuery
+            $payload['cursors']['requests'] = (int) ((clone $requestsBase)->max('id') ?? 0);
+
+            $requestsAfter = max(0, (int) $request->query('requests_after', 0));
+            $payload['requests'] = (clone $requestsBase)
+                ->with(['buyer'])
+                ->where('id', '>', $requestsAfter)
                 ->orderByDesc('id')
                 ->limit(20)
                 ->get()
@@ -121,12 +160,16 @@ class DeskLiveController extends BaseController
                 ->values()
                 ->all();
 
-            $casesAfter = max(0, (int) $request->query('cases_after', 0));
-            $casesQuery = TransferCase::query()->with(['listing'])->where('id', '>', $casesAfter);
+            $casesBase = TransferCase::query();
             if ($salesOnly) {
-                $casesQuery->where('assigned_to', $staff->id);
+                $casesBase->where('assigned_to', $staff->id);
             }
-            $payload['cases'] = $casesQuery
+            $payload['cursors']['cases'] = (int) ((clone $casesBase)->max('id') ?? 0);
+
+            $casesAfter = max(0, (int) $request->query('cases_after', 0));
+            $payload['cases'] = (clone $casesBase)
+                ->with(['listing'])
+                ->where('id', '>', $casesAfter)
                 ->orderByDesc('id')
                 ->limit(20)
                 ->get()
@@ -136,14 +179,16 @@ class DeskLiveController extends BaseController
         }
 
         if ($staff->can('open_private_documents')) {
+            $docsBase = ListingDocument::query()->whereIn('review_status', [
+                DocumentReviewStatus::Pending,
+                DocumentReviewStatus::ReplacementRequested,
+            ]);
+            $payload['cursors']['documents'] = (int) ((clone $docsBase)->max('id') ?? 0);
+
             $docsAfter = max(0, (int) $request->query('documents_after', 0));
-            $payload['documents'] = ListingDocument::query()
+            $payload['documents'] = (clone $docsBase)
                 ->with(['listing'])
                 ->where('id', '>', $docsAfter)
-                ->whereIn('review_status', [
-                    DocumentReviewStatus::Pending,
-                    DocumentReviewStatus::ReplacementRequested,
-                ])
                 ->orderByDesc('id')
                 ->limit(20)
                 ->get()

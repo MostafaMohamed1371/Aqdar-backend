@@ -9,6 +9,12 @@ use App\Modules\Listing\Http\Controllers\SellerFileController;
 use App\Modules\Listing\Http\Controllers\SellerListingController;
 use Illuminate\Support\Facades\Route;
 
+Route::get('my/listings/{listing}/media/{media}/preview', [SellerFileController::class, 'previewMedia'])
+    ->middleware(['signed', 'throttle:api'])
+    ->whereNumber('listing')
+    ->whereNumber('media')
+    ->name('my.listings.media.preview');
+
 Route::middleware(['optional.sanctum', 'throttle:search'])->group(function (): void {
     Route::get('listings/counts', [PublicListingController::class, 'counts']);
     Route::get('listings/compare', [PublicListingController::class, 'compare']);

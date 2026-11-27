@@ -41,6 +41,26 @@ class PublicMediaUrl
         return Storage::disk('public_media')->url($path);
     }
 
+    /** True when image URLs would point at localhost and phones usually cannot open them. */
+    public static function mobileWouldHitLoopback(): bool
+    {
+        $configured = config('aqdar.public_media_base_url');
+        if (filled($configured)) {
+            $host = parse_url((string) $configured, PHP_URL_HOST);
+
+            return filled($host) && self::isLoopbackHost((string) $host);
+        }
+
+        $request = request();
+        if ($request instanceof Request && filled($request->getHttpHost()) && ! self::isLoopbackHost($request->getHost())) {
+            return false;
+        }
+
+        $appHost = parse_url((string) config('app.url'), PHP_URL_HOST);
+
+        return ! filled($appHost) || self::isLoopbackHost((string) $appHost);
+    }
+
     private static function isLoopbackHost(string $host): bool
     {
         $host = strtolower($host);

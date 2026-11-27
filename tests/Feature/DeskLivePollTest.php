@@ -28,6 +28,7 @@ class DeskLivePollTest extends TestCase
             ->assertJsonPath('data.listings.0.public_code', $newer->public_code)
             ->assertJsonPath('data.listings.0.url', route('dashboard.listings.show', $newer))
             ->assertJsonPath('data.needs.listings_in_review', 2)
+            ->assertJsonPath('data.cursors.listings', $newer->id)
             ->assertJsonStructure([
                 'data' => [
                     'listings',
@@ -35,8 +36,10 @@ class DeskLivePollTest extends TestCase
                     'requests',
                     'cases',
                     'documents',
+                    'media',
                     'badges' => ['ADM-02', 'ADM-03'],
                     'needs' => ['listings_in_review', 'media_pending'],
+                    'cursors' => ['listings', 'media', 'inbox'],
                     'inbox' => ['unread_count', 'items'],
                 ],
             ]);
@@ -44,7 +47,7 @@ class DeskLivePollTest extends TestCase
         $this->get(route('dashboard.listings.index'))
             ->assertOk()
             ->assertSee('data-live-table="listings"', false)
-            ->assertSee('data-desk-live=', false);
+            ->assertSee('data-desk-live="/dashboard/live"', false);
     }
 
     public function test_desk_live_returns_staff_inbox_items_for_bell_without_refresh(): void

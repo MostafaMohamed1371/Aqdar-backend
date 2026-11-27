@@ -5,6 +5,7 @@ namespace App\Modules\Listing\Http\Resources;
 use App\Core\Enums\ListingStatus;
 use App\Modules\Listing\Http\Resources\Concerns\MapsCatalog;
 use App\Modules\Listing\Models\Listing;
+use App\Modules\User\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -62,6 +63,11 @@ class OwnerListingResource extends JsonResource
             'documents_meta' => $this->documents_meta ?? [],
             'documents' => ListingDocumentResource::collection($this->whenLoaded('documents')),
             'media' => ListingMediaResource::collection($this->whenLoaded('media')),
+            // Same shape as public listings so mobile can bind one gallery widget.
+            'photos' => $this->when(
+                $this->relationLoaded('media'),
+                fn () => $this->ownerPhotos($request),
+            ),
             'contact_flagged' => $this->contact_flagged,
             'contact_flag_reason' => $this->contact_flag_reason,
             'consent_at' => $this->consent_at,
@@ -132,6 +138,34 @@ class OwnerListingResource extends JsonResource
     private function money(mixed $value): ?float
     {
         return $value === null ? null : (float) $value;
+    }
+
+    /** @return list<array<string, mixed>> */
+    private function ownerPhotos(Request $request): array
+    {
+        /** @var User|null $viewer */
+        $viewer = $request->user();
+
+        return $this->media
+            ->sortBy('sort_order')
+            ->values()
+            ->map(function ($media) use ($viewer) {
+                $url = $media->displayUrl($viewer);
+
+                return [
+                    'id' => $media->id,
+                    'sort_order' => $media->sort_order,
+                    'kind' => $media->isVideo() ? 'video' : 'photo',
+                    'url' => $url,
+                    'mime' => $media->mime,
+                    'width' => $media->width,
+                    'height' => $media->height,
+                    'moderation_status' => $media->moderation_status?->value,
+                ];
+            })
+            ->filter(fn (array $row) => filled($row['url']))
+            ->values()
+            ->all();
     }
 
     /** @return array{version: int, payload: array<string, mixed>}|null */

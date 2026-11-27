@@ -15,6 +15,8 @@ use App\Modules\Listing\Services\ListingFileService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Support\Facades\Storage;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class SellerFileController extends BaseController
 {
@@ -70,6 +72,26 @@ class SellerFileController extends BaseController
     {
         return ListingDocumentResource::collection(
             $this->files->ownerDocuments($request->user()),
+        );
+    }
+
+    /**
+     * Short-lived signed stream of a private original so the seller gallery can render
+     * pending photos/videos before staff approval (public gallery still waits for approve).
+     */
+    public function previewMedia(Request $request, Listing $listing, ListingMedia $media): StreamedResponse
+    {
+        abort_unless((int) $media->listing_id === (int) $listing->id, 404);
+        abort_unless(filled($media->original_path), 404);
+        abort_unless(Storage::disk($media->original_disk)->exists($media->original_path), 404);
+
+        return Storage::disk($media->original_disk)->response(
+            $media->original_path,
+            null,
+            [
+                'Content-Type' => $media->mime ?: 'application/octet-stream',
+                'Cache-Control' => 'private, max-age=300',
+            ],
         );
     }
 

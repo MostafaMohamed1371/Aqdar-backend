@@ -229,7 +229,15 @@ class MasterDataService
 
     private function storeBannerImage(UploadedFile $image): string
     {
-        return $image->store('banners', 'public_media');
+        $path = $image->store('banners', 'public_media');
+
+        if (! is_string($path) || $path === '' || ! Storage::disk('public_media')->exists($path)) {
+            throw ValidationException::withMessages([
+                'image' => [__('aqdar.catalog.image_store_failed')],
+            ]);
+        }
+
+        return $path;
     }
 
     private function deleteBannerImage(?string $path): void

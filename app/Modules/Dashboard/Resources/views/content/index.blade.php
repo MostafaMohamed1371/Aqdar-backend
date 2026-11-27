@@ -138,6 +138,12 @@
 
     @if (auth()->user()?->can('manage_catalog') && (in_array($tab, ['banners', 'faqs', 'support', 'onboarding', 'seller_guide'], true) || $tab === 'templates'))
         @if ($tab !== 'templates' && $tab !== 'push')
+            @if (in_array($tab, ['banners', 'onboarding'], true) && \App\Core\Support\PublicMediaUrl::mobileWouldHitLoopback())
+                <div class="card" style="margin-bottom:12px;border-color:var(--warn, #c9a227);background:var(--gold-soft, #f6e7c8)">
+                    <p style="margin:12px 14px">{{ __('aqdar.catalog.media_url_loopback_warn') }}</p>
+                    <p class="tiny en" style="margin:0 14px 12px">APP_URL={{ config('app.url') }} · AQDAR_PUBLIC_MEDIA_URL={{ config('aqdar.public_media_base_url') ?: '(empty)' }}</p>
+                </div>
+            @endif
             <form id="add-content" method="POST" action="{{ route('dashboard.content.store', ['tab' => $tab]) }}" class="tw" style="padding:16px;margin-bottom:16px" enctype="multipart/form-data">
                 @csrf
                 <div class="toolbar" style="flex-wrap:wrap">

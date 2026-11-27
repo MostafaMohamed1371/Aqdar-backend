@@ -61,8 +61,9 @@ return [
             'root' => storage_path('app/private/media'),
             'visibility' => 'private',
             'serve' => false,
-            'throw' => false,
-            'report' => false,
+            // Fail loudly — silent false from put() left DB paths pointing at missing files.
+            'throw' => true,
+            'report' => true,
         ],
 
         'public_media' => [
@@ -70,8 +71,8 @@ return [
             'root' => storage_path('app/public/media'),
             'url' => rtrim(env('APP_URL', 'http://localhost'), '/').'/storage/media',
             'visibility' => 'public',
-            'throw' => false,
-            'report' => false,
+            'throw' => true,
+            'report' => true,
         ],
 
         's3' => [

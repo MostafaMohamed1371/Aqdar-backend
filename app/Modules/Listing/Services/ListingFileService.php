@@ -8,6 +8,7 @@ use App\Core\Enums\DocumentType;
 use App\Core\Enums\MediaModerationStatus;
 use App\Core\Enums\Permission;
 use App\Core\Uploads\UploadScanner;
+use App\Modules\Dashboard\Support\DeskLiveRow;
 use App\Modules\Dashboard\Support\DeskRealtime;
 use App\Modules\Listing\Exceptions\RequiredDocumentsException;
 use App\Modules\Listing\Models\Listing;
@@ -65,6 +66,25 @@ class ListingFileService
             'version' => $version,
         ]);
 
+        $listing->loadMissing(['governorate', 'developer']);
+        $document->loadMissing('listing');
+        DeskRealtime::push('documents', 'document_uploaded', (int) $document->id, meta: [
+            'listing_id' => $listing->id,
+            'public_code' => $listing->public_code,
+            'status' => $document->review_status?->value,
+            'row' => DeskLiveRow::document($document),
+        ]);
+        $this->notifications->notifyStaffQueue(
+            'staff_new_submission',
+            [
+                'listing_code' => $listing->public_code,
+                'listing_id' => $listing->id,
+            ],
+            Permission::ApproveListing,
+            false,
+            'staff_document_uploaded:'.$document->id,
+        );
+
         return $document;
     }
 
@@ -99,6 +119,12 @@ class ListingFileService
         $path = 'listings/'.$listing->id.'/orig-'.Str::random(12).'.'.$extension;
         Storage::disk($disk)->put($path, $bytes);
 
+        if (! Storage::disk($disk)->exists($path)) {
+            throw ValidationException::withMessages([
+                'file' => [__('aqdar.listings.media_store_failed')],
+            ]);
+        }
+
         $media = $listing->media()->create([
             'sort_order' => ((int) $listing->media()->max('sort_order')) + 1,
             'original_disk' => $disk,
@@ -125,6 +151,7 @@ class ListingFileService
             'listing_id' => $listing->id,
             'public_code' => $listing->public_code,
             'status' => $media->moderation_status?->value,
+            'kind' => 'media',
         ]);
         $this->notifications->notifyStaffQueue(
             'staff_new_submission',
@@ -314,13 +341,26 @@ class ListingFileService
         }
 
         if (! Storage::disk($media->original_disk)->exists($media->original_path)) {
+            report(new \RuntimeException(
+                'Approved listing media #'.$media->id.' has no original file on disk ['.$media->original_disk.':'.$media->original_path.'].'
+            ));
+
             return $media;
         }
 
         $bytes = Storage::disk($media->original_disk)->get($media->original_path);
         $extension = pathinfo((string) $media->original_path, PATHINFO_EXTENSION) ?: 'jpg';
         $publicPath = 'listings/'.$media->listing_id.'/'.$media->id.'.'.$extension;
-        Storage::disk((string) config('aqdar.files.media.public_disk'))->put($publicPath, $bytes);
+        $publicDisk = (string) config('aqdar.files.media.public_disk');
+        Storage::disk($publicDisk)->put($publicPath, $bytes);
+
+        if (! Storage::disk($publicDisk)->exists($publicPath)) {
+            report(new \RuntimeException(
+                'Failed to publish listing media #'.$media->id.' to public disk ['.$publicDisk.':'.$publicPath.'].'
+            ));
+
+            return $media;
+        }
 
         $media->forceFill(['public_path' => $publicPath])->save();
 

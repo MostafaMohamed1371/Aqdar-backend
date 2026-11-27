@@ -6,10 +6,12 @@ use App\Core\Enums\MediaModerationStatus;
 use App\Core\Support\PublicMediaUrl;
 use App\Modules\Listing\Database\Factories\ListingMediaFactory;
 use App\Modules\Staff\Models\StaffUser;
+use App\Modules\User\Models\User;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Facades\URL;
 
 #[Fillable([
     'listing_id',
@@ -86,5 +88,48 @@ class ListingMedia extends Model
         }
 
         return PublicMediaUrl::for($this->public_path);
+    }
+
+    /**
+     * URL the seller (or public gallery) can load in an image/video widget.
+     * Pending uploads use a short-lived signed owner preview — not the private disk path.
+     */
+    public function displayUrl(?User $viewer = null): ?string
+    {
+        if ($public = $this->publicUrl()) {
+            return $public;
+        }
+
+        if ($viewer === null || ! filled($this->original_path)) {
+            return null;
+        }
+
+        $this->loadMissing('listing');
+        if ((int) $this->listing?->user_id !== (int) $viewer->id) {
+            return null;
+        }
+
+        return $this->ownerPreviewUrl();
+    }
+
+    public function ownerPreviewUrl(): ?string
+    {
+        if (! filled($this->original_path) || $this->listing_id === null || $this->id === null) {
+            return null;
+        }
+
+        $path = URL::temporarySignedRoute(
+            'my.listings.media.preview',
+            now()->addHours(6),
+            ['listing' => $this->listing_id, 'media' => $this->id],
+            absolute: false,
+        );
+
+        $request = request();
+        if ($request && filled($request->getHttpHost())) {
+            return $request->getSchemeAndHttpHost().$path;
+        }
+
+        return rtrim((string) config('app.url'), '/').$path;
     }
 }

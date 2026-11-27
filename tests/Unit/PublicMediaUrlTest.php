@@ -53,4 +53,20 @@ class PublicMediaUrlTest extends TestCase
             PublicMediaUrl::for('banners/hero.jpg'),
         );
     }
+
+    #[Test]
+    public function it_detects_when_mobile_would_hit_loopback(): void
+    {
+        config([
+            'aqdar.public_media_base_url' => null,
+            'app.url' => 'http://localhost:8000',
+        ]);
+        $this->app->instance('request', Request::create('http://127.0.0.1:8000/api/v1/content/banners', 'GET'));
+
+        $this->assertTrue(PublicMediaUrl::mobileWouldHitLoopback());
+
+        config(['aqdar.public_media_base_url' => 'https://cdn.example.com/storage/media']);
+
+        $this->assertFalse(PublicMediaUrl::mobileWouldHitLoopback());
+    }
 }

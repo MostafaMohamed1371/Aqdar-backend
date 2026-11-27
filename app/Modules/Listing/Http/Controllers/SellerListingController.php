@@ -47,6 +47,8 @@ class SellerListingController extends BaseController
             $query->where('status', $status);
         }
 
+        $query->with('media');
+
         return OwnerListingResource::collection(
             $query->paginate(min(max((int) $request->integer('per_page', 15), 1), 50)),
         )->additional(['counts' => $this->statusCounts($request->user()->id)]);

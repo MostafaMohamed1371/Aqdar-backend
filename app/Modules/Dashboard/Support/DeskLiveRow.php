@@ -7,6 +7,7 @@ use App\Modules\Crm\Models\Lead;
 use App\Modules\Crm\Models\TransferCase;
 use App\Modules\Listing\Models\Listing;
 use App\Modules\Listing\Models\ListingDocument;
+use App\Modules\Listing\Models\ListingMedia;
 
 final class DeskLiveRow
 {
@@ -108,9 +109,33 @@ final class DeskLiveRow
             'status' => $status,
             'status_label' => __('aqdar.listings.doc_status.'.$status),
             'status_tone' => 'warn',
+            'kind' => 'document',
             'url' => $document->listing_id
                 ? route('dashboard.documents.show', $document->listing_id)
                 : route('dashboard.documents.index'),
+            'view_label' => __('aqdar.listings.desk.view'),
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public static function media(ListingMedia $media): array
+    {
+        $status = $media->moderation_status?->value ?? 'pending';
+
+        return [
+            'id' => (int) $media->id,
+            'public_code' => $media->listing?->public_code ?? '—',
+            'title' => $media->isVideo() ? 'video' : 'photo',
+            'status' => $status,
+            'status_label' => __('aqdar.listings.media_status.'.$status),
+            'status_tone' => 'warn',
+            'kind' => 'media',
+            'listing_id' => (int) $media->listing_id,
+            'url' => $media->listing_id
+                ? route('dashboard.listings.show', $media->listing_id)
+                : route('dashboard.listings.index'),
             'view_label' => __('aqdar.listings.desk.view'),
         ];
     }
